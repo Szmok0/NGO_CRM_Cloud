@@ -12,6 +12,7 @@ import { registerSuccess } from './auth/lockout'
 import { disableUser, inviteUser, listUsers, resetUser, setUserRole } from './auth/users'
 import type { AuthOptions } from './auth/options'
 import { getSettings } from './services/settings'
+import * as activities from './services/activities'
 import * as contacts from './services/contacts'
 import type { Actor } from './services/common'
 import { SESSION_COOKIE, clearSessionCookie, createSession, revokeAllSessions, revokeSession, setSessionCookie } from './auth/sessions'
@@ -122,6 +123,8 @@ const handlers: Handlers = {
   'consents.add': (p, ctx) => contacts.addConsent(ctx.db, p, actor(ctx)),
   'consents.withdraw': (p, ctx) => contacts.withdrawConsent(ctx.db, p, actor(ctx)),
   'consents.delete': (p, ctx) => contacts.deleteConsent(ctx.db, p, actor(ctx)),
+  'activities.add': (p, ctx) => activities.addActivity(ctx.db, p, actor(ctx)),
+  'activities.delete': (p, ctx) => activities.deleteActivity(ctx.db, p, actor(ctx)),
   'search.global': ({ q }, { db }) => contacts.searchGlobal(db, q)
 }
 

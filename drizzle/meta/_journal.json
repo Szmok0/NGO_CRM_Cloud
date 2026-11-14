@@ -50,6 +50,13 @@
       "when": 1794697766311,
       "tag": "0006_aromatic_tyrannus",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "5",
+      "when": 1794698780670,
+      "tag": "0007_charming_pet_avengers",
+      "breakpoints": true
     }
   ]
 }

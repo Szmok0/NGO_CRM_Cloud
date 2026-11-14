@@ -226,3 +226,11 @@ Nie aktualizuj Sejfu bez zgody MOC.
   - bez eksportu CSV listy: eksport danych osobowych ma mieć ostrzeżenie i wpis w dzienniku dostępu (ZADANIE_03);
   - na karcie nie ma jeszcze szybkich akcji Notatka / Kontakt / Wsparcie / Zadanie, udziału w działaniach ani dokumentów (kroki 3–5, załączniki w ZADANIU_03).
 - Drobiazg z desktopu (zostawiony): wyszukiwarka przez ułamek sekundy pokazuje „Nic nie znaleziono”, zanim przyjdą wyniki.
+
+### Krok 3, etap a: oś aktywności — serwer (2026-11-15)
+- Tabele (migracja `0007`): `activities` (`occurredAt` jako `datetime(3)`, `actionId` bez klucza obcego do kroku 4), `activity_contacts` (klucze obce do `activities` i `contacts`).
+- `server/services/activities.ts`: `addActivity` (osoby muszą istnieć i nie być usunięte; notatka bez kanału i czasu, kanał tylko przy kontakcie, forma tylko przy wsparciu), `deleteActivity` (oznaczenie; wpisu systemowego nie da się usunąć), `loadActivities` (autor, osoby jednym złączeniem z tożsamością), `addSystemActivity`.
+- Założenie osoby dopisuje wpis systemowy `contact_created` (jak w desktopie). Karta osoby (`contacts.get`) zwraca oś.
+- RPC: `activities.add`, `activities.delete` (`admin`, `staff`). Powiązanie wpisu z działaniem (`actionId`) dojdzie w kroku 4.
+- Testy: 5 nowych (wpis systemowy, wpis z kilkoma osobami, pola zależne od rodzaju, usuwanie i blokada wpisu systemowego, osoba usunięta/nieistniejąca). Razem 392.
+- **Odstępstwo od opisu kroku:** test „wpis systemowy przy zmianie roli” zastąpiony testem wpisu przy założeniu osoby — desktop nie zapisuje zmian ról na osi, a to zadanie przenosi zachowanie desktopu.

@@ -140,6 +140,29 @@ export const apiMethods = {
   },
   'consents.withdraw': { input: z.object({ id: uuid, version, at: day }), roles: WRITE },
   'consents.delete': { input: ref, roles: WRITE },
+  // --- oś aktywności (krok 3; powiązanie z działaniem dojdzie w kroku 4) ---
+  'activities.add': {
+    input: z.object({
+      type: z.enum(['note', 'contact', 'support']),
+      channel: z
+        .enum(d.CHANNELS)
+        .nullish()
+        .transform((v) => v ?? null),
+      form: short(255),
+      durationMinutes: z
+        .number()
+        .int()
+        .min(0)
+        .max(24 * 60)
+        .nullish()
+        .transform((v) => v ?? null),
+      occurredAt: z.iso.datetime(),
+      content: z.string().trim().min(1).max(20_000),
+      contactIds: z.array(uuid).min(1).max(200)
+    }),
+    roles: WRITE
+  },
+  'activities.delete': { input: ref, roles: WRITE },
   /** Wyszukiwarka w pasku górnym (od 2 znaków; po tożsamości, nie po danych wrażliwych). */
   'search.global': { input: z.object({ q: z.string().max(200) }), roles: ALL }
 } satisfies Record<string, MethodSpec>
@@ -208,6 +231,8 @@ export interface ApiOutputs {
   'consents.add': void
   'consents.withdraw': void
   'consents.delete': void
+  'activities.add': void
+  'activities.delete': void
   'search.global': T.SearchHit[]
 }
 

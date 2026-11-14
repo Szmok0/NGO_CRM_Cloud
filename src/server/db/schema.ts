@@ -263,3 +263,42 @@ export const consents = mysqlTable(
   },
   (t) => [index('consents_contact_idx').on(t.contactId)]
 )
+
+// ---------- Oś aktywności (ZADANIE_02, krok 3) ----------
+
+/**
+ * Wpis na osi: notatka, kontakt, wsparcie albo wpis systemowy (`content` = JSON zdarzenia, tekst składa klient).
+ * `actionId` dostanie klucz obcy do `actions` razem z tą tabelą (krok 4).
+ */
+export const activities = mysqlTable(
+  'activities',
+  {
+    ...domainColumns(),
+    /** 'note' | 'contact' | 'support' | 'system' */
+    type: varchar('type', { length: 16 }).notNull(),
+    /** 'phone' | 'email' | 'meeting' | 'other' (tylko kontakt) */
+    channel: varchar('channel', { length: 16 }),
+    /** forma wsparcia (tylko wsparcie) */
+    form: varchar('form', { length: 255 }),
+    durationMinutes: int('duration_minutes'),
+    occurredAt: datetime('occurred_at', { mode: 'date', fsp: 3 }).notNull(),
+    content: text('content').notNull(),
+    actionId: char('action_id', { length: 36 })
+  },
+  (t) => [index('activities_action_idx').on(t.actionId), index('activities_occurred_idx').on(t.occurredAt)]
+)
+
+/** Osoby, których dotyczy wpis. */
+export const activityContacts = mysqlTable(
+  'activity_contacts',
+  {
+    ...domainColumns(),
+    activityId: char('activity_id', { length: 36 })
+      .notNull()
+      .references(() => activities.id, { onDelete: 'restrict' }),
+    contactId: char('contact_id', { length: 36 })
+      .notNull()
+      .references(() => contacts.id, contactFk())
+  },
+  (t) => [index('activity_contacts_activity_idx').on(t.activityId), index('activity_contacts_contact_idx').on(t.contactId)]
+)

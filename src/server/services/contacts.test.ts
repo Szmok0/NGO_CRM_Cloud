@@ -2,8 +2,9 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { inArray, sql } from 'drizzle-orm'
 import type { Db } from '../db/connection'
-import { changeLog, consents, contactIdentity, contactRoles, contacts, relationships } from '../db/schema'
+import { activities, activityContacts, changeLog, consents, contactIdentity, contactRoles, contacts, relationships } from '../db/schema'
 import { openTestDb } from '../testDb'
+import * as act from './activities'
 import * as svc from './contacts'
 import type { Actor } from './common'
 
@@ -12,9 +13,11 @@ let close: () => Promise<void>
 const USER = '00000000-0000-4000-8000-0000000000c1'
 const NOW = new Date('2026-11-15T10:00:00.000Z')
 const actor: Actor = { userId: USER, now: NOW }
-const ENTITIES = ['contacts', 'contact_identity', 'contact_roles', 'relationships', 'consents']
+const ENTITIES = ['contacts', 'contact_identity', 'contact_roles', 'relationships', 'consents', 'activities', 'activity_contacts']
 
 async function cleanup() {
+  await db.delete(activityContacts)
+  await db.delete(activities)
   await db.delete(consents)
   await db.delete(relationships)
   await db.delete(contactRoles)
@@ -133,5 +136,54 @@ describe('osoby i instytucje', () => {
     await person('Lena', 'Szukana', { email: 'lena@example.org' })
     expect(await svc.searchGlobal(db, 'l')).toEqual([])
     expect(await svc.searchGlobal(db, 'szuk')).toMatchObject([{ type: 'person', label: 'Lena Szukana', sub: 'lena@example.org' }])
+  })
+})
+
+describe('oś aktywności', () => {
+  const entry = (contactIds: string[], extra: Partial<Parameters<typeof act.addActivity>[1]> = {}) =>
+    act.addActivity(db, { type: 'note', channel: null, form: null, durationMinutes: null, occurredAt: '2026-11-14T09:00:00.000Z', content: 'Rozmowa testowa', contactIds, ...extra }, actor)
+
+  it('nowa osoba dostaje wpis systemowy „contact_created”', async () => {
+    const p = await person('Maria', 'Osiowa')
+    const [a] = (await svc.getContact(db, p.id)).activities
+    expect(a).toMatchObject({ type: 'system', contacts: [{ id: p.id, label: 'Maria Osiowa' }] })
+    expect(JSON.parse(a!.content)).toEqual({ event: 'contact_created' })
+  })
+
+  it('wpis z kilkoma osobami widać na osi każdej z nich; kolejność od najnowszego', async () => {
+    const a = await person('Nina', 'Pierwsza')
+    const b = await person('Ola', 'Druga')
+    await entry([a.id, b.id], { type: 'contact', channel: 'phone', durationMinutes: 15, form: 'pominięte przy kontakcie' })
+    const onA = (await svc.getContact(db, a.id)).activities
+    expect(onA.map((x) => x.type)).toEqual(['system', 'contact'])
+    expect(onA[1]).toMatchObject({ channel: 'phone', durationMinutes: 15, form: null, contacts: [{ label: 'Nina Pierwsza' }, { label: 'Ola Druga' }] })
+    expect((await svc.getContact(db, b.id)).activities.map((x) => x.type)).toContain('contact')
+  })
+
+  it('notatka nie ma kanału ani czasu; wsparcie ma formę i czas', async () => {
+    const p = await person('Paula', 'Wsparta')
+    await entry([p.id], { channel: 'email', durationMinutes: 30 })
+    await entry([p.id], { type: 'support', form: 'doradztwo', durationMinutes: 60, occurredAt: '2026-11-15T08:00:00.000Z' })
+    const [support, note] = (await svc.getContact(db, p.id)).activities.filter((x) => x.type !== 'system')
+    expect(support).toMatchObject({ type: 'support', form: 'doradztwo', durationMinutes: 60 })
+    expect(note).toMatchObject({ type: 'note', channel: null, durationMinutes: null })
+  })
+
+  it('usunięcie wpisu: znika z osi; wpisu systemowego nie da się usunąć', async () => {
+    const p = await person('Renata', 'Kasująca')
+    await entry([p.id])
+    const list = (await svc.getContact(db, p.id)).activities
+    const note = list.find((x) => x.type === 'note')!
+    const system = list.find((x) => x.type === 'system')!
+    await act.deleteActivity(db, { id: note.id, version: note.version }, actor)
+    await expect(act.deleteActivity(db, { id: system.id, version: system.version }, actor)).rejects.toMatchObject({ code: 'VALIDATION' })
+    expect((await svc.getContact(db, p.id)).activities.map((x) => x.type)).toEqual(['system'])
+  })
+
+  it('wpis dla usuniętej albo nieistniejącej osoby → NOT_FOUND', async () => {
+    const p = await person('Sara', 'Usunięta')
+    await svc.deleteContact(db, { id: p.id, version: 1 }, actor)
+    await expect(entry([p.id])).rejects.toMatchObject({ code: 'NOT_FOUND' })
+    await expect(entry(['00000000-0000-4000-8000-00000000ffff'])).rejects.toMatchObject({ code: 'NOT_FOUND' })
   })
 })

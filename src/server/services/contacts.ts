@@ -1,6 +1,6 @@
 // Osoby i instytucje, role, powiązania, zgody (wzór: desktopowe src/main/services/contacts.ts).
 // Różnice wobec desktopu: tożsamość w osobnej tabeli (contact_identity), zapytania asynchroniczne, `version` przy każdym zapisie.
-// Wpis systemowy „dodano osobę” na osi aktywności dojdzie z tabelą activities (krok 3).
+// Przy założeniu osoby wpis systemowy „Dodano do bazy” na osi aktywności (jak w desktopie).
 import { and, eq, isNull, or } from 'drizzle-orm'
 import type { ApiParsed } from '@shared/api'
 import type { ConsentType, ContactKind, RelationshipType, Role } from '@shared/domain'
@@ -9,6 +9,7 @@ import { displayName, isPossibleDuplicate, matchesQuery } from '@shared/text'
 import type { Consent, ContactDetail, ContactListItem, ContactRole, IdentityFields, SearchHit } from '@shared/types'
 import type { Db } from '../db/connection'
 import { consents, contactIdentity, contactRoles, contacts, relationships } from '../db/schema'
+import { addSystemActivity, loadActivities } from './activities'
 import { contactRef, contactsById, meta, repoFor, today, type Actor } from './common'
 
 /** Aktywne role (bez daty końca albo z końcem dziś lub później) dla każdego kontaktu. */
@@ -80,6 +81,7 @@ export async function createContact(db: Db, input: ApiParsed<'contacts.create'>,
     const c = await repo.insert(contacts, { kind, tags })
     await repo.insert(contactIdentity, { contactId: c.id, ...identity })
     for (const role of roles) await repo.insert(contactRoles, { contactId: c.id, role, since: today(actor.now) })
+    await addSystemActivity(repo, actor.now, { event: 'contact_created' }, [c.id])
     return { id: c.id }
   })
 }
@@ -137,7 +139,8 @@ export async function getContact(db: Db, id: string): Promise<ContactDetail> {
           note: c.note
         })
       )
-      .sort((a, b) => b.givenAt.localeCompare(a.givenAt))
+      .sort((a, b) => b.givenAt.localeCompare(a.givenAt)),
+    activities: await loadActivities(db, { contactId: id }, all)
   }
 }
 

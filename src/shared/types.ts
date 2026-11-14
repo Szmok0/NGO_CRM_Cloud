@@ -1,6 +1,6 @@
 // Typy wyników API (wzór: desktopowe src/shared/types.ts). W odróżnieniu od desktopu nie wynikają ze schematu bazy:
 // znaczniki czasu przychodzą z serwera jako ISO 8601 (tekst), daty jako RRRR-MM-DD, a tożsamość osoby leży w osobnej tabeli.
-import type { ConsentType, ContactKind, RelationshipType, Role } from './domain'
+import type { ActivityType, Channel, ConsentType, ContactKind, RelationshipType, Role } from './domain'
 
 /** Pola techniczne rekordu widoczne dla klienta (`version` odsyłany przy zapisie: blokada optymistyczna). */
 export interface RecordMeta {
@@ -72,13 +72,29 @@ export interface RelationshipView {
   other: ContactRef
 }
 
-/** Karta osoby. Udział w działaniach, zadania i oś aktywności dochodzą w krokach 3–5 ZADANIA_02. */
+/** Wpis na osi aktywności z autorem i osobami. */
+export interface ActivityView extends RecordMeta {
+  type: ActivityType
+  channel: Channel | null
+  form: string | null
+  durationMinutes: number | null
+  occurredAt: string
+  /** treść; przy wpisie systemowym JSON zdarzenia (tekst składa klient) */
+  content: string
+  actionId: string | null
+  authorName: string
+  actionTitle: string | null
+  contacts: ContactRef[]
+}
+
+/** Karta osoby. Udział w działaniach i zadania dochodzą w krokach 4–5 ZADANIA_02. */
 export interface ContactDetail {
   contact: Contact
   label: string
   roles: ContactRole[]
   relationships: RelationshipView[]
   consents: Consent[]
+  activities: ActivityView[]
 }
 
 export interface SearchHit {
