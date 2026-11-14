@@ -1,6 +1,6 @@
 # ZADANIE 01 — Fundament: próbne wdrożenie, logowanie, klucze, role
 
-Status: w realizacji, krok 5 zrobiony (otwarte: limit IP a nagłówek X-Forwarded-For, zob. „Wynik”), następny krok 6 (decyzje D1–D6 zatwierdzone przez MOC 2026-11-14; krok 1 działa na Hostingerze, zob. „Wynik”) · Kontekst: `CLAUDE.md`, `NGO_CRM_CLOUD_KONCEPCJA.md` (4.1–4.3, 4.7), `NGO_CRM_CLOUD_BEZPIECZENSTWO.md` (rozdziały 4 i 5), `NGO_CRM_CLOUD_PROCESY_I_MODEL_DANYCH.md` (2.2) · Wzór: iV_CRM `ZADANIE_02_logowanie_i_wdrozenie.md` i `lib/auth/`
+Status: kroki 0–8 zrobione i wdrożone (2026-11-14). Do zamknięcia zostały czynności MOC z listy „Do zrobienia przez MOC” w „Wyniku” (m.in. kreator na produkcji) i akceptacja (decyzje D1–D6 zatwierdzone przez MOC 2026-11-14; krok 1 działa na Hostingerze, zob. „Wynik”) · Kontekst: `CLAUDE.md`, `NGO_CRM_CLOUD_KONCEPCJA.md` (4.1–4.3, 4.7), `NGO_CRM_CLOUD_BEZPIECZENSTWO.md` (rozdziały 4 i 5), `NGO_CRM_CLOUD_PROCESY_I_MODEL_DANYCH.md` (2.2) · Wzór: iV_CRM `ZADANIE_02_logowanie_i_wdrozenie.md` i `lib/auth/`
 
 ## Cel
 Pusta, ale **bezpieczna** aplikacja działa na Hostingerze: organizacja przechodzi kreator pierwszego uruchomienia, zakłada administratora z 2FA i dostaje klucz odzyskiwania do wydruku; administrator zaprasza kolejne osoby. Hasło nie trafia do serwera. Każda metoda API ma przypisane role i test to sprawdza. Na tym fundamencie ZADANIE_02 przeniesie rdzeń z desktopu.
@@ -194,4 +194,51 @@ Zrobiony etapami a)–e); decyzje bezpieczeństwa 1–26 są przy kroku 5 wyżej
 - Na Hostingerze: scrypt z pełnymi parametrami działa (ok. 0,5 s na logowanie); produkcja nie ma żadnego konta (pierwsze założy kreator, krok 6).
 - Poprawka przy okazji: `npm run dev` nie startował od kroku 4 (`tsx` nie znał aliasu `@shared`); `dev:server` dostał `--tsconfig tsconfig.server.json`.
 - **Otwarte (do decyzji MOC): limit IP da się ominąć nagłówkiem `X-Forwarded-For`.** Test na produkcji: 22 nieudane próby z różnymi podrobionymi adresami w nagłówku nie wywołały blokady; bez nagłówka blokada zadziałała po 20 próbach. Przyczyna: `trustProxy: true` ufa całemu nagłówkowi, a LiteSpeed dopisuje prawdziwy adres na końcu, zamiast nadpisać nagłówek. Blokada konta (5 prób) działa niezależnie. Propozycja: `trustProxy: 1` (adres dopisany przez LiteSpeed) i ponowny test.
-- Nie zrobione z opisu kroku 5: `settings` i `invitations` (powstaną z krokami 6 i 7, które ich używają).
+- Nie zrobione z opisu kroku 5: `settings` i `invitations` (powstały w krokach 6 i 7).
+- Limit IP a `X-Forwarded-For`: naprawione w kroku 6 (`trustLocalProxy`), potwierdzone na produkcji.
+
+### Krok 6: kreator pierwszego uruchomienia (2026-11-14)
+- Serwer: `auth/setup.ts`, `auth/setupRoutes.ts`, `shared/setup.ts`, tabela `settings` (migracja `0004`), profile w `shared/modules.ts`. Decyzje 1–5 przy opisie kroku 6.
+- Ekrany: `screens/SetupWizard.tsx` (token i sprawdzenie serwera → organizacja → administrator → klucz odzyskiwania z potwierdzeniem 4 ostatnich znaków → 2FA → lista kontrolna). Kolejność zmieniona względem planu: 2FA jest ostatnie, bo kod TOTP musi być świeży w chwili zapisu.
+- Brak `APP_SECRET`: strona podpowiada losową wartość wygenerowaną w przeglądarce.
+- Testy: `setup.test.ts` (15). W przeglądarce lokalnie, na zbudowanej aplikacji pod CSP: cały kreator, potem logowanie nowym kontem z odblokowanym kluczem. Nie sprawdzono: okna wydruku (przycisk „Drukuj”).
+- Usterka złapana testem: przy dwóch równoczesnych kreatorach przegrany dostawał 500 zamiast odmowy (dane były poprawne).
+
+### Krok 7: użytkownicy (2026-11-14)
+- Serwer: `auth/users.ts`, `auth/inviteRoutes.ts`, `shared/invite.ts`, tabela `invitations` (migracja `0005`); metody `users.list/invite/setRole/disable/reset` tylko dla administratora.
+- Konto powstaje w chwili zaproszenia (status `invited`); link `#zaproszenie=TOKEN` (część po `#` nie trafia do serwera ani jego logów), ważny 72 h, w bazie tylko skrót tokenu. Imię podaje zaproszona osoba.
+- Reset konta = to samo co ponowne zaproszenie i przywrócenie wyłączonego konta: hasło, 2FA, klucze, sesje i sloty znikają, osoba dostaje nowy link.
+- Ostatniego aktywnego administratora nie da się wyłączyć, zdegradować ani zresetować (także przy równoczesnych żądaniach).
+- Ekrany: `screens/SettingsScreen.tsx` (konto i użytkownicy), `screens/InviteScreen.tsx`.
+- Testy: `users.test.ts` (20). W przeglądarce: zaproszenie, przyjęcie z linku, lista. Nie klikano w przeglądarce: zmiany roli, wyłączenia i resetu (okna potwierdzenia); mają testy serwera.
+
+### Krok 8: wygląd (2026-11-14)
+- `app/Layout.tsx` (menu boczne zwijane poniżej 1280 px, moduły z ZADANIA_02 wyszarzone „wkrótce”), kolory i promienie z desktopu w `styles.css`, krój Inter z plików w `assets/fonts` (skopiowane z pakietu desktopu, licencja OFL obok).
+- Biblioteki z D2 w dokładnych wersjach: `lucide-react` 1.71.0, `clsx` 2.1.1, `tailwind-merge` 3.7.0.
+- **Do ZADANIA_02:** desktop używa atrybutów `style` (np. `Avatar`); CSP je blokuje, więc przy przenoszeniu widoków trzeba je zamieniać na klasy.
+
+### Kryteria akceptacji (stan na 2026-11-14)
+1. `typecheck`, `test` (242), `build` bez błędów — spełnione.
+2. HTTPS na Hostingerze; HTTP przekierowuje hosting (301), a aplikacja bez HTTPS nie obsługuje API — spełnione.
+3. Kreator raz, z poprawnym tokenem — spełnione w testach i lokalnie; **na produkcji do wykonania przez MOC**.
+4. Hasło nie pojawia się w żadnym żądaniu — z konstrukcji i testów (`authKey`); **do obejrzenia przez MOC w narzędziach przeglądarki**.
+5. Hasło + TOTP, blokada po 5 próbach — spełnione (testy).
+6. Test uprawnień dla wszystkich metod — spełnione; ręcznie `readonly` → 403 w testach.
+7. Zaproszenie z 2FA; wyłączenie kończy sesję przy następnym żądaniu — spełnione (testy).
+8. Zmiana hasła — spełnione (testy i przeglądarka).
+9. Nagłówki i brak błędów CSP — spełnione (produkcja i przeglądarka).
+10. Komunikat przy starej wersji rekordu — spełnione (`VERSION_CONFLICT` + tekst w `pl.ts`).
+11. Logi bez e-maili i parametrów — spełnione (sprawdzone lokalnie i w panelu).
+12. `npm audit`: 0 w zależnościach produkcyjnych; 4 średnie tylko w `drizzle-kit` (narzędzie deweloperskie, `esbuild` ≤ 0.24.2: dotyczy serwera deweloperskiego esbuild, którego nie uruchamiamy; nie trafia do zbudowanej aplikacji).
+13. Commit i push — na bieżąco, ostatni po kroku 8.
+
+### Do zrobienia przez MOC
+- W panelu Hostingera ustawić `STORAGE_DIR=/home/u161817445/domains/ivory-elk-740131.hostingersite.com/storage`.
+- Przejść kreator na https://ivory-elk-740131.hostingersite.com (token `SETUP_TOKEN` z panelu), wydrukować klucz odzyskiwania, potem usunąć `SETUP_TOKEN` z panelu.
+- Zalogować się raz z telefonu przez sieć komórkową (potwierdzenie osobnych liczników prób dla różnych adresów IP).
+- W narzędziach przeglądarki (zakładka Sieć) obejrzeć logowanie: w żądaniach nie ma hasła.
+
+### Otwarte na później
+- Ustawianie czasu bezczynności (15–120 min) przez administratora: kolumna `idleLogoutMinutes` jest, ekranu nie ma; sesje używają stałych 30 min.
+- Okno wydruku klucza odzyskiwania niesprawdzone w przeglądarce.
+- `scripts/dev-account.ts` poza `typecheck`.
