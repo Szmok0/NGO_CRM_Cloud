@@ -204,4 +204,15 @@ Nie aktualizuj Sejfu bez zgody MOC.
 - 7 ekranów i `Layout` dopasowane do nowych nazw komponentów (wygląd bez zmian, `Panel` w ustawieniach zastąpiony `Card`).
 - `typecheck`, `npm test` (288) i `npm run build` bez błędów.
 - Sprawdzone w przeglądarce na zbudowanej aplikacji (`npm start`, lokalnie): logowanie, konfiguracja 2FA, „Dziś”, ustawienia z listą użytkowników i formularzem zaproszenia, menu zwinięte i rozwinięte. Awatary mają kolory z klas. Konsola bez błędów CSP. Kreatora nie przechodzono ponownie (lokalna baza ma już konto).
-- Usterka złapana w przeglądarce: konto z `npm run dev:account` nie miało ustawień organizacji (zakłada je kreator), więc `settings.get` zwracało 404, a klient pokazywał „Brak połączenia”. `dev:account` zakłada teraz brakujący wiersz `settings` (organizacja próbna, profil „projekty”).
+- Usterka złapana w przeglądarce (poprawiona): konto z `npm run dev:account` nie miało ustawień organizacji (zakłada je kreator), więc `settings.get` zwracało 404, a klient pokazywał „Brak połączenia”. `dev:account` zakłada teraz brakujący wiersz `settings` (organizacja próbna, profil „projekty”).
+
+### Krok 2, etap a: osoby i instytucje — serwer (2026-11-15)
+- Tabele (migracja `0006`): `contacts` (`kind`, `tags`, `anonymizedAt`), `contact_identity` (`contactId` UNIQUE), `contact_roles`, `relationships`, `consents`; klucze obce do `contacts` z `ON DELETE RESTRICT` (D3); daty jako `date`.
+- `shared/types.ts`: typy wyników API pisane wprost (znaczniki czasu jako ISO, kontakt z tożsamością i `identityVersion`), bez wyprowadzania ze schematu bazy.
+- `server/services/common.ts` (aktor, `repoFor`, `meta`, kontakt z tożsamością jednym złączeniem) i `server/services/contacts.ts` przeniesione z desktopu: lista z filtrami i sortowaniem po polsku, tagi, duplikaty, karta osoby (role, powiązania, zgody), tworzenie (kontakt + tożsamość + role w jednej transakcji), edycja (`version` kontaktu i tożsamości), usuwanie oznaczeniem, role, powiązania, zgody, wyszukiwarka globalna (po tożsamości).
+- RPC: 16 metod (`contacts.*`, `roles.*`, `relationships.*`, `consents.*`, `search.global`); odczyt wszystkie role, zapis `admin` i `staff` (D4). Każdy zapis podrzędny wymaga `id` i `version`.
+- Testy: `services/contacts.test.ts` (9): tożsamość poza `contacts`, `change_log` tożsamości bez wartości, konflikt wersji, walidacja, filtry i sortowanie, usunięci poza listą i wyszukiwarką, duplikaty, role/powiązania/zgody, brak zapisu do usuniętej osoby. Test uprawnień obejmuje nowe metody. Razem 377.
+- Usterka złapana testem: edycja zapisywała do tożsamości każde pole z parametrów (w RPC zod je obcina, ale usługa nie powinna na tym polegać) — teraz bierze tylko pola tożsamości.
+- **Odstępstwa:**
+  - porównania `utf8mb4_polish_ci` nie ustawiono w bazie: sortowanie i wyszukiwanie robi serwer w JS (`localeCompare('pl')`, `matchesQuery`), jak w desktopie;
+  - karta osoby nie ma jeszcze udziału w działaniach, zadań ani osi (kroki 3–5); wpis systemowy „dodano osobę” dojdzie z osią (krok 3).

@@ -1,4 +1,4 @@
-import { mysqlTable, varchar, text, char, datetime, int, bigint, boolean, json, index, uniqueIndex } from 'drizzle-orm/mysql-core'
+import { mysqlTable, varchar, text, char, datetime, date, int, bigint, boolean, json, index, uniqueIndex } from 'drizzle-orm/mysql-core'
 
 // ---------- Kolumny wspólne tabel domenowych (zasada danych 1) ----------
 
@@ -173,4 +173,93 @@ export const changeLog = mysqlTable(
     at: datetime('at', { mode: 'date', fsp: 3 }).notNull()
   },
   (t) => [index('change_log_entity_idx').on(t.entity, t.entityId), index('change_log_at_idx').on(t.at)]
+)
+
+// ---------- Osoby i instytucje (ZADANIE_02, krok 2; model danych 2.3) ----------
+// Klucze obce z ON DELETE RESTRICT (D3); usuwanie i tak jest oznaczeniem `deletedAt`.
+const contactFk = () => ({ onDelete: 'restrict' as const })
+
+/** Kontakt bez danych identyfikujących (zasada danych 4). Pozostałe tabele znają osobę tylko przez `contacts.id`. */
+export const contacts = mysqlTable('contacts', {
+  ...domainColumns(),
+  /** 'person' | 'institution' */
+  kind: varchar('kind', { length: 16 }).notNull(),
+  tags: json('tags').$type<string[]>().notNull(),
+  /** Anonimizacja osoby (ZADANIE_03): tożsamość i dane wrażliwe usunięte, statystyka zostaje. */
+  anonymizedAt: datetime('anonymized_at', { mode: 'date', fsp: 3 })
+})
+
+/**
+ * Tożsamość: imię, nazwisko, kontakt, adres, notatka o osobie (D2). Jawna dla serwera w wersji 1.
+ * change_log zapisuje dla niej tylko nazwy pól (NAMES_ONLY_TABLES w repo.ts). Przy anonimizacji wiersz jest usuwany.
+ */
+export const contactIdentity = mysqlTable(
+  'contact_identity',
+  {
+    ...domainColumns(),
+    contactId: char('contact_id', { length: 36 })
+      .notNull()
+      .references(() => contacts.id, contactFk()),
+    firstName: varchar('first_name', { length: 100 }),
+    lastName: varchar('last_name', { length: 100 }),
+    /** nazwa instytucji */
+    name: varchar('name', { length: 255 }),
+    email: varchar('email', { length: 254 }),
+    phone: varchar('phone', { length: 50 }),
+    address: varchar('address', { length: 255 }),
+    city: varchar('city', { length: 100 }),
+    notes: text('notes')
+  },
+  (t) => [uniqueIndex('contact_identity_contact_uq').on(t.contactId)]
+)
+
+export const contactRoles = mysqlTable(
+  'contact_roles',
+  {
+    ...domainColumns(),
+    contactId: char('contact_id', { length: 36 })
+      .notNull()
+      .references(() => contacts.id, contactFk()),
+    /** 'participant' | 'volunteer' | … (domain.ts ROLES) */
+    role: varchar('role', { length: 16 }).notNull(),
+    since: date('since', { mode: 'string' }),
+    until: date('until', { mode: 'string' }),
+    note: text('note')
+  },
+  (t) => [index('contact_roles_contact_idx').on(t.contactId)]
+)
+
+export const relationships = mysqlTable(
+  'relationships',
+  {
+    ...domainColumns(),
+    contactAId: char('contact_a_id', { length: 36 })
+      .notNull()
+      .references(() => contacts.id, contactFk()),
+    contactBId: char('contact_b_id', { length: 36 })
+      .notNull()
+      .references(() => contacts.id, contactFk()),
+    /** 'works_at' | 'contact_person' | 'guardian' | 'other' */
+    type: varchar('type', { length: 32 }).notNull(),
+    note: text('note')
+  },
+  (t) => [index('relationships_a_idx').on(t.contactAId), index('relationships_b_idx').on(t.contactBId)]
+)
+
+export const consents = mysqlTable(
+  'consents',
+  {
+    ...domainColumns(),
+    contactId: char('contact_id', { length: 36 })
+      .notNull()
+      .references(() => contacts.id, contactFk()),
+    /** 'processing' | 'image' | 'communication' | 'other' */
+    type: varchar('type', { length: 32 }).notNull(),
+    basis: varchar('basis', { length: 255 }),
+    givenAt: date('given_at', { mode: 'string' }).notNull(),
+    validUntil: date('valid_until', { mode: 'string' }),
+    withdrawnAt: date('withdrawn_at', { mode: 'string' }),
+    note: text('note')
+  },
+  (t) => [index('consents_contact_idx').on(t.contactId)]
 )

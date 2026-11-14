@@ -12,6 +12,8 @@ import { registerSuccess } from './auth/lockout'
 import { disableUser, inviteUser, listUsers, resetUser, setUserRole } from './auth/users'
 import type { AuthOptions } from './auth/options'
 import { getSettings } from './services/settings'
+import * as contacts from './services/contacts'
+import type { Actor } from './services/common'
 import { SESSION_COOKIE, clearSessionCookie, createSession, revokeAllSessions, revokeSession, setSessionCookie } from './auth/sessions'
 
 /** Sesja logowania widziana przez strażnika. */
@@ -50,6 +52,8 @@ async function issueFullSession({ db, req, reply, session, now }: RpcContext) {
   const full = await createSession(db, session.userId, { mfaPassed: true, userAgent: req.headers['user-agent'], now })
   setSessionCookie(reply, full.token, full.expiresAt)
 }
+
+const actor = ({ session, now }: RpcContext): Actor => ({ userId: session.userId, now })
 
 type Handlers = { [M in Method]: (params: ApiParsed<M>, ctx: RpcContext) => ApiOutputs[M] | Promise<ApiOutputs[M]> }
 
@@ -100,7 +104,25 @@ const handlers: Handlers = {
   'users.disable': (input, { db, session, now }) => disableUser(db, input, { userId: session.userId, now }),
   'users.reset': (input, { db, session, now }) => resetUser(db, input, { userId: session.userId, now }),
   'system.info': async (_p, { db }) => ({ version: pkg.version, migrations: await migrationCount(db) }),
-  'settings.get': (_p, { db }) => getSettings(db)
+  'settings.get': (_p, { db }) => getSettings(db),
+
+  // osoby i instytucje
+  'contacts.list': (p, { db, now }) => contacts.listContacts(db, p, now),
+  'contacts.tags': (_p, { db }) => contacts.listTags(db),
+  'contacts.get': ({ id }, { db }) => contacts.getContact(db, id),
+  'contacts.duplicates': (p, { db, now }) => contacts.findDuplicates(db, p, now),
+  'contacts.create': (p, ctx) => contacts.createContact(ctx.db, p, actor(ctx)),
+  'contacts.update': (p, ctx) => contacts.updateContact(ctx.db, p, actor(ctx)),
+  'contacts.delete': (p, ctx) => contacts.deleteContact(ctx.db, p, actor(ctx)),
+  'roles.add': (p, ctx) => contacts.addRole(ctx.db, p, actor(ctx)),
+  'roles.end': (p, ctx) => contacts.endRole(ctx.db, p, actor(ctx)),
+  'roles.delete': (p, ctx) => contacts.deleteRole(ctx.db, p, actor(ctx)),
+  'relationships.add': (p, ctx) => contacts.addRelationship(ctx.db, p, actor(ctx)),
+  'relationships.delete': (p, ctx) => contacts.deleteRelationship(ctx.db, p, actor(ctx)),
+  'consents.add': (p, ctx) => contacts.addConsent(ctx.db, p, actor(ctx)),
+  'consents.withdraw': (p, ctx) => contacts.withdrawConsent(ctx.db, p, actor(ctx)),
+  'consents.delete': (p, ctx) => contacts.deleteConsent(ctx.db, p, actor(ctx)),
+  'search.global': ({ q }, { db }) => contacts.searchGlobal(db, q)
 }
 
 export const HTTP_STATUS: Record<ErrorCode, number> = {

@@ -3,7 +3,9 @@
 // Wzór: desktopowe src/shared/ipc.ts.
 import { z } from 'zod'
 import { KDF_ITERATIONS, authKeySchema, emailSchema, kdfSaltSchema, sealedSchema } from './auth'
+import * as d from './domain'
 import type { RoleLabels } from './domain'
+import type * as T from './types'
 import type { ModuleId, Profile } from './modules'
 
 export const ROLES = ['admin', 'staff', 'readonly'] as const
@@ -24,6 +26,44 @@ const role = z.enum(ROLES)
 /** Rekord wskazany do zmiany: id i wersja, którą widział klient (blokada optymistyczna). */
 const target = { id: z.uuid(), version: z.number().int().positive() }
 const ADMIN = ['admin'] as const
+/** Zapisy domenowe: administrator i pracownik (D4). Odczyt: wszystkie role. */
+const WRITE = ['admin', 'staff'] as const
+
+// Pola formularzy (jak w desktopowym ipc.ts). Tekst opcjonalny: pusty → null.
+const opt = z
+  .string()
+  .trim()
+  .max(10_000)
+  .nullish()
+  .transform((v) => (v ? v : null))
+const short = (max: number) =>
+  z
+    .string()
+    .trim()
+    .max(max)
+    .nullish()
+    .transform((v) => (v ? v : null))
+const day = z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
+const optDay = day
+  .nullish()
+  .or(z.literal(''))
+  .transform((v) => (v ? v : null))
+const uuid = z.uuid()
+const version = z.number().int().positive()
+/** Rekord do usunięcia: id i wersja, którą widział klient. */
+const ref = z.object({ id: uuid, version })
+
+const identityFields = {
+  firstName: short(100),
+  lastName: short(100),
+  name: short(255),
+  email: short(254),
+  phone: short(50),
+  address: short(255),
+  city: short(100),
+  notes: opt
+}
+const tags = z.array(z.string().trim().min(1).max(60)).max(30).default([])
 
 export const apiMethods = {
   /** Kim jestem w tej sesji (także przed 2FA: klient wie, że ma pokazać konfigurację 2FA). */
@@ -64,7 +104,44 @@ export const apiMethods = {
   /** Dane techniczne instancji (wersja, migracje). Bez danych organizacji. */
   'system.info': { input: none, roles: ['admin'] },
   /** Ustawienia organizacji potrzebne interfejsowi (moduły, nazwy ról). */
-  'settings.get': { input: none, roles: ALL }
+  'settings.get': { input: none, roles: ALL },
+
+  // --- osoby i instytucje (ZADANIE_02, krok 2) ---
+  'contacts.list': {
+    input: z
+      .object({
+        kind: z.enum(['person', 'institution', 'all']).default('all'),
+        role: z.enum(d.ROLES).nullish(),
+        tag: z.string().max(60).nullish(),
+        q: z.string().max(200).nullish()
+      })
+      .default({ kind: 'all' }),
+    roles: ALL
+  },
+  'contacts.tags': { input: none, roles: ALL },
+  'contacts.get': { input: z.object({ id: uuid }), roles: ALL },
+  /** Możliwe duplikaty po imieniu i nazwisku, e-mailu lub telefonie (sprawdzane przy zakładaniu osoby). */
+  'contacts.duplicates': {
+    input: z.object({ firstName: short(100), lastName: short(100), email: short(254), phone: short(50), excludeId: uuid.nullish() }),
+    roles: ALL
+  },
+  'contacts.create': { input: z.object({ kind: z.enum(d.CONTACT_KINDS), ...identityFields, tags, roles: z.array(z.enum(d.ROLES)).max(8).default([]) }), roles: WRITE },
+  /** `version` kontaktu i `identityVersion` tożsamości: obie sprawdzane (blokada optymistyczna). */
+  'contacts.update': { input: z.object({ id: uuid, version, identityVersion: version, ...identityFields, tags }), roles: WRITE },
+  'contacts.delete': { input: ref, roles: WRITE },
+  'roles.add': { input: z.object({ contactId: uuid, role: z.enum(d.ROLES), since: optDay, note: opt }), roles: WRITE },
+  'roles.end': { input: z.object({ id: uuid, version, until: day }), roles: WRITE },
+  'roles.delete': { input: ref, roles: WRITE },
+  'relationships.add': { input: z.object({ contactAId: uuid, contactBId: uuid, type: z.enum(d.RELATIONSHIP_TYPES), note: opt }), roles: WRITE },
+  'relationships.delete': { input: ref, roles: WRITE },
+  'consents.add': {
+    input: z.object({ contactId: uuid, type: z.enum(d.CONSENT_TYPES), basis: short(255), givenAt: day, validUntil: optDay, note: opt }),
+    roles: WRITE
+  },
+  'consents.withdraw': { input: z.object({ id: uuid, version, at: day }), roles: WRITE },
+  'consents.delete': { input: ref, roles: WRITE },
+  /** Wyszukiwarka w pasku górnym (od 2 znaków; po tożsamości, nie po danych wrażliwych). */
+  'search.global': { input: z.object({ q: z.string().max(200) }), roles: ALL }
 } satisfies Record<string, MethodSpec>
 
 export type Method = keyof typeof apiMethods
@@ -116,6 +193,22 @@ export interface ApiOutputs {
   'users.reset': InviteLink
   'system.info': { version: string; migrations: number }
   'settings.get': OrgSettings
+  'contacts.list': T.ContactListItem[]
+  'contacts.tags': string[]
+  'contacts.get': T.ContactDetail
+  'contacts.duplicates': T.ContactListItem[]
+  'contacts.create': { id: string }
+  'contacts.update': void
+  'contacts.delete': void
+  'roles.add': void
+  'roles.end': void
+  'roles.delete': void
+  'relationships.add': void
+  'relationships.delete': void
+  'consents.add': void
+  'consents.withdraw': void
+  'consents.delete': void
+  'search.global': T.SearchHit[]
 }
 
 export type ApiResult<M extends Method> = { ok: true; data: ApiOutputs[M] } | { ok: false; code: string; message: string }
