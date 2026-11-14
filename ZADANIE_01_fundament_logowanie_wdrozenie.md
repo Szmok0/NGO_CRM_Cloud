@@ -1,6 +1,6 @@
 # ZADANIE 01 — Fundament: próbne wdrożenie, logowanie, klucze, role
 
-Status: w realizacji, krok 4 zrobiony, następny krok 5 (decyzje D1–D6 zatwierdzone przez MOC 2026-11-14; krok 1 działa na Hostingerze, zob. „Wynik”) · Kontekst: `CLAUDE.md`, `NGO_CRM_CLOUD_KONCEPCJA.md` (4.1–4.3, 4.7), `NGO_CRM_CLOUD_BEZPIECZENSTWO.md` (rozdziały 4 i 5), `NGO_CRM_CLOUD_PROCESY_I_MODEL_DANYCH.md` (2.2) · Wzór: iV_CRM `ZADANIE_02_logowanie_i_wdrozenie.md` i `lib/auth/`
+Status: w realizacji, krok 5 zrobiony (otwarte: limit IP a nagłówek X-Forwarded-For, zob. „Wynik”), następny krok 6 (decyzje D1–D6 zatwierdzone przez MOC 2026-11-14; krok 1 działa na Hostingerze, zob. „Wynik”) · Kontekst: `CLAUDE.md`, `NGO_CRM_CLOUD_KONCEPCJA.md` (4.1–4.3, 4.7), `NGO_CRM_CLOUD_BEZPIECZENSTWO.md` (rozdziały 4 i 5), `NGO_CRM_CLOUD_PROCESY_I_MODEL_DANYCH.md` (2.2) · Wzór: iV_CRM `ZADANIE_02_logowanie_i_wdrozenie.md` i `lib/auth/`
 
 ## Cel
 Pusta, ale **bezpieczna** aplikacja działa na Hostingerze: organizacja przechodzi kreator pierwszego uruchomienia, zakłada administratora z 2FA i dostaje klucz odzyskiwania do wydruku; administrator zaprasza kolejne osoby. Hasło nie trafia do serwera. Każda metoda API ma przypisane role i test to sprawdza. Na tym fundamencie ZADANIE_02 przeniesie rdzeń z desktopu.
@@ -173,3 +173,16 @@ Adres próbny: https://ivory-elk-740131.hostingersite.com (`/api/health` → `st
 - `src/client/lib/api.ts`: `call`, `ApiError`, `errorMessage`, `useLoad`, `useDataChanged` jak w desktopie; `fetch` z `X-NGO-CRM: 1` i `credentials: 'same-origin'`.
 - Test `rpc.permissions.test.ts` (17): dla każdej metody bez sesji 401, bez 2FA 403 (poza `before2fa`), każda rola spoza listy 403, z listy przepuszczona; do tego kolejność rola przed zod, nieznana metoda, domyślne `noSessions`, CSRF na `/api/rpc`. Wymaga lokalnej bazy (jak `repo.test.ts`).
 - **Odstępstwo:** `useLoad` bez odświeżania po zmianach z innych komputerów (to była synchronizacja desktopu).
+
+### Krok 5: konta, logowanie, 2FA, sesje (2026-11-14)
+Zrobiony etapami a)–e); decyzje bezpieczeństwa 1–26 są przy kroku 5 wyżej.
+- **a)** tabele `users`, `auth_sessions`, `access_log` (migracja `0002`), sesje (`auth/sessions.ts`), baza testowa z zabezpieczeniem (`testDb.ts`, `TEST_DATABASE_URL`).
+- **b)** kryptografia w przeglądarce (`src/client/crypto/`): PBKDF2 → HKDF, RSA-OAEP 3072, klucz organizacji, sloty, klucz odzyskiwania; tabele `org_keys`, `key_slots` (migracja `0003`).
+- **c)** TOTP (`auth/totp.ts`) z blokadą ponownego użycia kodu, sekret szyfrowany kluczem z `APP_SECRET`, kod QR (`auth/qr.ts`).
+- **d)** logowanie na serwerze (`auth/routes.ts`, `auth/password.ts`), blokady konta i IP (`auth/lockout.ts`), wylogowanie, `access_log`.
+- **e)** ekrany (`src/client/screens/`): logowanie, konfiguracja 2FA, konto, zmiana hasła; metody `auth.*` w RPC (`auth/account.ts`); `npm run dev:account`.
+- Testy: 180 (m.in. blokada po nieudanych logowaniach, wygaśnięcie sesji, błędny i powtórzony kod TOTP, nieprawidłowe ciasteczko, limit IP, zmiana hasła). Ekrany sprawdzone w przeglądarce lokalnie, także na zbudowanej aplikacji pod CSP (kod QR się ładuje, konsola bez błędów CSP).
+- Na Hostingerze: scrypt z pełnymi parametrami działa (ok. 0,5 s na logowanie); produkcja nie ma żadnego konta (pierwsze założy kreator, krok 6).
+- Poprawka przy okazji: `npm run dev` nie startował od kroku 4 (`tsx` nie znał aliasu `@shared`); `dev:server` dostał `--tsconfig tsconfig.server.json`.
+- **Otwarte (do decyzji MOC): limit IP da się ominąć nagłówkiem `X-Forwarded-For`.** Test na produkcji: 22 nieudane próby z różnymi podrobionymi adresami w nagłówku nie wywołały blokady; bez nagłówka blokada zadziałała po 20 próbach. Przyczyna: `trustProxy: true` ufa całemu nagłówkowi, a LiteSpeed dopisuje prawdziwy adres na końcu, zamiast nadpisać nagłówek. Blokada konta (5 prób) działa niezależnie. Propozycja: `trustProxy: 1` (adres dopisany przez LiteSpeed) i ponowny test.
+- Nie zrobione z opisu kroku 5: `settings` i `invitations` (powstaną z krokami 6 i 7, które ich używają).
