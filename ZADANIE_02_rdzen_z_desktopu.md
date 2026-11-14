@@ -194,7 +194,7 @@ Nie aktualizuj Sejfu bez zgody MOC.
 - `typecheck` i `npm test` (272) bez błędów.
 - Do kroku 6: zmiana samej tożsamości (`contact_identity`) nie trafia jeszcze do „Ostatnio w organizacji” jako „zmienił dane osoby”; dopisać przy podłączaniu feedu.
 
-### Krok 1, etap b: interfejs (2026-11-14) — kod gotowy, sprawdzenie w przeglądarce NIEZROBIONE
+### Krok 1, etap b: interfejs (2026-11-14, sprawdzenie w przeglądarce 2026-11-15)
 - `components/ui.tsx`: komponenty desktopu (`Button`, `Input`, `Textarea`, `Select`, `Checkbox`, `Field`, `Card`, `Badge`, `Alert`, `Avatar`, `EmptyState`, `Dialog`, `Tabs`, `Segmented`, `Table`, `PageHeader`, `Empty`, `ErrorText`) z wariantami jako mapy klas (bez cva) i bez `style`. `Avatar`: rozmiary jako klasy, kolor przez `avatarClass` (test zgodności z paletą). Zostały pomocnicze ekranów logowania: `AuthCard` (dawny `Card`), `InputField` (dawny `Field`), `SelectField`, `ErrorNote`, `InfoNote`; przycisk `danger` (obramowany) dodany do wariantów desktopu.
 - `components/chips.tsx`, `lib/avatar.ts`, `lib/feedText.ts`, `lib/calendarUi.ts`, `lib/format.ts` z desktopu (z testami `avatar`, `feedText`); bez `formatSize` i zdań o plikach/notatkach.
 - `app/context.tsx`: kontekst jak w desktopie (sesja z kontem i ustawieniami, trasy `today`/`settings`, nazwy ról, moduły, wylogowanie). Nowa metoda RPC `settings.get` (wszystkie role) i `server/services/settings.ts`.
@@ -203,4 +203,5 @@ Nie aktualizuj Sejfu bez zgody MOC.
 - `styles.css`: brakujące tokeny (`orange`, `violet-strong`, kolory obecności), tło okien dialogowych.
 - 7 ekranów i `Layout` dopasowane do nowych nazw komponentów (wygląd bez zmian, `Panel` w ustawieniach zastąpiony `Card`).
 - `typecheck`, `npm test` (288) i `npm run build` bez błędów.
-- **Do zrobienia na start następnej sesji:** sprawdzenie w przeglądarce na zbudowanej aplikacji (logowanie, ustawienia, użytkownicy, kreator; konsola bez błędów CSP).
+- Sprawdzone w przeglądarce na zbudowanej aplikacji (`npm start`, lokalnie): logowanie, konfiguracja 2FA, „Dziś”, ustawienia z listą użytkowników i formularzem zaproszenia, menu zwinięte i rozwinięte. Awatary mają kolory z klas. Konsola bez błędów CSP. Kreatora nie przechodzono ponownie (lokalna baza ma już konto).
+- Usterka złapana w przeglądarce: konto z `npm run dev:account` nie miało ustawień organizacji (zakłada je kreator), więc `settings.get` zwracało 404, a klient pokazywał „Brak połączenia”. `dev:account` zakłada teraz brakujący wiersz `settings` (organizacja próbna, profil „projekty”).

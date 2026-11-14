@@ -1,6 +1,6 @@
 // npm run dev:account — konto próbne TYLKO do pracy lokalnej (oglądanie ekranów przed kreatorem z kroku 6).
 // Zakłada albo resetuje konto admin@lokalnie.test w lokalnej bazie z DATABASE_URL: nowe losowe hasło (wypisane raz),
-// para kluczy, 2FA do skonfigurowania przy pierwszym logowaniu.
+// para kluczy, 2FA do skonfigurowania przy pierwszym logowaniu. Gdy brak ustawień organizacji, zakłada je (jak kreator).
 // Odmawia, gdy: NODE_ENV=production, baza nie jest lokalna, nazwa bazy wygląda na hostingową (uNNN_…)
 // albo w bazie jest jakiekolwiek inne konto. Nie jest częścią zbudowanej aplikacji.
 import { randomBytes, randomUUID } from 'node:crypto'
@@ -10,8 +10,11 @@ import { exportPublicKey, generateUserKeyPair, wrapPrivateKey } from '../src/cli
 import { toBase64 } from '../src/client/crypto/encoding'
 import '../src/server/config'
 import { openDb, runMigrations } from '../src/server/db/connection'
-import { authSessions, keySlots, users } from '../src/server/db/schema'
+import { authSessions, keySlots, settings, users } from '../src/server/db/schema'
+import { createRepo } from '../src/server/db/repo'
 import { hashAuthKey } from '../src/server/auth/password'
+import { SETTINGS_ID } from '../src/server/auth/setup'
+import { normalizeModules, PROFILE_DEFAULT_MODULES } from '../src/shared/modules'
 
 const EMAIL = 'admin@lokalnie.test'
 
@@ -59,6 +62,16 @@ async function main() {
     } else {
       await db.insert(users).values({ id, createdAt: now, updatedAt: now, updatedBy: id, version: 1, email: EMAIL, name: 'Konto próbne', role: 'admin', ...auth })
     }
+    // Ustawienia organizacji zakłada zwykle kreator; konto próbne go omija, więc wiersz powstaje tutaj (raz).
+    const [org] = await db.select({ id: settings.id }).from(settings).limit(1)
+    if (!org)
+      await createRepo(db, { userId: id }).insert(settings, {
+        id: SETTINGS_ID,
+        orgName: 'Organizacja próbna',
+        profile: 'projects',
+        enabledModules: normalizeModules(PROFILE_DEFAULT_MODULES.projects),
+        roleLabels: {}
+      })
     console.log(`Konto próbne ${existing ? 'zresetowane' : 'założone'} (tylko lokalnie).`)
     console.log(`  E-mail: ${EMAIL}`)
     console.log(`  Hasło:  ${password}`)
