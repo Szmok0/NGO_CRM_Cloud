@@ -1,10 +1,9 @@
 // Test uprawnień: dla KAŻDEJ metody kontraktu sprawdza strażnika RPC (sesja → 2FA → rola → zod).
-// Sesja podstawiana przez SessionProvider. Wymaga lokalnej bazy z DATABASE_URL (.env), jak repo.test.ts.
+// Sesja podstawiana przez SessionProvider. Wymaga lokalnej bazy testowej (TEST_DATABASE_URL, zob. testDb.ts).
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import './config' // wczytuje .env z katalogu aplikacji
 import { apiMethods, ROLES, type Method, type Role } from '@shared/api'
 import { buildApp } from './app'
-import { openDb, runMigrations } from './db/connection'
+import { openTestDb } from './testDb'
 import type { Session, SessionProvider } from './rpc'
 
 let current: Session | null = null
@@ -14,11 +13,8 @@ let app: ReturnType<typeof buildApp>
 let close: () => Promise<void>
 
 beforeAll(async () => {
-  const url = process.env.DATABASE_URL
-  if (!url) throw new Error('Brak DATABASE_URL w .env (lokalna baza do testów)')
-  const opened = await openDb(url)
+  const opened = await openTestDb()
   close = opened.close
-  await runMigrations(opened.db)
   app = buildApp(opened.db, [], testSessions)
 })
 afterAll(async () => {
@@ -85,7 +81,7 @@ describe('strażnik RPC', () => {
   })
 
   it('domyślnie (do kroku 5) nikt nie ma sesji: każda metoda → 401', async () => {
-    const opened = await openDb(process.env.DATABASE_URL!)
+    const opened = await openTestDb()
     const prod = buildApp(opened.db)
     for (const m of methods) {
       const res = await prod.inject({ method: 'POST', url: '/api/rpc', headers, payload: { method: m } })

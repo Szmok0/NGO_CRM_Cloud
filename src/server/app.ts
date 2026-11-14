@@ -2,6 +2,7 @@ import { existsSync } from 'node:fs'
 import { resolve } from 'node:path'
 import Fastify from 'fastify'
 import fastifyStatic from '@fastify/static'
+import fastifyCookie from '@fastify/cookie'
 import type { Health } from '@shared/health'
 import pkg from '../../package.json'
 import { migrationCount, type Db } from './db/connection'
@@ -28,6 +29,8 @@ export function buildApp(db: Db | null, missing: string[] = [], sessions: Sessio
   })
 
   registerSecurity(app)
+  // Ciasteczka (sesja logowania); bez podpisu: token jest losowy, a w bazie tylko jego skrót.
+  app.register(fastifyCookie)
 
   app.get('/api/health', async (req): Promise<Health> => {
     const https = req.protocol === 'https'

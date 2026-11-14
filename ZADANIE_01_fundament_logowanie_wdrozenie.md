@@ -59,6 +59,25 @@ Cel: sprawdzić, że Hostinger uruchamia nasz układ, zanim zbudujemy na nim cok
 - Po zalogowaniu klucz prywatny odszyfrowany i trzymany tylko w pamięci karty; po odświeżeniu strony stan „zablokowany” (na razie tylko informacja w ustawieniach konta, bo danych wrażliwych jeszcze nie ma).
 - Wpisy w `access_log`: `login`, `login_failed`, `logout`, `logout_all`, `password_changed`, `totp_enabled`, `user_invited`, `user_disabled`.
 
+**Decyzje bezpieczeństwa do kroku 5 (MOC, 2026-11-14):**
+1. Sesja 12 h od zalogowania, bez przedłużania aktywnością.
+2. Bezczynność: stałe 30 min do czasu tabeli `settings` (potem `idleLogoutMinutes`, 15–120).
+3. Sesja po haśle, przed kodem 2FA: 5 min.
+4. Liczba sesji na osobę: bez limitu (jest „wyloguj wszędzie”).
+5. Blokada konta: 5 nieudanych prób = 15 min; błędny kod TOTP liczy się do tych samych 5 prób; licznik zeruje pełne logowanie (hasło i kod).
+6. Blokada IP: 20 prób / 15 min, okno stałe, licznik w pamięci (znika po restarcie — akceptowane), IP nigdzie nie zapisywane.
+7. PBKDF2: SHA-256, 600 000 iteracji, sól 16 B.
+8. HKDF: SHA-256, 256 bitów, etykiety `ngo-crm/auth` i `ngo-crm/wrap`.
+9. scrypt na serwerze: N=2^17, r=8, p=1, sól 16 B, skrót 32 B, `maxmem` 256 MB (jak iV_CRM `lib/auth/password.ts`; problem z pamięcią na Hostingerze → zgłosić, nie zmieniać).
+10. TOTP: 30 s, 6 cyfr, SHA-1, ±1 okno; ponowne użycie kodu blokowane kolumną `totpLastStep`.
+11. Sekret TOTP: klucz z HKDF(`APP_SECRET`), AES-256-GCM.
+12. Nieistniejący e-mail: pozorna sól i pozorne iteracje (zawsze 600 000), odpowiedź nieodróżnialna.
+13. Ciasteczko: `__Host-ngocrm_session`, `httpOnly`, `Secure`, `SameSite=Strict`, `Path=/`.
+14. Pary kluczy: RSA-OAEP 3072 (D3).
+15. `qrcode` bez `@types/qrcode`: własna deklaracja typów.
+16. Testy z bazą tylko na lokalnej bazie testowej (`TEST_DATABASE_URL`, host lokalny, nazwa z `_test`, nie przy `NODE_ENV=production`); konta testowe tylko w testach, sprzątane po nich. Do kroku 6 produkcja nie ma żadnego konta.
+Realizacja etapami: a) tabele i sesje, b) szyfrowanie w przeglądarce, c) TOTP z QR, d) blokada, e) ekrany; po każdym commit i podsumowanie.
+
 ## Krok 6: kreator pierwszego uruchomienia
 Działa tylko, gdy w bazie nie ma żadnego użytkownika **i** podano poprawny `SETUP_TOKEN`. Po zakończeniu wyłączony na stałe (także gdy `SETUP_TOKEN` zostanie w panelu; panel „Stan bezpieczeństwa” w ZADANIU_04 przypomni o jego usunięciu).
 1. Sprawdzenie: HTTPS, połączenie z bazą, migracje, `APP_SECRET` (gdy brak: pokazuje wygenerowaną wartość do wklejenia w panelu i kończy), zapisywalny `STORAGE_DIR` (próbny plik).

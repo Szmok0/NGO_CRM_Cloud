@@ -1,11 +1,11 @@
 // Test warstwy zapisu na tabeli używanej tylko tutaj (test_records, poza schema.ts i migracjami).
-// Wymaga lokalnej bazy z DATABASE_URL (.env), tak jak `npm run dev`.
+// Wymaga lokalnej bazy testowej z TEST_DATABASE_URL (.env), zob. testDb.ts.
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { asc, eq, sql } from 'drizzle-orm'
 import { mysqlTable, varchar } from 'drizzle-orm/mysql-core'
-import '../config' // wczytuje .env z katalogu aplikacji
 import { AppError } from '@shared/errors'
-import { openDb, runMigrations, type Db } from './connection'
+import { openTestDb } from '../testDb'
+import type { Db } from './connection'
 import { changeLog, domainColumns } from './schema'
 import { createRepo, type Repo } from './repo'
 
@@ -27,10 +27,7 @@ const cleanup = async () => {
 }
 
 beforeAll(async () => {
-  const url = process.env.DATABASE_URL
-  if (!url) throw new Error('Brak DATABASE_URL w .env (lokalna baza do testów)')
-  ;({ db, close } = await openDb(url))
-  await runMigrations(db)
+  ;({ db, close } = await openTestDb())
   await db.execute(sql`
     create table if not exists test_records (
       id char(36) primary key,
