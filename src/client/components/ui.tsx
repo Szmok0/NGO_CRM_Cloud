@@ -2,9 +2,9 @@
 // Tylko klasy CSS, bez atrybutów style (ścisła CSP).
 import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode } from 'react'
 
-export function Card({ title, children }: { title: string; children: ReactNode }) {
+export function Card({ title, wide, children }: { title: string; wide?: boolean; children: ReactNode }) {
   return (
-    <main className="mx-auto mt-16 max-w-md rounded-lg border border-slate-200 bg-white p-8 font-sans text-slate-800 shadow-sm">
+    <main className={`mx-auto mt-16 ${wide ? 'max-w-xl' : 'max-w-md'} rounded-lg border border-slate-200 bg-white p-8 font-sans text-slate-800 shadow-sm print:mt-0 print:border-0 print:shadow-none`}>
       <h1 className="text-xl font-semibold">{title}</h1>
       {children}
     </main>

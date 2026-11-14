@@ -62,6 +62,80 @@ export const pl = {
     mismatch: 'Nowe hasło i powtórzenie różnią się.',
     same: 'Nowe hasło musi być inne niż obecne.'
   },
+  setup: {
+    title: 'Pierwsze uruchomienie',
+    step: (n: number, of: number) => `Krok ${n} z ${of}`,
+    next: 'Dalej',
+    back: 'Wstecz',
+    working: 'Pracuję… Przeliczenie hasła i utworzenie kluczy trwa chwilę.',
+    noToken: 'Aplikacja nie ma jeszcze żadnego konta, a w konfiguracji brakuje tokenu kreatora. W panelu hostingu ustaw zmienną SETUP_TOKEN (losowa, co najmniej 32 znaki) i odśwież stronę.',
+    tokenTooShort: 'Aplikacja nie ma jeszcze żadnego konta, a token kreatora jest za krótki. W panelu hostingu ustaw zmienną SETUP_TOKEN na losową wartość o długości co najmniej 32 znaków i odśwież stronę.',
+    appSecretHint: 'Możesz użyć tej wartości jako APP_SECRET (wygenerowana teraz w Twojej przeglądarce, nigdzie niezapisana):',
+    token: {
+      intro: 'Ta aplikacja nie ma jeszcze żadnego konta. Kreator założy organizację i konto administratora. Potrzebny jest token z konfiguracji serwera (zmienna SETUP_TOKEN w panelu hostingu).',
+      label: 'Token konfiguracji',
+      submit: 'Sprawdź',
+      checks: 'Sprawdzenie serwera',
+      https: 'Połączenie szyfrowane (HTTPS)',
+      database: (n: number) => `Baza danych i migracje (${n})`,
+      storage: 'Folder na załączniki i kopie (STORAGE_DIR)',
+      ok: 'w porządku',
+      storageProblems: {
+        not_set: 'brak zmiennej STORAGE_DIR w konfiguracji serwera',
+        inside_app: 'folder leży w folderze aplikacji; wdrożenie by go skasowało. Wskaż folder poza aplikacją',
+        not_writable: 'nie da się w nim zapisać. Sprawdź ścieżkę i uprawnienia'
+      },
+      fixAndRetry: 'Popraw konfigurację w panelu hostingu i sprawdź ponownie.',
+      retry: 'Sprawdź ponownie'
+    },
+    org: {
+      title: 'Organizacja',
+      name: 'Nazwa organizacji',
+      profile: 'Profil (dobiera moduły na start; można zmienić później)',
+      profiles: {
+        kgw: ['Koło gospodyń wiejskich', 'członkinie, wydarzenia, warsztaty'],
+        donors: ['Darczyńcy i zbiórki', 'baza darczyńców, podziękowania, zbiórki'],
+        projects: ['Projekty i szkolenia', 'działania, uczestnicy, obecność'],
+        custom: ['Własny', 'tylko baza osób; moduły włączysz samodzielnie']
+      }
+    },
+    admin: {
+      title: 'Administrator',
+      intro: 'Pierwsze konto ma pełne uprawnienia. Kolejne osoby zaprosisz po zalogowaniu.',
+      name: 'Imię i nazwisko',
+      email: 'E-mail (login)',
+      password: 'Hasło',
+      repeat: 'Powtórz hasło',
+      mismatch: 'Hasło i powtórzenie różnią się.'
+    },
+    recovery: {
+      title: 'Klucz odzyskiwania',
+      warning: 'Bez hasła osoby z dostępem i bez tego klucza danych wrażliwych nie da się odzyskać. Autor programu też ich nie odzyska.',
+      intro: 'Wydrukuj ten klucz albo przepisz go na kartkę i schowaj w bezpiecznym miejscu organizacji (np. w sejfie). Nie zapisuj go w komputerze ani w telefonie. Pokazujemy go tylko raz.',
+      restartNote: 'Jeśli zaczniesz kreator od nowa (np. odświeżysz stronę), powstanie nowy klucz, a ten wydruk będzie nieważny.',
+      print: 'Drukuj',
+      printTitle: 'NGO CRM — klucz odzyskiwania',
+      printOrg: (name: string) => `Organizacja: ${name}`,
+      confirm: 'Wpisz 4 ostatnie znaki klucza',
+      confirmHint: 'Potwierdzenie, że masz klucz zapisany.',
+      confirmWrong: 'To nie są 4 ostatnie znaki klucza. Sprawdź wydruk albo kartkę.'
+    },
+    totp: {
+      title: 'Weryfikacja dwuetapowa',
+      submit: 'Zakończ i załóż konto'
+    },
+    done: {
+      title: 'Gotowe',
+      intro: 'Organizacja i konto administratora zostały założone.',
+      checklist: 'Zostały trzy rzeczy do zrobienia:',
+      items: [
+        'Usuń zmienną SETUP_TOKEN w panelu hostingu (kreator i tak już się nie uruchomi).',
+        'Schowaj wydruk klucza odzyskiwania w bezpiecznym miejscu organizacji.',
+        'Włącz automatyczne kopie zapasowe w panelu hostingu.'
+      ],
+      login: 'Przejdź do logowania'
+    }
+  },
   passwordRules: {
     hint: 'Co najmniej 12 znaków. Najlepiej kilka przypadkowych słów.',
     tooShort: 'Hasło musi mieć co najmniej 12 znaków.',

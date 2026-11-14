@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import type { ApiInput, ApiOutputs, Method } from '@shared/api'
 import type { LoginResult, PreloginResult } from '@shared/auth'
 import type { ErrorCode } from '@shared/errors'
+import type { SetupCheckResult, SetupCompleteInput, SetupStatus, SetupTotpResult } from '@shared/setup'
 import { pl } from '../i18n/pl'
 
 export class ApiError extends Error {
@@ -46,6 +47,14 @@ export const authApi = {
   prelogin: (email: string) => postJson<PreloginResult>('/api/auth/prelogin', { email }),
   login: (email: string, authKey: string) => postJson<LoginResult>('/api/auth/login', { email, authKey }),
   totp: (code: string) => postJson<void>('/api/auth/totp', { code })
+}
+
+/** Kreator pierwszego uruchomienia (trasy poza RPC, bez sesji). */
+export const setupApi = {
+  status: () => postJson<SetupStatus>('/api/setup/status', {}),
+  check: (token: string) => postJson<SetupCheckResult>('/api/setup/check', { token }),
+  totp: (token: string, email: string) => postJson<SetupTotpResult>('/api/setup/totp', { token, email }),
+  complete: (input: SetupCompleteInput) => postJson<void>('/api/setup/complete', input)
 }
 
 /** Wywołuje `cb` po każdym zapisie do bazy. */
