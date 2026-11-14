@@ -4,6 +4,7 @@ import { drizzle, type MySql2Database } from 'drizzle-orm/mysql2'
 import { migrate } from 'drizzle-orm/mysql2/migrator'
 import { sql } from 'drizzle-orm'
 import * as schema from './schema'
+import { appRoot } from '../config'
 
 export type Db = MySql2Database<typeof schema>
 
@@ -16,7 +17,7 @@ export async function openDb(databaseUrl: string): Promise<{ db: Db; close: () =
 
 /** Migracje z folderu drizzle/ (generowane przez `npm run db:generate`), uruchamiane przy starcie. */
 export async function runMigrations(db: Db): Promise<void> {
-  await migrate(db, { migrationsFolder: resolve('drizzle') })
+  await migrate(db, { migrationsFolder: resolve(appRoot, 'drizzle') })
 }
 
 /** Liczba zastosowanych migracji (do /api/health). */

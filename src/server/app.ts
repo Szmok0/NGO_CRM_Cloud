@@ -5,6 +5,7 @@ import fastifyStatic from '@fastify/static'
 import type { Health } from '@shared/health'
 import pkg from '../../package.json'
 import { migrationCount, type Db } from './db/connection'
+import { appRoot } from './config'
 
 export function buildApp(db: Db) {
   // Log bez treści żądań (zasada danych 9): Fastify loguje metodę, adres i kod odpowiedzi.
@@ -18,7 +19,7 @@ export function buildApp(db: Db) {
   }))
 
   // Zbudowany klient (po `npm run build`). W trybie deweloperskim klienta serwuje Vite.
-  const clientDir = resolve('dist/client')
+  const clientDir = resolve(appRoot, 'dist/client')
   if (existsSync(clientDir)) {
     app.register(fastifyStatic, { root: clientDir })
     // SPA: każdy adres poza /api dostaje index.html.
