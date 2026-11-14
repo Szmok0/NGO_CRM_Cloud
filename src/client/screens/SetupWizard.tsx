@@ -4,7 +4,7 @@
 import { useState, type FormEvent, type ReactNode } from 'react'
 import { PROFILES, type Profile } from '@shared/modules'
 import type { SetupCheckResult, SetupTotpResult } from '@shared/setup'
-import { Button, Card, ErrorNote, Field } from '../components/ui'
+import { AuthCard, Button, ErrorNote, InputField } from '../components/ui'
 import { toBase64 } from '../crypto/encoding'
 import { KDF_ITERATIONS, deriveKeys, newKdfSalt } from '../crypto/kdf'
 import { createSlot, exportPublicKey, generateOrgKey, generateUserKeyPair, wrapPrivateKey } from '../crypto/keys'
@@ -50,10 +50,10 @@ async function createMaterial(token: string, email: string, password: string): P
 
 function Step({ n, title, children }: { n: number; title: string; children: ReactNode }) {
   return (
-    <Card title={`${t.title}: ${title}`} wide>
+    <AuthCard title={`${t.title}: ${title}`} wide>
       <p className="mt-1 text-xs uppercase tracking-wide text-slate-500 print:hidden">{t.step(n, STEPS)}</p>
       {children}
-    </Card>
+    </AuthCard>
   )
 }
 
@@ -64,7 +64,7 @@ function Actions({ busy, onBack, submit }: { busy: boolean; onBack?: () => void;
         {submit}
       </Button>
       {onBack && (
-        <Button variant="secondary" onClick={onBack} disabled={busy}>
+        <Button variant="outline" onClick={onBack} disabled={busy}>
           {t.back}
         </Button>
       )}
@@ -119,7 +119,7 @@ export function SetupWizard({ onDone }: { onDone: () => void }) {
             setChecks(await setupApi.check(token))
           })}
         >
-          <Field label={t.token.label} type="password" value={token} onChange={(e) => (setToken(e.target.value), setChecks(null))} autoComplete="off" autoFocus required disabled={busy} />
+          <InputField label={t.token.label} type="password" value={token} onChange={(e) => (setToken(e.target.value), setChecks(null))} autoComplete="off" autoFocus required disabled={busy} />
           {checks && (
             <ul className="mt-4 space-y-1 text-sm">
               <Check ok={checks.https} label={t.token.https} />
@@ -139,7 +139,7 @@ export function SetupWizard({ onDone }: { onDone: () => void }) {
     return (
       <Step n={2} title={t.org.title}>
         <form onSubmit={run(async () => go('admin'))}>
-          <Field label={t.org.name} value={orgName} onChange={(e) => setOrgName(e.target.value)} maxLength={200} autoFocus required />
+          <InputField label={t.org.name} value={orgName} onChange={(e) => setOrgName(e.target.value)} maxLength={200} autoFocus required />
           <fieldset className="mt-4 text-sm">
             <legend className="font-medium text-slate-700">{t.org.profile}</legend>
             {PROFILES.map((p) => (
@@ -174,10 +174,10 @@ export function SetupWizard({ onDone }: { onDone: () => void }) {
             go('recovery')
           })}
         >
-          <Field label={t.admin.name} value={name} onChange={(e) => setName(e.target.value)} maxLength={200} autoComplete="name" autoFocus required disabled={busy} />
-          <Field label={t.admin.email} type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="username" required disabled={busy} />
-          <Field label={t.admin.password} hint={pl.passwordRules.hint} type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password" required disabled={busy} />
-          <Field label={t.admin.repeat} type="password" value={repeat} onChange={(e) => setRepeat(e.target.value)} autoComplete="new-password" required disabled={busy} />
+          <InputField label={t.admin.name} value={name} onChange={(e) => setName(e.target.value)} maxLength={200} autoComplete="name" autoFocus required disabled={busy} />
+          <InputField label={t.admin.email} type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="username" required disabled={busy} />
+          <InputField label={t.admin.password} hint={pl.passwordRules.hint} type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password" required disabled={busy} />
+          <InputField label={t.admin.repeat} type="password" value={repeat} onChange={(e) => setRepeat(e.target.value)} autoComplete="new-password" required disabled={busy} />
           <ErrorNote>{error}</ErrorNote>
           <Actions busy={busy} onBack={() => go('org')} submit={t.next} />
         </form>
@@ -204,12 +204,12 @@ export function SetupWizard({ onDone }: { onDone: () => void }) {
           })}
         >
           <div className="mt-4 print:hidden">
-            <Button variant="secondary" onClick={() => window.print()}>
+            <Button variant="outline" onClick={() => window.print()}>
               {t.recovery.print}
             </Button>
           </div>
           <div className="print:hidden">
-            <Field label={t.recovery.confirm} hint={t.recovery.confirmHint} value={confirm} onChange={(e) => setConfirm(e.target.value)} maxLength={4} autoComplete="off" required />
+            <InputField label={t.recovery.confirm} hint={t.recovery.confirmHint} value={confirm} onChange={(e) => setConfirm(e.target.value)} maxLength={4} autoComplete="off" required />
           </div>
           <ErrorNote>{error}</ErrorNote>
           <Actions busy={busy} submit={t.next} />
@@ -244,7 +244,7 @@ export function SetupWizard({ onDone }: { onDone: () => void }) {
           <img className="mx-auto mt-4 h-52 w-52" alt={pl.totpSetup.qrAlt} src={`data:image/svg+xml;utf8,${encodeURIComponent(enrollment.qrSvg)}`} />
           <p className="mt-4 text-sm text-slate-600">{pl.totpSetup.manual}</p>
           <p className="mt-1 select-all break-all rounded bg-slate-100 px-3 py-2 font-mono text-sm">{enrollment.secret.match(/.{1,4}/g)?.join(' ')}</p>
-          <Field label={pl.totpSetup.code} hint={pl.totpSetup.codeHint} value={code} onChange={(e) => setCode(e.target.value)} inputMode="numeric" autoComplete="one-time-code" maxLength={7} required disabled={busy} />
+          <InputField label={pl.totpSetup.code} hint={pl.totpSetup.codeHint} value={code} onChange={(e) => setCode(e.target.value)} inputMode="numeric" autoComplete="one-time-code" maxLength={7} required disabled={busy} />
           <ErrorNote>{error}</ErrorNote>
           <Actions busy={busy} onBack={() => go('recovery')} submit={t.totp.submit} />
         </form>
@@ -253,7 +253,7 @@ export function SetupWizard({ onDone }: { onDone: () => void }) {
   }
 
   return (
-    <Card title={`${t.title}: ${t.done.title}`} wide>
+    <AuthCard title={`${t.title}: ${t.done.title}`} wide>
       <p className="mt-3 text-sm text-slate-700">{t.done.intro}</p>
       <p className="mt-4 text-sm font-medium">{t.done.checklist}</p>
       <ol className="mt-2 list-decimal space-y-1 pl-5 text-sm text-slate-700">
@@ -264,7 +264,7 @@ export function SetupWizard({ onDone }: { onDone: () => void }) {
       <div className="mt-6">
         <Button onClick={onDone}>{t.done.login}</Button>
       </div>
-    </Card>
+    </AuthCard>
   )
 }
 

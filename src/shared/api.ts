@@ -3,6 +3,8 @@
 // Wzór: desktopowe src/shared/ipc.ts.
 import { z } from 'zod'
 import { KDF_ITERATIONS, authKeySchema, emailSchema, kdfSaltSchema, sealedSchema } from './auth'
+import type { RoleLabels } from './domain'
+import type { ModuleId, Profile } from './modules'
 
 export const ROLES = ['admin', 'staff', 'readonly'] as const
 export type Role = (typeof ROLES)[number]
@@ -60,7 +62,9 @@ export const apiMethods = {
   /** Reset konta (zapomniane hasło, ponowne zaproszenie, przywrócenie wyłączonego): nowy jednorazowy token. */
   'users.reset': { input: z.object(target), roles: ADMIN },
   /** Dane techniczne instancji (wersja, migracje). Bez danych organizacji. */
-  'system.info': { input: none, roles: ['admin'] }
+  'system.info': { input: none, roles: ['admin'] },
+  /** Ustawienia organizacji potrzebne interfejsowi (moduły, nazwy ról). */
+  'settings.get': { input: none, roles: ALL }
 } satisfies Record<string, MethodSpec>
 
 export type Method = keyof typeof apiMethods
@@ -86,6 +90,16 @@ export interface InviteLink {
   expiresAt: string
 }
 
+export interface OrgSettings {
+  id: string
+  version: number
+  orgName: string
+  profile: Profile
+  enabledModules: ModuleId[]
+  roleLabels: RoleLabels
+  staleDays: number
+}
+
 export interface ApiOutputs {
   'auth.me': { userId: string; role: Role; totpVerified: boolean }
   'auth.account': { email: string; name: string; totpEnabled: boolean; orgName: string }
@@ -101,6 +115,7 @@ export interface ApiOutputs {
   'users.disable': void
   'users.reset': InviteLink
   'system.info': { version: string; migrations: number }
+  'settings.get': OrgSettings
 }
 
 export type ApiResult<M extends Method> = { ok: true; data: ApiOutputs[M] } | { ok: false; code: string; message: string }

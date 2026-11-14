@@ -1,7 +1,7 @@
 // Zmiana hasła: nowe klucze liczone w przeglądarce, klucz prywatny przeszyfrowany nowym wrapKey.
 // Serwer dostaje obecny i nowy authKey, świeży kod TOTP i nowy szyfrogram klucza prywatnego; haseł nie widzi.
 import { useState, type FormEvent } from 'react'
-import { Button, Card, ErrorNote, Field } from '../components/ui'
+import { AuthCard, Button, ErrorNote, InputField } from '../components/ui'
 import { fromBase64, toBase64 } from '../crypto/encoding'
 import { KDF_ITERATIONS, deriveKeys, newKdfSalt } from '../crypto/kdf'
 import { rewrapPrivateKey } from '../crypto/keys'
@@ -64,12 +64,12 @@ export function ChangePasswordScreen({ userId, email, onDone, onCancel, onSigned
   }
 
   return (
-    <Card title={pl.changePassword.title}>
+    <AuthCard title={pl.changePassword.title}>
       <form onSubmit={submit}>
-        <Field label={pl.changePassword.current} type="password" value={current} onChange={(e) => setCurrent(e.target.value)} autoComplete="current-password" autoFocus required disabled={busy} />
-        <Field label={pl.changePassword.next} hint={pl.passwordRules.hint} type="password" value={next} onChange={(e) => setNext(e.target.value)} autoComplete="new-password" required disabled={busy} />
-        <Field label={pl.changePassword.repeat} type="password" value={repeat} onChange={(e) => setRepeat(e.target.value)} autoComplete="new-password" required disabled={busy} />
-        <Field
+        <InputField label={pl.changePassword.current} type="password" value={current} onChange={(e) => setCurrent(e.target.value)} autoComplete="current-password" autoFocus required disabled={busy} />
+        <InputField label={pl.changePassword.next} hint={pl.passwordRules.hint} type="password" value={next} onChange={(e) => setNext(e.target.value)} autoComplete="new-password" required disabled={busy} />
+        <InputField label={pl.changePassword.repeat} type="password" value={repeat} onChange={(e) => setRepeat(e.target.value)} autoComplete="new-password" required disabled={busy} />
+        <InputField
           label={pl.changePassword.code}
           hint={pl.changePassword.codeHint}
           value={code}
@@ -85,12 +85,12 @@ export function ChangePasswordScreen({ userId, email, onDone, onCancel, onSigned
           <Button type="submit" disabled={busy}>
             {pl.changePassword.submit}
           </Button>
-          <Button variant="secondary" onClick={onCancel} disabled={busy}>
+          <Button variant="outline" onClick={onCancel} disabled={busy}>
             {pl.changePassword.cancel}
           </Button>
         </div>
         {busy && <p className="mt-3 text-sm text-slate-500">{pl.changePassword.working}</p>}
       </form>
-    </Card>
+    </AuthCard>
   )
 }

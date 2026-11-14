@@ -11,6 +11,7 @@ import { changePassword, confirmTotpSetup, getAccount, getKeys, startTotpSetup }
 import { registerSuccess } from './auth/lockout'
 import { disableUser, inviteUser, listUsers, resetUser, setUserRole } from './auth/users'
 import type { AuthOptions } from './auth/options'
+import { getSettings } from './services/settings'
 import { SESSION_COOKIE, clearSessionCookie, createSession, revokeAllSessions, revokeSession, setSessionCookie } from './auth/sessions'
 
 /** Sesja logowania widziana przez strażnika. */
@@ -98,7 +99,8 @@ const handlers: Handlers = {
   'users.setRole': (input, { db, session, now }) => setUserRole(db, input, { userId: session.userId, now }),
   'users.disable': (input, { db, session, now }) => disableUser(db, input, { userId: session.userId, now }),
   'users.reset': (input, { db, session, now }) => resetUser(db, input, { userId: session.userId, now }),
-  'system.info': async (_p, { db }) => ({ version: pkg.version, migrations: await migrationCount(db) })
+  'system.info': async (_p, { db }) => ({ version: pkg.version, migrations: await migrationCount(db) }),
+  'settings.get': (_p, { db }) => getSettings(db)
 }
 
 export const HTTP_STATUS: Record<ErrorCode, number> = {

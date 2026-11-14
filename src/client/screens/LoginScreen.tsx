@@ -1,6 +1,6 @@
 // Logowanie: e-mail i hasło → kod z aplikacji. Hasło nie opuszcza przeglądarki: do serwera idzie tylko authKey.
 import { useRef, useState, type FormEvent } from 'react'
-import { Button, Card, ErrorNote, Field } from '../components/ui'
+import { AuthCard, Button, ErrorNote, InputField } from '../components/ui'
 import { fromBase64 } from '../crypto/encoding'
 import { deriveKeys } from '../crypto/kdf'
 import { pl } from '../i18n/pl'
@@ -72,9 +72,9 @@ export function LoginScreen({ resumeCode, onSignedIn, onTotpSetup }: Props) {
 
   if (step === 'code') {
     return (
-      <Card title={pl.login.codeTitle}>
+      <AuthCard title={pl.login.codeTitle}>
         <form onSubmit={submitCode}>
-          <Field
+          <InputField
             label={pl.login.code}
             hint={pl.login.codeHint}
             value={code}
@@ -91,20 +91,20 @@ export function LoginScreen({ resumeCode, onSignedIn, onTotpSetup }: Props) {
             <Button type="submit" disabled={busy}>
               {pl.login.confirm}
             </Button>
-            <Button variant="secondary" onClick={back} disabled={busy}>
+            <Button variant="outline" onClick={back} disabled={busy}>
               {pl.login.back}
             </Button>
           </div>
         </form>
-      </Card>
+      </AuthCard>
     )
   }
 
   return (
-    <Card title={pl.login.title}>
+    <AuthCard title={pl.login.title}>
       <form onSubmit={submitCredentials}>
-        <Field label={pl.login.email} type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="username" autoFocus required disabled={busy} />
-        <Field label={pl.login.password} type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" required disabled={busy} />
+        <InputField label={pl.login.email} type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="username" autoFocus required disabled={busy} />
+        <InputField label={pl.login.password} type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" required disabled={busy} />
         <ErrorNote>{error}</ErrorNote>
         <div className="mt-6 flex items-center gap-3">
           <Button type="submit" disabled={busy}>
@@ -113,6 +113,6 @@ export function LoginScreen({ resumeCode, onSignedIn, onTotpSetup }: Props) {
           {busy && <span className="text-sm text-slate-500">{pl.login.working}</span>}
         </div>
       </form>
-    </Card>
+    </AuthCard>
   )
 }

@@ -35,9 +35,18 @@ async function postJson<T>(url: string, body: unknown): Promise<T> {
 
 const MUTATION = /\.(create|update|delete|add|remove|set|setStatus|move|toggle|end|withdraw|restore|applyPaste|apply|shiftTasks|invite|setRole|disable|reset)$/
 const CHANGED = 'ngo-data-changed'
+/** Ktoś inny zmienił rekord: wszystkie wczytane widoki pobierają dane od nowa. */
+const STALE = 'ngo-data-stale'
 
 export async function call<M extends Method>(method: M, params: ApiInput<M>): Promise<ApiOutputs[M]> {
-  const data = await postJson<ApiOutputs[M]>('/api/rpc', { method, params })
+  let data: ApiOutputs[M]
+  try {
+    data = await postJson<ApiOutputs[M]>('/api/rpc', { method, params })
+  } catch (e) {
+    // Konflikt wersji obsługujemy w jednym miejscu: widoki się odświeżają, a formularz pokazuje komunikat z błędu.
+    if (isApiError(e, 'VERSION_CONFLICT')) window.dispatchEvent(new Event(STALE))
+    throw e
+  }
   // po każdym zapisie: odśwież liczniki i widoki zbiorcze
   if (MUTATION.test(method)) window.dispatchEvent(new Event(CHANGED))
   return data
@@ -106,5 +115,9 @@ export function useLoad<M extends Method>(method: M, params: ApiInput<M>) {
     }
   }, [method, key, version])
   const reload = useCallback(() => setVersion((v) => v + 1), [])
+  useEffect(() => {
+    window.addEventListener(STALE, reload)
+    return () => window.removeEventListener(STALE, reload)
+  }, [reload])
   return { data, error, reload }
 }

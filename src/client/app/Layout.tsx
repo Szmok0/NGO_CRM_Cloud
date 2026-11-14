@@ -2,14 +2,12 @@
 // Moduły z ZADANIA_02 są w menu wyszarzone („wkrótce”).
 import { useEffect, useState, type ReactNode } from 'react'
 import { BookOpen, CalendarDays, CheckSquare, ChevronsLeft, ChevronsRight, ClipboardList, FolderOpen, LogOut, Settings, Sun, Trash2, Users } from 'lucide-react'
-import type { Role } from '@shared/api'
 import { Avatar } from '../components/ui'
 import { pl } from '../i18n/pl'
 import { cn } from '../lib/cn'
+import { useApp, type Route } from './context'
 
-export type RouteName = 'today' | 'settings'
-
-const NAV: { route?: RouteName; label: string; icon: ReactNode }[] = [
+const NAV: { route?: Route['name']; label: string; icon: ReactNode }[] = [
   { route: 'today', label: pl.nav.today, icon: <Sun size={18} /> },
   { label: pl.nav.contacts, icon: <Users size={18} /> },
   { label: pl.nav.actions, icon: <ClipboardList size={18} /> },
@@ -32,16 +30,12 @@ function useMedia(query: string): boolean {
   return match
 }
 
-interface Props {
-  route: RouteName
-  onNavigate: (route: RouteName) => void
-  user: { id: string; name: string; role: Role }
-  orgName: string
-  onLogout: () => void
-  children: ReactNode
-}
-
-function Sidebar({ route, onNavigate, user, orgName, onLogout }: Omit<Props, 'children'>) {
+function Sidebar() {
+  const { session, route: current, go, logout: onLogout } = useApp()
+  const route = current.name
+  const onNavigate = (name: Route['name']) => go({ name })
+  const user = { id: session.me.userId, name: session.account.name, role: session.me.role }
+  const orgName = session.settings.orgName
   const narrow = useMedia('(max-width: 1279px)')
   // poniżej 1280 px menu zwija się do ikon; przycisk pozwala to zmienić
   const [pref, setPref] = useState<boolean | null>(null)
@@ -100,11 +94,11 @@ function Sidebar({ route, onNavigate, user, orgName, onLogout }: Omit<Props, 'ch
       })}
 
       <div className={cn('mt-auto flex items-center gap-2.5 border-t border-nav-line pt-3.5', collapsed ? 'flex-col px-0' : 'px-2.5')}>
-        <Avatar id={user.id} name={user.name} />
+        <Avatar id={user.id} name={user.name} size={34} />
         {!collapsed && (
           <div className="min-w-0 flex-1">
             <div className="truncate text-[13px] font-semibold text-white">{user.name}</div>
-            <div className="text-xs text-nav-muted">{pl.roles[user.role]}</div>
+            <div className="text-xs text-nav-muted">{pl.userRoles[user.role]}</div>
           </div>
         )}
         <button type="button" onClick={onLogout} title={pl.nav.logout} aria-label={pl.nav.logout} className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-md text-nav-muted hover:bg-nav-hover hover:text-white">
@@ -115,15 +109,18 @@ function Sidebar({ route, onNavigate, user, orgName, onLogout }: Omit<Props, 'ch
   )
 }
 
-export function Layout({ children, ...nav }: Props) {
+export function Layout({ children }: { children: ReactNode }) {
+  const { session } = useApp()
+  const name = session.account.name
   return (
     <div className="flex h-full">
-      <Sidebar {...nav} />
+      <Sidebar />
       <div className="flex min-w-0 flex-1 flex-col">
+        {/* Pasek górny; wyszukiwarka globalna i „+ Utwórz” dojdą z modułami (ZADANIE_02, kroki 2–5). */}
         <header className="flex min-h-16 items-center gap-3 border-b border-border bg-background px-8 py-3 print:hidden">
           <div className="ml-auto flex items-center gap-2.5">
-            <span title={nav.user.name}>
-              <Avatar id={nav.user.id} name={nav.user.name} size="lg" />
+            <span title={name}>
+              <Avatar id={session.me.userId} name={name} size={40} />
             </span>
           </div>
         </header>

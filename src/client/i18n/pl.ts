@@ -1,6 +1,30 @@
 // Teksty interfejsu w jednym miejscu (CLAUDE.md, Konwencje).
-import type { Role } from '@shared/api'
+// Wspólne sekcje i słowniki przeniesione z desktopu (..\NGO_CRM\src\renderer\i18n\pl.ts).
+import type { Role as UserRole } from '@shared/api'
+import type {
+  ActionStatus,
+  ActionType,
+  ActivityType,
+  AttendanceStatus,
+  Channel,
+  ConsentType,
+  Framework,
+  ParticipantStatus,
+  Priority,
+  RelationshipType,
+  Role,
+  TaskStatus
+} from '@shared/domain'
 import type { ErrorCode } from '@shared/errors'
+import type { HolidayId } from '@shared/holidays'
+
+/** Polska odmiana liczebników: 1 zadanie, 2 zadania, 5 zadań (12–14 jak 5). */
+export function plural(n: number, one: string, few: string, many: string): string {
+  if (n === 1) return one
+  const d = n % 10
+  const dd = n % 100
+  return d >= 2 && d <= 4 && (dd < 12 || dd > 14) ? few : many
+}
 
 export const pl = {
   app: {
@@ -10,23 +34,248 @@ export const pl = {
     setupNeeded: (vars: string) => `Aplikacja czeka na konfigurację. W panelu hostingu ustaw: ${vars} (opis w pliku .env.example).`,
     version: (v: string) => `wersja ${v}`
   },
-  roles: { admin: 'administrator', staff: 'pracownik', readonly: 'tylko odczyt' } satisfies Record<Role, string>,
+  common: {
+    save: 'Zapisz',
+    cancel: 'Anuluj',
+    add: 'Dodaj',
+    edit: 'Edytuj',
+    delete: 'Usuń',
+    close: 'Zamknij',
+    back: 'Wstecz',
+    next: 'Dalej',
+    search: 'Szukaj…',
+    all: 'Wszystkie',
+    none: '—',
+    yes: 'Tak',
+    no: 'Nie',
+    loading: 'Wczytywanie…',
+    empty: 'Brak pozycji.',
+    deletedSuffix: '(usunięta)',
+    confirmDelete: 'Usunąć? Rekord trafi do Kosza i można go przywrócić.',
+    exportCsv: 'Eksport CSV',
+    notes: 'Uwagi',
+    note: 'Notatka',
+    date: 'Data',
+    from: 'Od',
+    to: 'Do',
+    filter: 'Filtr',
+    clear: 'Wyczyść',
+    by: 'przez'
+  },
+  userRoles: { admin: 'administrator', staff: 'pracownik', readonly: 'tylko odczyt' } satisfies Record<UserRole, string>,
   nav: {
     mainMenu: 'Menu główne',
     today: 'Dziś',
-    contacts: 'Osoby',
+    contacts: 'Osoby i instytucje',
     actions: 'Działania',
     calendar: 'Kalendarz',
     tasks: 'Zadania',
-    materials: 'Materiały',
-    topics: 'Tematy',
+    materials: 'Materiały i wiedza',
+    topics: 'Tematy szkoleń',
     trash: 'Kosz',
     settings: 'Ustawienia',
     soon: 'wkrótce',
     collapse: 'Zwiń menu',
     expand: 'Rozwiń menu',
-    logout: 'Wyloguj'
+    logout: 'Wyloguj',
+    tasksCounter: (n: number) => `${n} zadań zaległych i na dziś`,
+    globalSearch: 'Szukaj osób, instytucji, działań…',
+    searchNoResults: 'Nic nie znaleziono.'
   },
+  create: {
+    button: 'Utwórz',
+    menuLabel: 'Utwórz nowy wpis',
+    person: 'Osoba',
+    institution: 'Instytucja',
+    note: 'Notatka',
+    contactEntry: 'Kontakt',
+    task: 'Zadanie',
+    action: 'Działanie',
+    noteTitle: 'Nowa notatka',
+    contactTitle: 'Nowy wpis: kontakt',
+    who: 'Kogo dotyczy'
+  },
+  calendar: {
+    title: 'Kalendarz',
+    prev: { month: 'Poprzedni miesiąc', week: 'Poprzedni tydzień', list: 'Poprzedni miesiąc' },
+    next: { month: 'Następny miesiąc', week: 'Następny tydzień', list: 'Następny miesiąc' },
+    today: 'Dziś',
+    modes: { month: 'Miesiąc', week: 'Tydzień', list: 'Lista' },
+    show: 'Pokaż:',
+    categories: {
+      sessions: 'Zajęcia i szkolenia',
+      events: 'Wydarzenia',
+      meetings: 'Spotkania',
+      fundraisers: 'Zbiórki',
+      tasks: 'Terminy zadań',
+      overdue: 'Zaległe zadania'
+    },
+    sessionLabel: (time: string | null, title: string, n: number, m: number) => `${time ? time + ' ' : ''}${title}${m > 1 ? ` · zaj. ${n} z ${m}` : ''}`,
+    timed: (time: string | null, title: string) => `${time ? time + ' ' : ''}${title}`,
+    actionEnd: (title: string) => `Koniec: ${title}`,
+    fundraiserEnd: (title: string) => `Koniec zbiórki: ${title}`,
+    more: (n: number) => `+${n} więcej`,
+    weekRange: (a: string, b: string) => `${a} – ${b}`,
+    nothingToday: 'Nic na dziś.',
+    ongoing: 'Trwa w tym miesiącu',
+    noOngoing: 'Brak działań wielodniowych.',
+    upcoming: 'Najbliższe',
+    noUpcoming: 'Brak zaplanowanych wpisów.',
+    listEmpty: 'Brak wpisów w tym miesiącu.',
+    dayEmpty: 'Brak wpisów.',
+    dayLabel: (date: string, n: number) => `${date}: ${n} ${plural(n, 'wpis', 'wpisy', 'wpisów')}`,
+    createOn: (date: string) => `Utwórz wpis na ${date}`,
+    createTask: 'Zadanie z tym terminem',
+    createAction: 'Działanie od tego dnia',
+    kindSession: 'zajęcia',
+    kindTask: 'zadanie',
+    taskDone: 'zrobione',
+    taskSub: (who: string | null, d: number, t: number) => ['zadanie', who, t ? `checklista ${d}/${t}` : null].filter(Boolean).join(' · '),
+    export: 'Eksport do Google / Outlook',
+    exportTitle: 'Eksport kalendarza (.ics)',
+    exportRange: 'Zakres',
+    exportMonth: 'Bieżący miesiąc',
+    export3: '3 najbliższe miesiące',
+    exportTasks: 'Dołącz terminy zadań (jako wpisy całodniowe)',
+    exportHint:
+      'Plik .ics zaimportujesz w Google Calendar (Ustawienia → Importuj i eksportuj) albo w Outlooku (Dodaj kalendarz → Przekaż z pliku). Ponowny import aktualizuje wpisy zamiast je dublować. W pliku są tylko tytuły, miejsca i liczba uczestników, bez danych osobowych.',
+    exportName: (from: string) => `kalendarz_${from}.ics`,
+    exportCount: (n: number) => `Wpisów w pliku: ${n}`,
+    icsParticipants: (n: number) => `Uczestnicy: ${n}`,
+    icsSession: (title: string, n: number, m: number) => (m > 1 ? `${title} — zajęcia ${n} z ${m}` : title),
+    icsTask: (title: string) => `Zadanie: ${title}`,
+    holidays: {
+      newYear: 'Nowy Rok',
+      epiphany: 'Trzech Króli',
+      easter: 'Wielkanoc',
+      easterMonday: 'Poniedziałek Wielkanocny',
+      labourDay: 'Święto Pracy',
+      constitutionDay: 'Święto Konstytucji 3 Maja',
+      pentecost: 'Zielone Świątki',
+      corpusChristi: 'Boże Ciało',
+      assumption: 'Wniebowzięcie NMP',
+      allSaints: 'Wszystkich Świętych',
+      independenceDay: 'Święto Niepodległości',
+      christmasEve: 'Wigilia',
+      christmas: 'Boże Narodzenie',
+      christmasSecond: 'Drugi dzień Świąt'
+    } satisfies Record<HolidayId, string>
+  },
+  feed: {
+    contactAdded: (s: string, institution: boolean) => (institution ? `nowa instytucja w bazie: ${s}` : `nowa osoba w bazie: ${s}`),
+    contactUpdated: (s: string) => `zmiana danych: ${s}`,
+    contactDeleted: (s: string) => `do Kosza: ${s}`,
+    actionAdded: (s: string) => `nowe działanie „${s}”`,
+    actionUpdated: (s: string) => `zmiany w działaniu „${s}”`,
+    actionStatus: (s: string, status: string) => `działanie „${s}”: ${status}`,
+    actionDeleted: (s: string) => `działanie do Kosza: „${s}”`,
+    sessionAdded: (s: string, n: number) => (n > 1 ? `nowe terminy zajęć (${n}): „${s}”` : `nowy termin zajęć: „${s}”`),
+    participantsAdded: (s: string, n: number) => (n > 1 ? `nowi uczestnicy (${n}) w „${s}”` : `nowy uczestnik w „${s}”`),
+    attendance: (s: string, no: number) => `obecność: ${s}, zajęcia ${no}`,
+    taskAdded: (s: string) => `nowe zadanie „${s}”`,
+    taskUpdated: (s: string) => `zmiany w zadaniu „${s}”`,
+    taskDone: (s: string) => `zadanie zrobione: „${s}”`,
+    taskDeleted: (s: string) => `zadanie do Kosza: „${s}”`,
+    activityAdded: (type: string, s: string) => (s ? `${type}: ${s}` : type),
+    consentAdded: (type: string, s: string) => `zgoda (${type}): ${s}`,
+    topicAdded: (s: string) => `nowy temat szkolenia „${s}”`
+  },
+  time: {
+    justNow: 'przed chwilą',
+    minutesAgo: (n: number) => `${n} min temu`,
+    hoursAgo: (n: number) => `${n} godz. temu`,
+    yesterday: (t: string) => `wczoraj, ${t}`,
+    weekdays: ['poniedziałek', 'wtorek', 'środa', 'czwartek', 'piątek', 'sobota', 'niedziela'],
+    weekdaysShort: ['pn', 'wt', 'śr', 'cz', 'pt', 'so', 'nd'],
+    weekdaysMini: ['Pn', 'Wt', 'Śr', 'Cz', 'Pt', 'So', 'Nd'],
+    weekdaysHeader: ['Pon', 'Wt', 'Śr', 'Czw', 'Pt', 'Sob', 'Nd'],
+    months: ['styczeń', 'luty', 'marzec', 'kwiecień', 'maj', 'czerwiec', 'lipiec', 'sierpień', 'wrzesień', 'październik', 'listopad', 'grudzień'],
+    monthsGenitive: ['stycznia', 'lutego', 'marca', 'kwietnia', 'maja', 'czerwca', 'lipca', 'sierpnia', 'września', 'października', 'listopada', 'grudnia'],
+    monthsShort: ['sty', 'lut', 'mar', 'kwi', 'maj', 'cze', 'lip', 'sie', 'wrz', 'paź', 'lis', 'gru']
+  },
+  // ---------- słowniki domeny (jak w desktopie) ----------
+  roles: {
+    participant: 'uczestnik',
+    volunteer: 'wolontariusz',
+    donor: 'darczyńca',
+    member: 'członek',
+    partner: 'partner',
+    trainer: 'trener',
+    staff: 'pracownik',
+    other: 'inna'
+  } satisfies Record<Role, string>,
+  relationshipTypes: {
+    works_at: 'pracuje w',
+    contact_person: 'osoba kontaktowa',
+    guardian: 'opiekun',
+    other: 'inne'
+  } satisfies Record<RelationshipType, string>,
+  /** Jak powiązanie wygląda z drugiej strony (strona B). */
+  relationshipTypesReverse: {
+    works_at: 'zatrudnia',
+    contact_person: 'ma osobę kontaktową',
+    guardian: 'pod opieką',
+    other: 'inne'
+  } satisfies Record<RelationshipType, string>,
+  consentTypes: {
+    processing: 'przetwarzanie danych',
+    image: 'wizerunek',
+    communication: 'kontakt i informacje',
+    other: 'inna'
+  } satisfies Record<ConsentType, string>,
+  activityTypes: {
+    note: 'notatka',
+    contact: 'kontakt',
+    support: 'wsparcie',
+    system: 'system'
+  } satisfies Record<ActivityType, string>,
+  channels: {
+    phone: 'telefon',
+    email: 'e-mail',
+    meeting: 'spotkanie',
+    other: 'inny'
+  } satisfies Record<Channel, string>,
+  actionTypes: {
+    training: 'szkolenie',
+    workshop: 'warsztat',
+    event: 'wydarzenie',
+    meeting: 'spotkanie',
+    fundraiser: 'zbiórka',
+    other: 'inne'
+  } satisfies Record<ActionType, string>,
+  frameworks: {
+    project: 'projekt',
+    statutory_free: 'działalność statutowa nieodpłatna',
+    statutory_paid: 'działalność statutowa odpłatna',
+    business: 'działalność gospodarcza'
+  } satisfies Record<Framework, string>,
+  actionStatuses: {
+    planned: 'planowane',
+    ongoing: 'w realizacji',
+    done: 'zakończone',
+    cancelled: 'odwołane'
+  } satisfies Record<ActionStatus, string>,
+  participantStatuses: {
+    registered: 'zgłoszony',
+    confirmed: 'potwierdzony',
+    resigned: 'zrezygnował'
+  } satisfies Record<ParticipantStatus, string>,
+  attendanceStatuses: {
+    present: 'obecny',
+    absent: 'nieobecny',
+    excused: 'usprawiedliwiony'
+  } satisfies Record<AttendanceStatus, string>,
+  attendanceShort: { present: 'O', absent: 'N', excused: 'U' } satisfies Record<AttendanceStatus, string>,
+  taskStatuses: {
+    todo: 'do zrobienia',
+    doing: 'w trakcie',
+    done: 'zrobione'
+  } satisfies Record<TaskStatus, string>,
+  priorities: {
+    low: 'niski',
+    normal: 'normalny',
+    high: 'wysoki'
+  } satisfies Record<Priority, string>,
   settings: {
     title: 'Ustawienia',
     organization: 'Organizacja'
@@ -222,7 +471,7 @@ export const pl = {
     FORBIDDEN: 'Nie masz uprawnień do tej operacji.',
     VALIDATION: 'Nieprawidłowe dane.',
     NOT_FOUND: 'Nie znaleziono rekordu (mógł zostać usunięty).',
-    VERSION_CONFLICT: 'Ktoś zmienił ten rekord w międzyczasie. Odśwież widok i wprowadź zmianę ponownie.',
+    VERSION_CONFLICT: 'Ktoś zmienił ten rekord w międzyczasie. Widok pokazuje teraz aktualne dane, wprowadź zmianę ponownie.',
     UNKNOWN: 'Wystąpił nieoczekiwany błąd.'
   } satisfies Record<ErrorCode, string>
 }

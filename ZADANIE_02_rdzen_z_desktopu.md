@@ -193,3 +193,14 @@ Nie aktualizuj Sejfu bez zgody MOC.
 - `repo.ts`: `NAMES_ONLY_TABLES` (`contact_identity`, `contact_sensitive`) — `change_log` zapisuje dla nich same nazwy pól (`{ pole: true }`), także przy `insert`, usunięciu i przywróceniu. Test w `repo.test.ts`.
 - `typecheck` i `npm test` (272) bez błędów.
 - Do kroku 6: zmiana samej tożsamości (`contact_identity`) nie trafia jeszcze do „Ostatnio w organizacji” jako „zmienił dane osoby”; dopisać przy podłączaniu feedu.
+
+### Krok 1, etap b: interfejs (2026-11-14) — kod gotowy, sprawdzenie w przeglądarce NIEZROBIONE
+- `components/ui.tsx`: komponenty desktopu (`Button`, `Input`, `Textarea`, `Select`, `Checkbox`, `Field`, `Card`, `Badge`, `Alert`, `Avatar`, `EmptyState`, `Dialog`, `Tabs`, `Segmented`, `Table`, `PageHeader`, `Empty`, `ErrorText`) z wariantami jako mapy klas (bez cva) i bez `style`. `Avatar`: rozmiary jako klasy, kolor przez `avatarClass` (test zgodności z paletą). Zostały pomocnicze ekranów logowania: `AuthCard` (dawny `Card`), `InputField` (dawny `Field`), `SelectField`, `ErrorNote`, `InfoNote`; przycisk `danger` (obramowany) dodany do wariantów desktopu.
+- `components/chips.tsx`, `lib/avatar.ts`, `lib/feedText.ts`, `lib/calendarUi.ts`, `lib/format.ts` z desktopu (z testami `avatar`, `feedText`); bez `formatSize` i zdań o plikach/notatkach.
+- `app/context.tsx`: kontekst jak w desktopie (sesja z kontem i ustawieniami, trasy `today`/`settings`, nazwy ról, moduły, wylogowanie). Nowa metoda RPC `settings.get` (wszystkie role) i `server/services/settings.ts`.
+- `lib/api.ts`: `VERSION_CONFLICT` obsłużony w jednym miejscu (wszystkie `useLoad` wczytują dane od nowa, formularz pokazuje komunikat).
+- `i18n/pl.ts`: wspólne sekcje i słowniki z desktopu; role użytkowników przemianowane na `pl.userRoles` (`pl.roles` = role kontaktów jak w desktopie); nazwy w menu jak w desktopie.
+- `styles.css`: brakujące tokeny (`orange`, `violet-strong`, kolory obecności), tło okien dialogowych.
+- 7 ekranów i `Layout` dopasowane do nowych nazw komponentów (wygląd bez zmian, `Panel` w ustawieniach zastąpiony `Card`).
+- `typecheck`, `npm test` (288) i `npm run build` bez błędów.
+- **Do zrobienia na start następnej sesji:** sprawdzenie w przeglądarce na zbudowanej aplikacji (logowanie, ustawienia, użytkownicy, kreator; konsola bez błędów CSP).

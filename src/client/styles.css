@@ -54,8 +54,16 @@
   --color-warning: #9a4a08;
   --color-warning-bg: #fff6ec;
   --color-warning-border: #f6d8b5;
+  --color-orange: #8a3f06;
+  --color-orange-strong: #b4530a;
   --color-violet-soft: #efe8fc;
   --color-violet: #5b32a6;
+  --color-violet-strong: #6d3fc0;
+
+  /* obecność (makieta: nieobecny #D64545 przyciemniony do kontrastu 4,5:1 z białym tekstem) */
+  --color-att-present: #0f7f73;
+  --color-att-absent: #c53030;
+  --color-att-excused: #e9a23b;
 
   /* menu boczne */
   --color-nav: #1e2940;
@@ -89,6 +97,10 @@ body {
 :where(a, button, [role='tab'], [tabindex]):focus-visible {
   outline: 2px solid var(--color-primary);
   outline-offset: 2px;
+}
+
+dialog::backdrop {
+  background: rgb(16 24 40 / 0.4);
 }
 
 @media print {

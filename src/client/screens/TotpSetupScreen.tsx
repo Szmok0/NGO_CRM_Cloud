@@ -1,7 +1,7 @@
 // Konfiguracja 2FA: kod QR i klucz do ręcznego wpisania, potwierdzenie pierwszym kodem.
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import type { ApiOutputs } from '@shared/api'
-import { Button, Card, ErrorNote, Field } from '../components/ui'
+import { AuthCard, Button, ErrorNote, InputField } from '../components/ui'
 import { pl } from '../i18n/pl'
 import { call, errorMessage } from '../lib/api'
 
@@ -37,7 +37,7 @@ export function TotpSetupScreen({ onDone, onCancel }: { onDone: () => void; onCa
   }
 
   return (
-    <Card title={pl.totpSetup.title}>
+    <AuthCard title={pl.totpSetup.title}>
       <p className="mt-3 text-sm text-slate-600">{pl.totpSetup.intro}</p>
       {!setup && !error && <p className="mt-4 text-sm text-slate-500">{pl.app.loading}</p>}
       {setup && (
@@ -46,7 +46,7 @@ export function TotpSetupScreen({ onDone, onCancel }: { onDone: () => void; onCa
           <img className="mx-auto mt-4 h-52 w-52" alt={pl.totpSetup.qrAlt} src={`data:image/svg+xml;utf8,${encodeURIComponent(setup.qrSvg)}`} />
           <p className="mt-4 text-sm text-slate-600">{pl.totpSetup.manual}</p>
           <p className="mt-1 select-all break-all rounded bg-slate-100 px-3 py-2 font-mono text-sm">{setup.secret.match(/.{1,4}/g)?.join(' ')}</p>
-          <Field
+          <InputField
             label={pl.totpSetup.code}
             hint={pl.totpSetup.codeHint}
             value={code}
@@ -62,7 +62,7 @@ export function TotpSetupScreen({ onDone, onCancel }: { onDone: () => void; onCa
             <Button type="submit" disabled={busy}>
               {pl.totpSetup.confirm}
             </Button>
-            <Button variant="secondary" onClick={onCancel} disabled={busy}>
+            <Button variant="outline" onClick={onCancel} disabled={busy}>
               {pl.totpSetup.cancel}
             </Button>
           </div>
@@ -71,11 +71,11 @@ export function TotpSetupScreen({ onDone, onCancel }: { onDone: () => void; onCa
       {!setup && <ErrorNote>{error}</ErrorNote>}
       {!setup && error && (
         <div className="mt-6">
-          <Button variant="secondary" onClick={onCancel}>
+          <Button variant="outline" onClick={onCancel}>
             {pl.totpSetup.cancel}
           </Button>
         </div>
       )}
-    </Card>
+    </AuthCard>
   )
 }

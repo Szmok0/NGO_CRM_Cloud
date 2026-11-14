@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useState } from 'react'
-import type { ApiOutputs } from '@shared/api'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { Health } from '@shared/health'
-import { Layout, type RouteName } from './app/Layout'
-import { Card } from './components/ui'
+import { AppContext, type AppContextValue, type Route, type SessionInfo } from './app/context'
+import { Layout } from './app/Layout'
+import { AuthCard } from './components/ui'
 import { toBase64 } from './crypto/encoding'
 import { pl } from './i18n/pl'
 import { call, isApiError, setupApi } from './lib/api'
@@ -27,10 +27,16 @@ type View =
   | { name: 'invite'; token: string }
   | { name: 'login'; resumeCode: boolean }
   | { name: 'totpSetup'; wrapKey: CryptoKey | null }
-  | { name: 'app' | 'changePassword'; route: RouteName; me: ApiOutputs['auth.me']; account: ApiOutputs['auth.account']; notice?: string }
+  | { name: 'app' | 'changePassword'; session: SessionInfo; notice?: string }
+
+const loadSession = async (): Promise<SessionInfo> => {
+  const [me, account, settings] = await Promise.all([call('auth.me', {}), call('auth.account', {}), call('settings.get', {})])
+  return { me, account, settings }
+}
 
 export function App() {
   const [view, setView] = useState<View>({ name: 'loading' })
+  const [history, setHistory] = useState<Route[]>([{ name: 'today' }])
 
   /** Ustala widok na podstawie sesji; po pełnym logowaniu odblokowuje klucze, jeśli w tej karcie podano hasło. */
   const enter = useCallback(async (wrapKey: CryptoKey | null = null, notice?: string) => {
@@ -39,7 +45,8 @@ export function App() {
       const account = await call('auth.account', {})
       if (!me.totpVerified) return setView(account.totpEnabled ? { name: 'login', resumeCode: true } : { name: 'totpSetup', wrapKey })
       if (wrapKey) await unlockKeys(wrapKey, me.userId).catch(() => false)
-      setView({ name: 'app', route: 'today', me, account, notice })
+      setHistory([{ name: 'today' }])
+      setView({ name: 'app', session: { me, account, settings: await call('settings.get', {}) }, notice })
     } catch (e) {
       lockKeys()
       if (!isApiError(e, 'UNAUTHENTICATED')) return setView({ name: 'message', text: pl.app.serverError })
@@ -72,14 +79,35 @@ export function App() {
     if (window.location.hash) window.history.replaceState(null, '', window.location.pathname)
     setView({ name: 'login', resumeCode: false })
   }
-  const logout = () => call('auth.logout', {}).catch(() => undefined).then(toLogin)
+  const logout = useCallback(() => void call('auth.logout', {}).catch(() => undefined).then(toLogin), [])
+
+  const refreshSession = useCallback(async () => {
+    const session = await loadSession()
+    setView((v) => (v.name === 'app' || v.name === 'changePassword' ? { ...v, session } : v))
+  }, [])
+
+  const session = view.name === 'app' ? view.session : null
+  const ctx = useMemo<AppContextValue | null>(() => {
+    if (!session) return null
+    return {
+      session,
+      refreshSession,
+      route: history[history.length - 1]!,
+      go: (r) => setHistory((h) => [...h.slice(-30), r]),
+      back: () => setHistory((h) => (h.length > 1 ? h.slice(0, -1) : h)),
+      canGoBack: history.length > 1,
+      roleLabel: (r) => session.settings.roleLabels[r] || pl.roles[r],
+      moduleOn: (m) => session.settings.enabledModules.includes(m),
+      logout
+    }
+  }, [session, history, refreshSession, logout])
 
   switch (view.name) {
     case 'loading':
       return <p className="p-10 text-muted-foreground">{pl.app.loading}</p>
     case 'message':
       return (
-        <Card title={pl.app.name} wide>
+        <AuthCard title={pl.app.name} wide>
           <p className="mt-4 text-warning">{view.text}</p>
           {view.appSecretHint && (
             <>
@@ -87,7 +115,7 @@ export function App() {
               <p className="mt-1 select-all break-all rounded-control bg-muted px-3 py-2 font-mono text-sm">{view.appSecretHint}</p>
             </>
           )}
-        </Card>
+        </AuthCard>
       )
     case 'setup':
       return <SetupWizard onDone={toLogin} />
@@ -100,8 +128,8 @@ export function App() {
     case 'changePassword':
       return (
         <ChangePasswordScreen
-          userId={view.me.userId}
-          email={view.account.email}
+          userId={view.session.me.userId}
+          email={view.session.account.email}
           onDone={(wrapKey) => enter(wrapKey, pl.home.passwordChanged)}
           onCancel={() => setView({ ...view, name: 'app', notice: undefined })}
           onSignedOut={toLogin}
@@ -109,19 +137,21 @@ export function App() {
       )
     case 'app':
       return (
-        <Layout
-          route={view.route}
-          onNavigate={(route) => setView({ ...view, route, notice: undefined })}
-          user={{ id: view.me.userId, name: view.account.name, role: view.me.role }}
-          orgName={view.account.orgName}
-          onLogout={logout}
-        >
-          {view.route === 'today' ? (
-            <TodayScreen name={view.account.name} notice={view.notice} />
-          ) : (
-            <SettingsScreen me={view.me} account={view.account} keysUnlocked={keysUnlocked()} onChangePassword={() => setView({ ...view, name: 'changePassword' })} onSignedOut={toLogin} />
-          )}
-        </Layout>
+        <AppContext.Provider value={ctx}>
+          <Layout>
+            {ctx!.route.name === 'today' ? (
+              <TodayScreen name={view.session.account.name} notice={view.notice} />
+            ) : (
+              <SettingsScreen
+                me={view.session.me}
+                account={view.session.account}
+                keysUnlocked={keysUnlocked()}
+                onChangePassword={() => setView({ ...view, name: 'changePassword' })}
+                onSignedOut={toLogin}
+              />
+            )}
+          </Layout>
+        </AppContext.Provider>
       )
   }
 }

@@ -2,7 +2,7 @@
 // Do ostatniego kroku nic nie jest zapisane; po zakończeniu ekran logowania.
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import type { InviteInfo, InviteTotpResult } from '@shared/invite'
-import { Button, Card, ErrorNote, Field } from '../components/ui'
+import { AuthCard, Button, ErrorNote, InputField } from '../components/ui'
 import { toBase64 } from '../crypto/encoding'
 import { KDF_ITERATIONS, deriveKeys, newKdfSalt } from '../crypto/kdf'
 import { exportPublicKey, generateUserKeyPair, wrapPrivateKey } from '../crypto/keys'
@@ -56,34 +56,34 @@ export function InviteScreen({ token, onDone }: { token: string; onDone: () => v
 
   if (!info) {
     return (
-      <Card title={t.title}>
+      <AuthCard title={t.title}>
         {!error && <p className="mt-4 text-sm text-muted-foreground">{pl.app.loading}</p>}
         <ErrorNote>{error}</ErrorNote>
         {error && (
           <div className="mt-6">
-            <Button variant="secondary" onClick={onDone}>
+            <Button variant="outline" onClick={onDone}>
               {t.login}
             </Button>
           </div>
         )}
-      </Card>
+      </AuthCard>
     )
   }
 
   if (step === 'done') {
     return (
-      <Card title={t.doneTitle}>
+      <AuthCard title={t.doneTitle}>
         <p className="mt-3 text-sm text-secondary-foreground">{t.done}</p>
         <div className="mt-6">
           <Button onClick={onDone}>{t.login}</Button>
         </div>
-      </Card>
+      </AuthCard>
     )
   }
 
   if (step === 'totp' && material) {
     return (
-      <Card title={pl.totpSetup.title} wide>
+      <AuthCard title={pl.totpSetup.title} wide>
         <p className="mt-3 text-sm text-muted-foreground">{pl.totpSetup.intro}</p>
         <form
           onSubmit={run(async () => {
@@ -99,7 +99,7 @@ export function InviteScreen({ token, onDone }: { token: string; onDone: () => v
           <img className="mx-auto mt-4 h-52 w-52" alt={pl.totpSetup.qrAlt} src={`data:image/svg+xml;utf8,${encodeURIComponent(material.totp.qrSvg)}`} />
           <p className="mt-4 text-sm text-muted-foreground">{pl.totpSetup.manual}</p>
           <p className="mt-1 select-all break-all rounded-control bg-muted px-3 py-2 font-mono text-sm">{material.totp.secret.match(/.{1,4}/g)?.join(' ')}</p>
-          <Field label={pl.totpSetup.code} hint={pl.totpSetup.codeHint} value={code} onChange={(e) => setCode(e.target.value)} inputMode="numeric" autoComplete="one-time-code" maxLength={7} required disabled={busy} />
+          <InputField label={pl.totpSetup.code} hint={pl.totpSetup.codeHint} value={code} onChange={(e) => setCode(e.target.value)} inputMode="numeric" autoComplete="one-time-code" maxLength={7} required disabled={busy} />
           <ErrorNote>{error}</ErrorNote>
           <div className="mt-6 flex items-center gap-3">
             <Button type="submit" disabled={busy}>
@@ -107,12 +107,12 @@ export function InviteScreen({ token, onDone }: { token: string; onDone: () => v
             </Button>
           </div>
         </form>
-      </Card>
+      </AuthCard>
     )
   }
 
   return (
-    <Card title={t.title}>
+    <AuthCard title={t.title}>
       <p className="mt-3 text-sm text-muted-foreground">{t.intro(info.orgName, info.email)}</p>
       <form
         onSubmit={run(async () => {
@@ -128,9 +128,9 @@ export function InviteScreen({ token, onDone }: { token: string; onDone: () => v
           setStep('totp')
         })}
       >
-        <Field label={t.name} value={name} onChange={(e) => setName(e.target.value)} maxLength={200} autoComplete="name" autoFocus required disabled={busy} />
-        <Field label={t.password} hint={pl.passwordRules.hint} type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password" required disabled={busy} />
-        <Field label={t.repeat} type="password" value={repeat} onChange={(e) => setRepeat(e.target.value)} autoComplete="new-password" required disabled={busy} />
+        <InputField label={t.name} value={name} onChange={(e) => setName(e.target.value)} maxLength={200} autoComplete="name" autoFocus required disabled={busy} />
+        <InputField label={t.password} hint={pl.passwordRules.hint} type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password" required disabled={busy} />
+        <InputField label={t.repeat} type="password" value={repeat} onChange={(e) => setRepeat(e.target.value)} autoComplete="new-password" required disabled={busy} />
         <ErrorNote>{error}</ErrorNote>
         <div className="mt-6 flex items-center gap-3">
           <Button type="submit" disabled={busy}>
@@ -139,6 +139,6 @@ export function InviteScreen({ token, onDone }: { token: string; onDone: () => v
           {busy && <span className="text-sm text-muted-foreground">{t.working}</span>}
         </div>
       </form>
-    </Card>
+    </AuthCard>
   )
 }

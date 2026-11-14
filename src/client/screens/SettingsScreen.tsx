@@ -2,7 +2,7 @@
 import { useState } from 'react'
 import type { ApiOutputs, InviteLink, Role, UserListItem } from '@shared/api'
 import { ROLES } from '@shared/api'
-import { Badge, Button, ErrorNote, Field, Panel, SelectField } from '../components/ui'
+import { Badge, Button, Card, ErrorNote, InputField, SelectField } from '../components/ui'
 import { pl } from '../i18n/pl'
 import { call, errorMessage, isApiError, useLoad } from '../lib/api'
 import { formatDateTime } from '../lib/format'
@@ -31,14 +31,14 @@ export function SettingsScreen({ me, account, keysUnlocked, onChangePassword, on
     <>
       <h1 className="text-2xl font-semibold">{pl.settings.title}</h1>
       <div className="mt-6 space-y-6">
-        <Panel
+        <Card
           title={pl.home.account}
           actions={
             <div className="flex gap-2">
-              <Button variant="secondary" size="sm" onClick={onChangePassword}>
+              <Button variant="outline" size="sm" onClick={onChangePassword}>
                 {pl.home.changePassword}
               </Button>
-              <Button variant="secondary" size="sm" onClick={logoutAll}>
+              <Button variant="outline" size="sm" onClick={logoutAll}>
                 {pl.home.logoutAll}
               </Button>
             </div>
@@ -51,18 +51,18 @@ export function SettingsScreen({ me, account, keysUnlocked, onChangePassword, on
             <dt className="text-muted-foreground">{pl.home.email}</dt>
             <dd>{account.email}</dd>
             <dt className="text-muted-foreground">{pl.home.role}</dt>
-            <dd>{pl.roles[me.role]}</dd>
+            <dd>{pl.userRoles[me.role]}</dd>
             <dt className="text-muted-foreground">{pl.home.keys}</dt>
             <dd className={keysUnlocked ? 'text-success' : 'text-warning'}>{keysUnlocked ? pl.home.keysUnlocked : pl.home.keysLocked}</dd>
           </dl>
-        </Panel>
+        </Card>
         {me.role === 'admin' && <UsersPanel myId={me.userId} onSignedOut={onSignedOut} />}
       </div>
     </>
   )
 }
 
-const STATUS_TONE = { invited: 'info', active: 'success', disabled: 'neutral' } as const
+const STATUS_TONE = { invited: 'info', active: 'success', disabled: 'muted' } as const
 const inviteUrl = (token: string) => `${window.location.origin}/#zaproszenie=${token}`
 
 function UsersPanel({ myId, onSignedOut }: { myId: string; onSignedOut: () => void }) {
@@ -96,7 +96,7 @@ function UsersPanel({ myId, onSignedOut }: { myId: string; onSignedOut: () => vo
   const who = (u: UserListItem) => (u.name === u.email ? u.email : `${u.name} (${u.email})`)
 
   return (
-    <Panel
+    <Card
       title={pl.users.title}
       actions={
         !inviting && (
@@ -121,11 +121,11 @@ function UsersPanel({ myId, onSignedOut }: { myId: string; onSignedOut: () => vo
         >
           <h3 className="text-sm font-semibold">{pl.users.inviteTitle}</h3>
           <div className="grid grid-cols-2 gap-4">
-            <Field label={pl.users.email} type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="off" autoFocus required disabled={busy} />
+            <InputField label={pl.users.email} type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="off" autoFocus required disabled={busy} />
             <SelectField label={pl.users.role} value={role} onChange={(e) => setRole(e.target.value as Role)} disabled={busy}>
               {ROLES.map((r) => (
                 <option key={r} value={r}>
-                  {pl.roles[r]}
+                  {pl.userRoles[r]}
                 </option>
               ))}
             </SelectField>
@@ -134,7 +134,7 @@ function UsersPanel({ myId, onSignedOut }: { myId: string; onSignedOut: () => vo
             <Button type="submit" size="sm" disabled={busy}>
               {pl.users.inviteSubmit}
             </Button>
-            <Button variant="secondary" size="sm" onClick={() => setInviting(false)} disabled={busy}>
+            <Button variant="outline" size="sm" onClick={() => setInviting(false)} disabled={busy}>
               {pl.users.cancel}
             </Button>
           </div>
@@ -150,7 +150,7 @@ function UsersPanel({ myId, onSignedOut }: { myId: string; onSignedOut: () => vo
             <Button size="sm" onClick={() => void navigator.clipboard.writeText(inviteUrl(link.link.token)).then(() => setCopied(true))}>
               {copied ? pl.users.copied : pl.users.copy}
             </Button>
-            <Button variant="secondary" size="sm" onClick={() => setLink(null)}>
+            <Button variant="outline" size="sm" onClick={() => setLink(null)}>
               {pl.users.close}
             </Button>
           </div>
@@ -188,12 +188,12 @@ function UsersPanel({ myId, onSignedOut }: { myId: string; onSignedOut: () => vo
                     disabled={busy || u.status === 'disabled'}
                     onChange={(e) => {
                       const next = e.target.value as Role
-                      if (window.confirm(pl.users.confirmRole(who(u), pl.roles[next]))) void run(() => call('users.setRole', { id: u.id, version: u.version, role: next }))
+                      if (window.confirm(pl.users.confirmRole(who(u), pl.userRoles[next]))) void run(() => call('users.setRole', { id: u.id, version: u.version, role: next }))
                     }}
                   >
                     {ROLES.map((r) => (
                       <option key={r} value={r}>
-                        {pl.roles[r]}
+                        {pl.userRoles[r]}
                       </option>
                     ))}
                   </select>
@@ -207,7 +207,7 @@ function UsersPanel({ myId, onSignedOut }: { myId: string; onSignedOut: () => vo
                 <td className="py-2.5 text-right">
                   <div className="flex justify-end gap-2">
                     <Button
-                      variant="secondary"
+                      variant="outline"
                       size="sm"
                       disabled={busy}
                       onClick={() => {
@@ -228,6 +228,6 @@ function UsersPanel({ myId, onSignedOut }: { myId: string; onSignedOut: () => vo
           </tbody>
         </table>
       )}
-    </Panel>
+    </Card>
   )
 }
