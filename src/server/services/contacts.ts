@@ -11,6 +11,7 @@ import type { Db } from '../db/connection'
 import { actionParticipants, actions, consents, contactIdentity, contactRoles, contacts, relationships, topics } from '../db/schema'
 import { addSystemActivity, loadActivities } from './activities'
 import { contactRef, contactsById, meta, repoFor, today, type Actor } from './common'
+import { loadTasks } from './tasks'
 
 /** Aktywne role (bez daty końca albo z końcem dziś lub później) dla każdego kontaktu. */
 async function activeRoles(db: Db, now: Date): Promise<Map<string, Role[]>> {
@@ -153,6 +154,7 @@ export async function getContact(db: Db, id: string): Promise<ContactDetail> {
         action: { id: a.id, title: a.title, type: a.type as ActionType, status: a.status as ActionStatus, startDate: a.startDate, endDate: a.endDate }
       }))
       .sort((x, y) => (y.action.startDate ?? '').localeCompare(x.action.startDate ?? '')),
+    tasks: await loadTasks(db, { targetType: 'contact', targetId: id }),
     activities: await loadActivities(db, { contactId: id }, all)
   }
 }

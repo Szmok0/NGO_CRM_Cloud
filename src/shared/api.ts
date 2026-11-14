@@ -85,6 +85,19 @@ const actionFields = {
   description: opt,
   expectedParticipants: optInt
 }
+const taskFields = {
+  title: z.string().trim().min(1).max(255),
+  dueDate: optDay,
+  assigneeUserId: uuid.nullish().or(z.literal('')).transform((v) => (v ? v : null)),
+  status: z.enum(d.TASK_STATUSES),
+  priority: z.enum(d.PRIORITIES),
+  targetType: z
+    .enum(d.TARGET_TYPES)
+    .nullish()
+    .transform((v) => v ?? null),
+  targetId: uuid.nullish().or(z.literal('')).transform((v) => (v ? v : null)),
+  description: opt
+}
 const sessionFields = { date: day, startTime: optTime, endTime: optTime, leaderContactId: uuid.nullish().or(z.literal('')).transform((v) => (v ? v : null)), note: opt }
 
 export const apiMethods = {
@@ -237,6 +250,24 @@ export const apiMethods = {
     input: z.object({ sessionId: uuid, contactId: uuid, status: z.enum(d.ATTENDANCE_STATUSES).nullable(), version: version.nullable() }),
     roles: WRITE
   },
+  // --- zadania (krok 5) ---
+  /** Aktywni użytkownicy (imię i id) do przypisywania zadań; bez e-maili i ról. */
+  'users.options': { input: none, roles: ALL },
+  'tasks.list': {
+    input: z
+      .object({ mine: z.boolean().default(false), targetType: z.enum(d.TARGET_TYPES).nullish(), targetId: uuid.nullish() })
+      .default({ mine: false }),
+    roles: ALL
+  },
+  'tasks.get': { input: z.object({ id: uuid }), roles: ALL },
+  'tasks.create': { input: z.object({ ...taskFields, items: z.array(z.string().trim().min(1).max(500)).max(100).default([]) }), roles: WRITE },
+  'tasks.update': { input: z.object({ id: uuid, version, ...taskFields }), roles: WRITE },
+  /** Zmiana kolumny w kanbanie / odhaczenie na „Dziś”. */
+  'tasks.move': { input: z.object({ id: uuid, version, status: z.enum(d.TASK_STATUSES) }), roles: WRITE },
+  'tasks.delete': { input: ref, roles: WRITE },
+  'taskItems.add': { input: z.object({ taskId: uuid, label: z.string().trim().min(1).max(500) }), roles: WRITE },
+  'taskItems.toggle': { input: z.object({ id: uuid, version, done: z.boolean() }), roles: WRITE },
+  'taskItems.delete': { input: ref, roles: WRITE },
   /** Wyszukiwarka w pasku górnym (od 2 znaków; po tożsamości, nie po danych wrażliwych). */
   'search.global': { input: z.object({ q: z.string().max(200) }), roles: ALL }
 } satisfies Record<string, MethodSpec>
@@ -326,6 +357,16 @@ export interface ApiOutputs {
   'sessions.update': void
   'sessions.delete': void
   'attendance.set': void
+  'users.options': T.UserOption[]
+  'tasks.list': T.TaskListItem[]
+  'tasks.get': T.TaskDetail
+  'tasks.create': { id: string }
+  'tasks.update': void
+  'tasks.move': void
+  'tasks.delete': void
+  'taskItems.add': void
+  'taskItems.toggle': void
+  'taskItems.delete': void
   'search.global': T.SearchHit[]
 }
 

@@ -15,6 +15,7 @@ import { getSettings } from './services/settings'
 import * as actions from './services/actions'
 import * as activities from './services/activities'
 import * as contacts from './services/contacts'
+import * as tasks from './services/tasks'
 import type { Actor } from './services/common'
 import { SESSION_COOKIE, clearSessionCookie, createSession, revokeAllSessions, revokeSession, setSessionCookie } from './auth/sessions'
 
@@ -146,6 +147,17 @@ const handlers: Handlers = {
   'sessions.update': (p, ctx) => actions.updateSession(ctx.db, p, actor(ctx)),
   'sessions.delete': (p, ctx) => actions.deleteSession(ctx.db, p, actor(ctx)),
   'attendance.set': (p, ctx) => actions.setAttendance(ctx.db, p, actor(ctx)),
+  // zadania
+  'users.options': (_p, { db }) => tasks.listUserOptions(db),
+  'tasks.list': (p, ctx) => tasks.listTasks(ctx.db, p, actor(ctx)),
+  'tasks.get': ({ id }, { db }) => tasks.getTask(db, id),
+  'tasks.create': (p, ctx) => tasks.createTask(ctx.db, p, actor(ctx)),
+  'tasks.update': (p, ctx) => tasks.updateTask(ctx.db, p, actor(ctx)),
+  'tasks.move': (p, ctx) => tasks.moveTask(ctx.db, p, actor(ctx)),
+  'tasks.delete': (p, ctx) => tasks.deleteTask(ctx.db, p, actor(ctx)),
+  'taskItems.add': (p, ctx) => tasks.addTaskItem(ctx.db, p, actor(ctx)),
+  'taskItems.toggle': (p, ctx) => tasks.toggleTaskItem(ctx.db, p, actor(ctx)),
+  'taskItems.delete': (p, ctx) => tasks.deleteTaskItem(ctx.db, p, actor(ctx)),
   'search.global': ({ q }, { db }) => contacts.searchGlobal(db, q)
 }
 

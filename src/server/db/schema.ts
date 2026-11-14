@@ -388,3 +388,40 @@ export const attendance = mysqlTable(
   },
   (t) => [uniqueIndex('attendance_pair_uq').on(t.sessionId, t.contactId), index('attendance_contact_idx').on(t.contactId)]
 )
+
+// ---------- Zadania (ZADANIE_02, krok 5) ----------
+
+/** Zadanie; „dotyczy” przez `targetType` + `targetId` (osoba albo działanie), bez klucza obcego (zasada danych 6). */
+export const tasks = mysqlTable(
+  'tasks',
+  {
+    ...domainColumns(),
+    title: varchar('title', { length: 255 }).notNull(),
+    dueDate: date('due_date', { mode: 'string' }),
+    assigneeUserId: char('assignee_user_id', { length: 36 }).references(() => users.id, { onDelete: 'restrict' }),
+    /** 'todo' | 'doing' | 'done' */
+    status: varchar('status', { length: 16 }).notNull(),
+    /** 'low' | 'normal' | 'high' */
+    priority: varchar('priority', { length: 16 }).notNull(),
+    /** 'contact' | 'action' */
+    targetType: varchar('target_type', { length: 16 }),
+    targetId: char('target_id', { length: 36 }),
+    description: text('description')
+  },
+  (t) => [index('tasks_due_idx').on(t.dueDate), index('tasks_assignee_idx').on(t.assigneeUserId), index('tasks_target_idx').on(t.targetType, t.targetId)]
+)
+
+/** Pozycja checklisty zadania. */
+export const taskItems = mysqlTable(
+  'task_items',
+  {
+    ...domainColumns(),
+    taskId: char('task_id', { length: 36 })
+      .notNull()
+      .references(() => tasks.id, { onDelete: 'restrict' }),
+    label: varchar('label', { length: 500 }).notNull(),
+    done: boolean('done').notNull().default(false),
+    position: int('position').notNull()
+  },
+  (t) => [index('task_items_task_idx').on(t.taskId)]
+)

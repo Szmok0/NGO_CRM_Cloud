@@ -14,6 +14,7 @@ import type { Repo } from '../db/repo'
 import { actionParticipants, actionSessions, actions, attendance, contactIdentity, contactRoles, contacts, topics } from '../db/schema'
 import { addSystemActivity, loadActivities } from './activities'
 import { contactRef, contactsById, meta, repoFor, today, type Actor } from './common'
+import { loadTasks } from './tasks'
 
 type Tx = Parameters<Parameters<Db['transaction']>[0]>[0]
 type ActionRow = typeof actions.$inferSelect
@@ -172,6 +173,7 @@ export async function getActionDetail(db: Db, id: string, now: Date): Promise<Ac
     }),
     attendance: typedMarks,
     heldCount: stats.heldCount,
+    tasks: await loadTasks(db, { targetType: 'action', targetId: id }),
     activities: await loadActivities(db, { actionId: id }, all)
   }
 }

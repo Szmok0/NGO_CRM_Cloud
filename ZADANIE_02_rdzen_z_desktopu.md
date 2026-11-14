@@ -258,3 +258,11 @@ Nie aktualizuj Sejfu bez zgody MOC.
 - Menu: „Działania” i „Tematy szkoleń” aktywne (ukryte przy wyłączonym module „actions”). Wyszukiwarka prowadzi do działań i tematów. „+ Utwórz” → Działanie. Karta osoby: „Udział w działaniach”. Oś osoby: link do działania przy wpisie.
 - Sprawdzone w przeglądarce na zbudowanej aplikacji: temat, szkolenie z tematem przez „+ Utwórz”, wklejenie listy 3 osób (1 dopasowana, 2 nowe), zajęcia, klikanie obecności (frekwencja 33%, pasek podsumowań), konsola bez błędów CSP; arkusz do druku obecny w stronie i ukryty na ekranie, reguły `@media print` w zbudowanym CSS. Okna drukowania nie otwierano (nie da się w tym narzędziu).
 - **Do sprawdzenia przez MOC:** wydruk listy obecności z przeglądarki (orientacja strony: desktop drukował A4 poziomo; tu domyślna przeglądarki).
+
+### Krok 5, etap a: zadania — serwer (2026-11-15)
+- Tabele (migracja `0009`): `tasks` (`assigneeUserId` → `users`, „dotyczy” przez `targetType` + `targetId` bez klucza obcego), `task_items` (→ `tasks`).
+- `server/services/tasks.ts` z desktopu: lista (moje / przy osobie / przy działaniu; zadania działania w Koszu znikają z listy ogólnej), szczegóły z checklistą, tworzenie z checklistą, edycja, `tasks.move` (kanban), usuwanie, pozycje checklisty (dodaj, odhacz, usuń). Każdy zapis z `version`.
+- Nowe względem desktopu: przypisać można tylko aktywnego użytkownika (inaczej `VALIDATION`); „dotyczy” musi wskazywać nieusuniętą osobę lub działanie (`NOT_FOUND`); metoda `users.options` (imię i id aktywnych użytkowników dla wszystkich ról, bo `users.list` jest tylko dla administratora i zawiera e-maile).
+- Karta osoby i szczegóły działania zwracają swoje zadania.
+- Testy: `services/tasks.test.ts` (6): checklista i postęp, odhaczanie z wersją, kanban zmienia status i zapisuje `change_log`, konflikt wersji, tylko aktywni użytkownicy, „moje”, sortowanie, zadania przy osobie i działaniu, działanie w Koszu, „dotyczy” usuniętej osoby, usuwanie. Razem 551.
+- **Odstępstwo od opisu kroku:** wyszukiwarka globalna nie obejmuje zadań (desktop ich nie szuka; zadania są w widoku Zadania i na kartach).

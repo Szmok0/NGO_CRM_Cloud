@@ -1,6 +1,6 @@
 // Typy wyników API (wzór: desktopowe src/shared/types.ts). W odróżnieniu od desktopu nie wynikają ze schematu bazy:
 // znaczniki czasu przychodzą z serwera jako ISO 8601 (tekst), daty jako RRRR-MM-DD, a tożsamość osoby leży w osobnej tabeli.
-import type { ActionStatus, ActionType, ActivityType, AttendanceStatus, Channel, ConsentType, ContactKind, Framework, ParticipantStatus, RelationshipType, Role } from './domain'
+import type { ActionStatus, ActionType, ActivityType, AttendanceStatus, Channel, ConsentType, ContactKind, Framework, ParticipantStatus, Priority, RelationshipType, Role, TargetType, TaskStatus } from './domain'
 
 /** Pola techniczne rekordu widoczne dla klienta (`version` odsyłany przy zapisie: blokada optymistyczna). */
 export interface RecordMeta {
@@ -94,7 +94,6 @@ export interface ParticipationView {
   action: Pick<Action, 'id' | 'title' | 'type' | 'status' | 'startDate' | 'endDate'>
 }
 
-/** Karta osoby. Zadania dochodzą w kroku 5 ZADANIA_02. */
 export interface ContactDetail {
   contact: Contact
   label: string
@@ -102,6 +101,7 @@ export interface ContactDetail {
   relationships: RelationshipView[]
   consents: Consent[]
   participations: ParticipationView[]
+  tasks: TaskListItem[]
   activities: ActivityView[]
 }
 
@@ -172,6 +172,7 @@ export interface ActionDetail {
   sessions: SessionView[]
   attendance: AttendanceMark[]
   heldCount: number
+  tasks: TaskListItem[]
   activities: ActivityView[]
 }
 
@@ -199,4 +200,44 @@ export interface SearchHit {
   id: string
   label: string
   sub: string | null
+}
+
+// ---------- zadania (krok 5) ----------
+
+export interface Task extends RecordMeta {
+  title: string
+  dueDate: string | null
+  assigneeUserId: string | null
+  status: TaskStatus
+  priority: Priority
+  targetType: TargetType | null
+  targetId: string | null
+  description: string | null
+}
+
+export interface TaskItem extends RecordMeta {
+  taskId: string
+  label: string
+  done: boolean
+  position: number
+}
+
+export interface TaskListItem extends Task {
+  assigneeName: string | null
+  targetLabel: string | null
+  itemsDone: number
+  itemsTotal: number
+}
+
+export interface TaskDetail {
+  task: Task
+  items: TaskItem[]
+  assigneeName: string | null
+  targetLabel: string | null
+}
+
+/** Aktywny użytkownik do wyboru (np. osoba odpowiedzialna za zadanie). */
+export interface UserOption {
+  id: string
+  name: string
 }
