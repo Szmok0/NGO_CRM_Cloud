@@ -7,9 +7,13 @@ import pkg from '../../package.json'
 import { migrationCount, type Db } from './db/connection'
 import { appRoot } from './config'
 import { registerSecurity } from './security'
+import { noSessions, registerRpc, type SessionProvider } from './rpc'
 
-/** db = null: tryb kreatora (brak lub błędna konfiguracja), `missing` to nazwy zmiennych do ustawienia. */
-export function buildApp(db: Db | null, missing: string[] = []) {
+/**
+ * db = null: tryb kreatora (brak lub błędna konfiguracja), `missing` to nazwy zmiennych do ustawienia; API (RPC) wtedy nie działa.
+ * `sessions`: źródło sesji dla strażnika RPC (do kroku 5 brak sesji, w testach podstawiane).
+ */
+export function buildApp(db: Db | null, missing: string[] = [], sessions: SessionProvider = noSessions) {
   // Logi bez danych osobowych (zasada danych 9): metoda, trasa (wzorzec, bez parametrów i zapytania),
   // kod wyniku i czas. Bez adresu IP, nagłówków i treści żądań. Id użytkownika dojdzie z sesjami (krok 5).
   const app = Fastify({
@@ -30,6 +34,8 @@ export function buildApp(db: Db | null, missing: string[] = []) {
     if (!db) return { status: 'setup', version: pkg.version, missing, https }
     return { status: 'ok', version: pkg.version, migrations: await migrationCount(db), https }
   })
+
+  if (db) registerRpc(app, db, sessions)
 
   // Zbudowany klient (po `npm run build`). W trybie deweloperskim klienta serwuje Vite.
   const clientDir = resolve(appRoot, 'dist/client')

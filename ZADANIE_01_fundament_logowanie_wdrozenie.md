@@ -1,6 +1,6 @@
 # ZADANIE 01 — Fundament: próbne wdrożenie, logowanie, klucze, role
 
-Status: w realizacji, krok 3 zrobiony, następny krok 4 (decyzje D1–D6 zatwierdzone przez MOC 2026-11-14; krok 1 działa na Hostingerze, zob. „Wynik”) · Kontekst: `CLAUDE.md`, `NGO_CRM_CLOUD_KONCEPCJA.md` (4.1–4.3, 4.7), `NGO_CRM_CLOUD_BEZPIECZENSTWO.md` (rozdziały 4 i 5), `NGO_CRM_CLOUD_PROCESY_I_MODEL_DANYCH.md` (2.2) · Wzór: iV_CRM `ZADANIE_02_logowanie_i_wdrozenie.md` i `lib/auth/`
+Status: w realizacji, krok 4 zrobiony, następny krok 5 (decyzje D1–D6 zatwierdzone przez MOC 2026-11-14; krok 1 działa na Hostingerze, zob. „Wynik”) · Kontekst: `CLAUDE.md`, `NGO_CRM_CLOUD_KONCEPCJA.md` (4.1–4.3, 4.7), `NGO_CRM_CLOUD_BEZPIECZENSTWO.md` (rozdziały 4 i 5), `NGO_CRM_CLOUD_PROCESY_I_MODEL_DANYCH.md` (2.2) · Wzór: iV_CRM `ZADANIE_02_logowanie_i_wdrozenie.md` i `lib/auth/`
 
 ## Cel
 Pusta, ale **bezpieczna** aplikacja działa na Hostingerze: organizacja przechodzi kreator pierwszego uruchomienia, zakłada administratora z 2FA i dostaje klucz odzyskiwania do wydruku; administrator zaprasza kolejne osoby. Hasło nie trafia do serwera. Każda metoda API ma przypisane role i test to sprawdza. Na tym fundamencie ZADANIE_02 przeniesie rdzeń z desktopu.
@@ -132,3 +132,15 @@ Adres próbny: https://ivory-elk-740131.hostingersite.com (`/api/health` → `st
   - adres aplikacji do porównania z `Origin` brany z żądania (`req.protocol` + `req.host`), bez nowej zmiennej środowiskowej.
 - **Na Hostingerze:** wszystkie nagłówki obecne; konsola przeglądarki bez błędów CSP. LiteSpeed dokłada własny drugi nagłówek `Content-Security-Policy: upgrade-insecure-requests` (przeglądarka stosuje obie polityki, ta druga niczego nie zawęża). Żądania `http://` Hostinger przekierowuje 301 na `https://`, zanim dotrą do aplikacji, więc strona „tylko HTTPS” to zabezpieczenie zapasowe (np. na innym hostingu).
 - Do kroku 8: lokalny krój Inter musi być plikiem (CSP nie ma `font-src data:`), a style tylko w plikach CSS (bez atrybutów `style` w HTML).
+
+### Krok 4: kontrakt API i uprawnienia (2026-11-14)
+- `src/shared/api.ts` (wzór: desktopowe `ipc.ts`): `apiMethods` = metoda → schemat zod, `roles` (wymagane, niepuste: `readonly [Role, ...Role[]]`, brak albo `[]` nie przechodzi typecheck — sprawdzone), `before2fa`; typy wyników w `ApiOutputs` (brak wpisu = błąd typów w obsłudze).
+- Metody na start: `auth.me` (wszystkie role, także przed 2FA) i `system.info` (tylko `admin`: wersja, migracje). Kolejne dojdą z krokami 5–7.
+- `src/server/rpc.ts`: `POST /api/rpc`, kolejność sesja → 2FA → rola → zod → obsługa. Wynik `{ ok, data }` albo `{ ok: false, code, message }` z kodem HTTP (401 `UNAUTHENTICATED`, 403 `TOTP_REQUIRED`/`FORBIDDEN`, 400 `VALIDATION`, 404, 409 `VERSION_CONFLICT`, 500 `UNKNOWN`). Nieznana metoda: bez sesji 401, z sesją 400.
+- **Sesje przez wymienne `SessionProvider`** (decyzja MOC): na produkcji do kroku 5 `noSessions` (zawsze brak sesji → każda metoda 401); w testach podstawiana sesja. W kroku 5 wystarczy podać prawdziwe źródło do `buildApp`.
+- RPC działa tylko z bazą (w trybie kreatora nie jest rejestrowane). CSRF i HTTPS z kroku 3 obejmują `/api/rpc` (hook `onRequest` przed strażnikiem).
+- Logi RPC: metoda (tylko z kontraktu), id użytkownika, kod wyniku; nigdy parametry i wyniki. Błędy nieoczekiwane: nazwa, kod przyczyny i stos, bez treści błędu (może zawierać zapytanie z danymi).
+- `src/shared/errors.ts`: kody jak wyżej; `src/client/i18n/pl.ts`: polskie komunikaty (m.in. „Ktoś zmienił ten rekord w międzyczasie…”).
+- `src/client/lib/api.ts`: `call`, `ApiError`, `errorMessage`, `useLoad`, `useDataChanged` jak w desktopie; `fetch` z `X-NGO-CRM: 1` i `credentials: 'same-origin'`.
+- Test `rpc.permissions.test.ts` (17): dla każdej metody bez sesji 401, bez 2FA 403 (poza `before2fa`), każda rola spoza listy 403, z listy przepuszczona; do tego kolejność rola przed zod, nieznana metoda, domyślne `noSessions`, CSRF na `/api/rpc`. Wymaga lokalnej bazy (jak `repo.test.ts`).
+- **Odstępstwo:** `useLoad` bez odświeżania po zmianach z innych komputerów (to była synchronizacja desktopu).
