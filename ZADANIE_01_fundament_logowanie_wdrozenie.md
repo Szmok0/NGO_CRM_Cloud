@@ -20,7 +20,7 @@ Pusta, ale **bezpieczna** aplikacja działa na Hostingerze: organizacja przechod
    - **D3. Model kluczy** z `NGO_CRM_CLOUD_BEZPIECZENSTWO.md`, rozdział 5: PBKDF2 600 000 iteracji → HKDF na `authKey` i `wrapKey`, RSA-OAEP 3072 dla par kluczy, AES-GCM 256 dla klucza organizacji. **Propozycja: tak.**
    - **D4. Sesja:** ważna 12 h, wylogowanie po 30 min bezczynności (ustawialne przez administratora 15–120 min), ciasteczko `SameSite=Strict`. **Propozycja: tak.**
    - **D5. Blokada logowania:** 5 nieudanych prób na konto = 15 min blokady; dodatkowo 20 prób z jednego adresu IP na 15 min (licznik w pamięci, IP nigdzie nie zapisywane). **Propozycja: tak.**
-   - **D6. Repo i hosting próbny:** prywatne repo GitHub `Szmok0/NGO-CRM-Cloud`; próbne wdrożenie jako druga aplikacja Node.js na obecnym planie Hostinger MOC (plan Business pozwala na 5), z osobną bazą MySQL i tymczasowym adresem. **Tylko dane fikcyjne.** **Propozycja: tak.**
+   - **D6. Repo i hosting próbny:** prywatne repo GitHub `Szmok0/NGO_CRM_Cloud` (założone 2026-11-14); próbne wdrożenie jako druga aplikacja Node.js na obecnym planie Hostinger MOC (plan Business pozwala na 5), z osobną bazą MySQL i tymczasowym adresem. **Tylko dane fikcyjne.** **Propozycja: tak.**
 
 ## Krok 1: próbne wdrożenie (najpierw, zanim powstanie reszta)
 Cel: sprawdzić, że Hostinger uruchamia nasz układ, zanim zbudujemy na nim cokolwiek.
