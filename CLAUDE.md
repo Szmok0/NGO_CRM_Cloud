@@ -10,7 +10,7 @@ Ogólne zasady (praca tylko w `E:\AI_Projects`, pytanie przed zmianami, zasady k
   - `NGO_CRM_CLOUD_KONCEPCJA.md` (architektura: rozdział 4, moduły: rozdział 7, kolejność prac: 4.9),
   - `NGO_CRM_CLOUD_BEZPIECZENSTWO.md` (wymagania i model kluczy, **obowiązuje w każdym zadaniu**),
   - `NGO_CRM_CLOUD_PROCESY_I_MODEL_DANYCH.md` (procesy i encje).
-- Karta projektu: `..\Sejf\Projekty\NGO_CRM.md` (sekcja o wersji chmurowej).
+- Karta projektu: `..\Sejf\Projekty\NGO_CRM Cloud.md` (rzeczy wspólne z desktopem: `..\Sejf\Projekty\NGO_CRM.md`).
 - Bieżące zadanie: plik `ZADANIE_XX_*.md` o najwyższym numerze.
 - Wersja desktopowa jest źródłem logiki domenowej i interfejsu do przeniesienia (`..\NGO_CRM\src\shared`, `..\NGO_CRM\src\renderer`, `..\NGO_CRM\src\main\services`). Przenosimy przez kopiowanie i dostosowanie, bez wspólnego pakietu.
 

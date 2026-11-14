@@ -7,7 +7,7 @@ import { AppError } from '@shared/errors'
 import { openTestDb } from '../testDb'
 import type { Db } from './connection'
 import { changeLog, domainColumns } from './schema'
-import { createRepo, type Repo } from './repo'
+import { createRepo, NAMES_ONLY_TABLES, type Repo } from './repo'
 
 const testRecords = mysqlTable('test_records', {
   ...domainColumns(),
@@ -105,6 +105,20 @@ describe('repo: warstwa zapisu', () => {
     const restored = await repo.restore(testRecords, row.id, 2)
     expect(restored).toMatchObject({ version: 3, deletedAt: null })
     expect((await entries()).map((e) => e.op)).toEqual(['insert', 'delete', 'restore'])
+  })
+
+  it('tabela z NAMES_ONLY_TABLES: change_log ma tylko nazwy pól, bez wartości', async () => {
+    NAMES_ONLY_TABLES.add('test_records')
+    try {
+      const row = await repo.insert(testRecords, { name: 'Ania Testowa', note: 'tajne' })
+      await repo.update(testRecords, row.id, 1, { name: 'Ania Zmieniona' })
+      await repo.softDelete(testRecords, row.id, 2)
+      const log = await entries()
+      expect(log.map((e) => e.changedFields)).toEqual([{ name: true, note: true }, { name: true }, { deletedAt: true }])
+      expect(JSON.stringify(log)).not.toMatch(/Ania|tajne/)
+    } finally {
+      NAMES_ONLY_TABLES.delete('test_records')
+    }
   })
 
   it('nieistniejący rekord → NOT_FOUND', async () => {

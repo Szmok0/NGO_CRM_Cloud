@@ -33,6 +33,12 @@ type Tx = Parameters<Parameters<Db['transaction']>[0]>[0]
 type Op = 'insert' | 'update' | 'delete' | 'restore'
 
 /**
+ * Tabele, dla których change_log zapisuje tylko nazwy zmienionych pól, bez wartości (zasada danych 8).
+ * Wartość każdego pola w `changedFields` to wtedy `true`.
+ */
+export const NAMES_ONLY_TABLES = new Set<string>(['contact_identity', 'contact_sensitive'])
+
+/**
  * Jedyna warstwa zapisu do tabel domenowych. Ustawia pola techniczne, sprawdza `version`
  * (blokada optymistyczna) i w tej samej transakcji dopisuje wpis do change_log.
  * `db` może być trwającą transakcją (zapisy stają się wtedy jej częścią).
@@ -40,8 +46,11 @@ type Op = 'insert' | 'update' | 'delete' | 'restore'
 export function createRepo(db: Pick<Db, 'transaction'>, ctx: RepoContext) {
   const now = () => (ctx.now ? ctx.now() : new Date())
 
-  const log = (tx: Tx, table: DomainTable, entityId: string, op: Op, changedFields: Record<string, unknown>, at: Date) =>
-    tx.insert(changeLog).values({ id: randomUUID(), entity: getTableName(table), entityId, op, changedFields, userId: ctx.userId, at })
+  const log = (tx: Tx, table: DomainTable, entityId: string, op: Op, changedFields: Record<string, unknown>, at: Date) => {
+    const entity = getTableName(table)
+    const fields = NAMES_ONLY_TABLES.has(entity) ? Object.fromEntries(Object.keys(changedFields).map((k) => [k, true])) : changedFields
+    return tx.insert(changeLog).values({ id: randomUUID(), entity, entityId, op, changedFields: fields, userId: ctx.userId, at })
+  }
 
   async function getRaw(tx: Tx, table: DomainTable, id: string) {
     const [row] = await tx.select().from(table as MySqlTable).where(eq(table.id, id)).for('update')
