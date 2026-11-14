@@ -266,3 +266,11 @@ Nie aktualizuj Sejfu bez zgody MOC.
 - Karta osoby i szczegóły działania zwracają swoje zadania.
 - Testy: `services/tasks.test.ts` (6): checklista i postęp, odhaczanie z wersją, kanban zmienia status i zapisuje `change_log`, konflikt wersji, tylko aktywni użytkownicy, „moje”, sortowanie, zadania przy osobie i działaniu, działanie w Koszu, „dotyczy” usuniętej osoby, usuwanie. Razem 551.
 - **Odstępstwo od opisu kroku:** wyszukiwarka globalna nie obejmuje zadań (desktop ich nie szuka; zadania są w widoku Zadania i na kartach).
+
+### Krok 5, etap b: zadania — ekrany (2026-11-15)
+- `components/TaskDialog.tsx`, `components/TaskRows.tsx` (tabela i karta „Zadania”), `views/tasks/TasksView.tsx` (kanban i lista) przeniesione z desktopu; zapisy z `version` (zadanie, pozycje checklisty, kanban). Osoba odpowiedzialna z `users.options`. Dla `readonly` okno zadania tylko do odczytu, kanban bez przeciągania i strzałek.
+- Pasek postępu checklisty klasami (`lib/bar.ts`, wspólne z paskiem podsumowań działania).
+- Karta osoby: zadania i szybka akcja „Zadanie”. Działanie: zadania w zakładce Informacje. Menu: „Zadania” (moduł „tasks”). „+ Utwórz” → Zadanie (po zapisie widok Zadania).
+- Sprawdzone w przeglądarce na zbudowanej aplikacji: zadanie z checklistą przy szkoleniu (termin, wysoki priorytet), odhaczenie pozycji (1/3 na liście pod oknem), kanban: przesunięcie strzałką do „W trakcie”, pasek postępu; konsola bez błędów CSP.
+- **Nie sprawdzono w przeglądarce:** przeciągania karty myszą — narzędzie symuluje ruchy myszy, z których przeglądarka nie uruchamia natywnego przeciągania HTML5. Kod przeciągania jak w desktopie; zmiana statusu (`tasks.move`) jest w testach serwera. **Do przeklikania przez MOC.**
+- Licznik zadań przy „Zadaniach” w menu dojdzie z ekranem „Dziś” (krok 6).

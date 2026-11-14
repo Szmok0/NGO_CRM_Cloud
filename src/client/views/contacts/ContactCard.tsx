@@ -1,12 +1,14 @@
-// Karta osoby lub instytucji (przeniesiona z desktopu). Zadania dochodzą w kroku 5 ZADANIA_02. Każdy zapis odsyła `version` rekordu; błąd (np. konflikt wersji) pokazuje karta.
+// Karta osoby lub instytucji (przeniesiona z desktopu). Każdy zapis odsyła `version` rekordu; błąd (np. konflikt wersji) pokazuje karta.
 import { useState, type ReactNode } from 'react'
-import { Building2, HandHeart, MessageSquare, NotebookPen, Pencil, Plus, Trash2, X } from 'lucide-react'
+import { Building2, CheckSquare, HandHeart, MessageSquare, NotebookPen, Pencil, Plus, Trash2, X } from 'lucide-react'
 import { CONSENT_TYPES, RELATIONSHIP_TYPES, ROLES, type ConsentType, type RelationshipType, type Role } from '@shared/domain'
 import type { ContactDetail, ContactListItem } from '@shared/types'
 import { useApp } from '../../app/context'
 import { ActionStatusChip, RoleChip } from '../../components/chips'
 import { ActivityDialog, type NewActivityType } from '../../components/ActivityForm'
 import { ContactPicker } from '../../components/ContactPicker'
+import { TaskDialog } from '../../components/TaskDialog'
+import { TargetTasks } from '../../components/TaskRows'
 import { Timeline } from '../../components/Timeline'
 import { Avatar, Badge, Button, Card, Dialog, Empty, ErrorText, Field, Input, Select } from '../../components/ui'
 import { pl } from '../../i18n/pl'
@@ -31,6 +33,7 @@ export function ContactCard({ id }: { id: string }) {
   const { data, error, reload } = useLoad('contacts.get', { id })
   const [editing, setEditing] = useState(false)
   const [entry, setEntry] = useState<NewActivityType | null>(null)
+  const [addingTask, setAddingTask] = useState(false)
   const action = useAction(reload)
 
   if (error) return <ErrorText>{error}</ErrorText>
@@ -86,6 +89,11 @@ export function ContactCard({ id }: { id: string }) {
               <Button variant="outline" onClick={() => setEntry('support')}>
                 <HandHeart size={15} /> {pl.timeline.addSupport}
               </Button>
+              {moduleOn('tasks') && (
+                <Button variant="outline" onClick={() => setAddingTask(true)}>
+                  <CheckSquare size={15} /> {pl.create.task}
+                </Button>
+              )}
             </div>
             <div className="flex gap-1">
               <Button variant="ghost" size="sm" onClick={() => setEditing(true)}>
@@ -134,10 +142,12 @@ export function ContactCard({ id }: { id: string }) {
           )}
         </div>
         <div className="flex flex-col gap-4">
+          {moduleOn('tasks') && <TargetTasks tasks={data.tasks} target={{ targetType: 'contact', targetId: id, targetLabel: label }} editable={editable} onChange={reload} />}
           <Timeline activities={data.activities} contactIds={[id]} editable={editable} onChange={reload} />
         </div>
       </div>
       {editing && <ContactForm kind={c.kind} contact={c} onClose={() => setEditing(false)} onSaved={reload} />}
+      {addingTask && <TaskDialog taskId={null} defaults={{ targetType: 'contact', targetId: id, targetLabel: label }} onClose={() => setAddingTask(false)} onSaved={reload} />}
       {entry && <ActivityDialog key={entry} type={entry} contact={{ id, label }} onClose={() => setEntry(null)} onSaved={reload} />}
     </div>
   )

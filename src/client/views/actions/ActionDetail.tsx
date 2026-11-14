@@ -8,10 +8,12 @@ import type { ActionDetail, ContactListItem } from '@shared/types'
 import { useApp } from '../../app/context'
 import { ActionStatusChip, ActionTypeChip } from '../../components/chips'
 import { ContactPicker } from '../../components/ContactPicker'
+import { TargetTasks } from '../../components/TaskRows'
 import { Timeline } from '../../components/Timeline'
 import { Alert, Avatar, Badge, Button, Card, Dialog, Empty, ErrorText, Field, Input, Select, Table, Tabs } from '../../components/ui'
 import { pl } from '../../i18n/pl'
 import { call, errorMessage, useLoad } from '../../lib/api'
+import { barWidth } from '../../lib/bar'
 import { cn } from '../../lib/cn'
 import { dateRange, formatDate, timeRange } from '../../lib/format'
 import { ActionForm } from './ActionForm'
@@ -19,10 +21,6 @@ import { AttendanceSheet } from './AttendanceSheet'
 import { PasteDialog } from './PasteDialog'
 
 type Tab = 'info' | 'participants' | 'sessions' | 'history'
-
-/** Szerokość paska postępu jako klasa (CSP blokuje atrybut style), w krokach co 10%. */
-const BAR_WIDTH = ['w-0', 'w-[10%]', 'w-[20%]', 'w-[30%]', 'w-[40%]', 'w-[50%]', 'w-[60%]', 'w-[70%]', 'w-[80%]', 'w-[90%]', 'w-full'] as const
-const barWidth = (pct: number | null) => BAR_WIDTH[Math.round(Math.min(100, Math.max(0, pct ?? 0)) / 10)]!
 
 function Stat({ label, value, sub, pct, bar, onClick }: { label: string; value: string; sub: string; pct: number | null; bar: string; onClick: () => void }) {
   return (
@@ -74,7 +72,7 @@ function ActionStats({ data, onTab }: { data: ActionDetail; onTab: (t: Tab) => v
 }
 
 export function ActionDetailView({ id }: { id: string }) {
-  const { back, go, canWrite, session } = useApp()
+  const { back, go, canWrite, moduleOn, session } = useApp()
   const { data, error, reload } = useLoad('actions.get', { id })
   const [tab, setTab] = useState<Tab>('info')
   const [editing, setEditing] = useState(false)
@@ -170,8 +168,9 @@ export function ActionDetailView({ id }: { id: string }) {
         {message && <Alert tone="info">{message}</Alert>}
 
         {tab === 'info' && (
-          <Card>
-            <dl className="grid grid-cols-[14rem_1fr] gap-x-3 gap-y-2 text-sm">
+          <div className="flex flex-col gap-4">
+            <Card>
+              <dl className="grid grid-cols-[14rem_1fr] gap-x-3 gap-y-2 text-sm">
               <Info label={pl.actions.type}>{pl.actionTypes[a.type]}</Info>
               <Info label={pl.actions.framework}>{pl.frameworks[a.framework]}</Info>
               <Info label={pl.actions.status}>{pl.actionStatuses[a.status]}</Info>
@@ -180,8 +179,10 @@ export function ActionDetailView({ id }: { id: string }) {
               <Info label={pl.actions.place}>{a.place}</Info>
               <Info label={pl.actions.expected}>{a.expectedParticipants?.toString()}</Info>
               <Info label={pl.actions.description}>{a.description && <span className="whitespace-pre-wrap">{a.description}</span>}</Info>
-            </dl>
-          </Card>
+              </dl>
+            </Card>
+            {moduleOn('tasks') && <TargetTasks tasks={data.tasks} target={{ targetType: 'action', targetId: id, targetLabel: a.title }} editable={editable} onChange={reload} />}
+          </div>
         )}
         {tab === 'participants' && <ParticipantsTab data={data} editable={editable} onChange={reload} onMessage={setMessage} />}
         {tab === 'sessions' && <SessionsTab data={data} editable={editable} onChange={reload} />}

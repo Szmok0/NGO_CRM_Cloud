@@ -13,10 +13,11 @@ export type Route =
   | { name: 'action'; id: string }
   | { name: 'topics' }
   | { name: 'topic'; id: string }
+  | { name: 'tasks' }
   | { name: 'settings' }
 
 /** Co można utworzyć z „+ Utwórz”. */
-export type CreateKind = 'person' | 'institution' | 'note' | 'contactEntry' | 'action'
+export type CreateKind = 'person' | 'institution' | 'note' | 'contactEntry' | 'task' | 'action'
 
 /** Zalogowana osoba i ustawienia organizacji. */
 export interface SessionInfo {

@@ -37,7 +37,7 @@ const NAV: { route?: Route['name']; label: string; icon: ReactNode; also?: Route
   { route: 'contacts', label: pl.nav.contacts, icon: <Users size={18} />, also: ['contact'] },
   { route: 'actions', label: pl.nav.actions, icon: <ClipboardList size={18} />, also: ['action'], module: 'actions' },
   { label: pl.nav.calendar, icon: <CalendarDays size={18} /> },
-  { label: pl.nav.tasks, icon: <CheckSquare size={18} /> },
+  { route: 'tasks', label: pl.nav.tasks, icon: <CheckSquare size={18} />, module: 'tasks' },
   { label: pl.nav.materials, icon: <FolderOpen size={18} /> },
   { route: 'topics', label: pl.nav.topics, icon: <BookOpen size={18} />, also: ['topic'], module: 'actions' },
   { label: pl.nav.trash, icon: <Trash2 size={18} /> },
@@ -200,7 +200,7 @@ function GlobalSearch() {
   )
 }
 
-/** Menu „+ Utwórz” (zadanie dojdzie w kroku 5). */
+/** Menu „+ Utwórz”. */
 function CreateMenu() {
   const { create, moduleOn } = useApp()
   const [open, setOpen] = useState(false)
@@ -220,6 +220,7 @@ function CreateMenu() {
     { kind: 'institution', icon: <Building2 size={16} /> },
     { kind: 'note', icon: <NotebookPen size={16} /> },
     { kind: 'contactEntry', icon: <MessageSquare size={16} /> },
+    ...(moduleOn('tasks') ? [{ kind: 'task' as const, icon: <CheckSquare size={16} /> }] : []),
     ...(moduleOn('actions') ? [{ kind: 'action' as const, icon: <HandHeart size={16} /> }] : [])
   ]
 
