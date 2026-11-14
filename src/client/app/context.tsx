@@ -8,7 +8,7 @@ import type { ModuleId } from '@shared/modules'
 export type Route = { name: 'today' } | { name: 'contacts' } | { name: 'contact'; id: string } | { name: 'settings' }
 
 /** Co można utworzyć z „+ Utwórz”. */
-export type CreateKind = 'person' | 'institution'
+export type CreateKind = 'person' | 'institution' | 'note' | 'contactEntry'
 
 /** Zalogowana osoba i ustawienia organizacji. */
 export interface SessionInfo {

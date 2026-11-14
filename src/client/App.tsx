@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { Health } from '@shared/health'
 import { AppContext, type AppContextValue, type CreateKind, type Route, type SessionInfo } from './app/context'
+import { ActivityDialog } from './components/ActivityForm'
 import { ContactCard } from './views/contacts/ContactCard'
 import { ContactForm } from './views/contacts/ContactForm'
 import { ContactsList } from './views/contacts/ContactsList'
@@ -157,7 +158,10 @@ export function App() {
               <RouteView route={ctx!.route} name={view.session.account.name} notice={view.notice} />
             )}
           </Layout>
-          {creating && <ContactForm kind={creating} onClose={() => setCreating(null)} onSaved={(id) => ctx!.go({ name: 'contact', id })} />}
+          {(creating === 'person' || creating === 'institution') && <ContactForm kind={creating} onClose={() => setCreating(null)} onSaved={(id) => ctx!.go({ name: 'contact', id })} />}
+          {(creating === 'note' || creating === 'contactEntry') && (
+            <ActivityDialog type={creating === 'note' ? 'note' : 'contact'} onClose={() => setCreating(null)} onSaved={(id) => ctx!.go({ name: 'contact', id })} />
+          )}
         </AppContext.Provider>
       )
   }

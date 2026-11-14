@@ -12,6 +12,8 @@ import {
   ClipboardList,
   FolderOpen,
   LogOut,
+  MessageSquare,
+  NotebookPen,
   Plus,
   Search,
   Settings,
@@ -194,7 +196,7 @@ function GlobalSearch() {
   )
 }
 
-/** Menu „+ Utwórz” (notatka, kontakt, zadanie i działanie dojdą w krokach 3–5). */
+/** Menu „+ Utwórz” (zadanie i działanie dojdą w krokach 4–5). */
 function CreateMenu() {
   const { create } = useApp()
   const [open, setOpen] = useState(false)
@@ -211,7 +213,9 @@ function CreateMenu() {
 
   const items: { kind: CreateKind; icon: ReactNode }[] = [
     { kind: 'person', icon: <UserPlus size={16} /> },
-    { kind: 'institution', icon: <Building2 size={16} /> }
+    { kind: 'institution', icon: <Building2 size={16} /> },
+    { kind: 'note', icon: <NotebookPen size={16} /> },
+    { kind: 'contactEntry', icon: <MessageSquare size={16} /> }
   ]
 
   return (

@@ -1,12 +1,14 @@
-// Karta osoby lub instytucji (przeniesiona z desktopu). Udział w działaniach, zadania i oś aktywności dochodzą
-// w krokach 3–5 ZADANIA_02. Każdy zapis odsyła `version` rekordu; błąd (np. konflikt wersji) pokazuje karta.
+// Karta osoby lub instytucji (przeniesiona z desktopu). Udział w działaniach i zadania dochodzą w krokach 4–5
+// ZADANIA_02. Każdy zapis odsyła `version` rekordu; błąd (np. konflikt wersji) pokazuje karta.
 import { useState, type ReactNode } from 'react'
-import { Building2, Pencil, Plus, Trash2, X } from 'lucide-react'
+import { Building2, HandHeart, MessageSquare, NotebookPen, Pencil, Plus, Trash2, X } from 'lucide-react'
 import { CONSENT_TYPES, RELATIONSHIP_TYPES, ROLES, type ConsentType, type RelationshipType, type Role } from '@shared/domain'
 import type { ContactDetail, ContactListItem } from '@shared/types'
 import { useApp } from '../../app/context'
 import { RoleChip } from '../../components/chips'
+import { ActivityDialog, type NewActivityType } from '../../components/ActivityForm'
 import { ContactPicker } from '../../components/ContactPicker'
+import { Timeline } from '../../components/Timeline'
 import { Avatar, Badge, Button, Card, Dialog, Empty, ErrorText, Field, Input, Select } from '../../components/ui'
 import { pl } from '../../i18n/pl'
 import { call, errorMessage, useLoad } from '../../lib/api'
@@ -29,6 +31,7 @@ export function ContactCard({ id }: { id: string }) {
   const { back, canWrite } = useApp()
   const { data, error, reload } = useLoad('contacts.get', { id })
   const [editing, setEditing] = useState(false)
+  const [entry, setEntry] = useState<NewActivityType | null>(null)
   const action = useAction(reload)
 
   if (error) return <ErrorText>{error}</ErrorText>
@@ -73,19 +76,32 @@ export function ContactCard({ id }: { id: string }) {
           )}
         </div>
         {editable && (
-          <div className="flex gap-1">
-            <Button variant="ghost" size="sm" onClick={() => setEditing(true)}>
-              <Pencil size={14} /> {pl.common.edit}
-            </Button>
-            <Button variant="ghost" size="sm" className="text-destructive" onClick={remove}>
-              <Trash2 size={14} /> {pl.contacts.deleteContact}
-            </Button>
+          <div className="flex flex-col items-end gap-2">
+            <div className="flex flex-wrap justify-end gap-2" role="group" aria-label={pl.contacts.quickActions}>
+              <Button variant="outline" onClick={() => setEntry('note')}>
+                <NotebookPen size={15} /> {pl.timeline.addNote}
+              </Button>
+              <Button variant="outline" onClick={() => setEntry('contact')}>
+                <MessageSquare size={15} /> {pl.timeline.addContact}
+              </Button>
+              <Button variant="outline" onClick={() => setEntry('support')}>
+                <HandHeart size={15} /> {pl.timeline.addSupport}
+              </Button>
+            </div>
+            <div className="flex gap-1">
+              <Button variant="ghost" size="sm" onClick={() => setEditing(true)}>
+                <Pencil size={14} /> {pl.common.edit}
+              </Button>
+              <Button variant="ghost" size="sm" className="text-destructive" onClick={remove}>
+                <Trash2 size={14} /> {pl.contacts.deleteContact}
+              </Button>
+            </div>
           </div>
         )}
       </section>
       <ErrorText>{action.error}</ErrorText>
 
-      <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)]">
         <div className="flex flex-col gap-4">
           <Card title={pl.contacts.data}>
             <dl className="grid grid-cols-[8rem_1fr] gap-x-3 gap-y-1.5 text-sm">
@@ -98,13 +114,15 @@ export function ContactCard({ id }: { id: string }) {
             </dl>
           </Card>
           {isPerson && <RolesCard data={data} editable={editable} onChange={reload} />}
-        </div>
-        <div className="flex flex-col gap-4">
           <RelationshipsCard data={data} editable={editable} onChange={reload} />
           {isPerson && <ConsentsCard data={data} editable={editable} onChange={reload} />}
         </div>
+        <div className="flex flex-col gap-4">
+          <Timeline activities={data.activities} contactIds={[id]} editable={editable} onChange={reload} />
+        </div>
       </div>
       {editing && <ContactForm kind={c.kind} contact={c} onClose={() => setEditing(false)} onSaved={reload} />}
+      {entry && <ActivityDialog key={entry} type={entry} contact={{ id, label }} onClose={() => setEntry(null)} onSaved={reload} />}
     </div>
   )
 }

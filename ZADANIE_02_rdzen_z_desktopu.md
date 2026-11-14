@@ -234,3 +234,10 @@ Nie aktualizuj Sejfu bez zgody MOC.
 - RPC: `activities.add`, `activities.delete` (`admin`, `staff`). Powiązanie wpisu z działaniem (`actionId`) dojdzie w kroku 4.
 - Testy: 5 nowych (wpis systemowy, wpis z kilkoma osobami, pola zależne od rodzaju, usuwanie i blokada wpisu systemowego, osoba usunięta/nieistniejąca). Razem 392.
 - **Odstępstwo od opisu kroku:** test „wpis systemowy przy zmianie roli” zastąpiony testem wpisu przy założeniu osoby — desktop nie zapisuje zmian ról na osi, a to zadanie przenosi zachowanie desktopu.
+
+### Krok 3, etap b: oś aktywności — ekrany (2026-11-15)
+- `components/ActivityForm.tsx` (formularz na osi i okno z wyborem osoby) i `components/Timeline.tsx` przeniesione z desktopu; usunięcie wpisu odsyła `version`, błąd widać na osi.
+- Karta osoby: szybkie akcje Notatka / Kontakt / Wsparcie, oś aktywności w prawej kolumnie (układ jak w desktopie). Bez przycisków zapisu dla `readonly` i dla osoby usuniętej.
+- „+ Utwórz” → Notatka, Kontakt (wybór osoby, po zapisie przejście na jej kartę).
+- Sprawdzone w przeglądarce na zbudowanej aplikacji: wpis kontaktu z „+ Utwórz” (kanał, czas), notatka z osi na karcie; konsola bez błędów CSP. Usuwania wpisu nie klikano (okno potwierdzenia przeglądarki); jest w testach serwera.
+- Znane: gdy „+ Utwórz” doda wpis osobie, której karta jest właśnie otwarta, karta odświeży się dopiero po ponownym wejściu (jak w desktopie; widoki odświeżają się po własnych zapisach).

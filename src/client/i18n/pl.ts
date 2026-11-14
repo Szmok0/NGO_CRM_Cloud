@@ -143,10 +143,30 @@ export const pl = {
     validUntil: (d: string) => `ważna do ${d}`,
     deleteContact: 'Usuń do Kosza',
     removeItem: 'Usuń',
+    quickActions: 'Szybkie akcje',
     pickContact: 'Wybierz osobę lub instytucję…',
     empty: 'Brak osób i instytucji spełniających warunki.',
     anonymized: 'Osoba zanonimizowana',
     kind: { person: 'Osoba', institution: 'Instytucja' } as const
+  },
+  timeline: {
+    title: 'Oś aktywności',
+    addNote: 'Notatka',
+    addContact: 'Kontakt',
+    addSupport: 'Wsparcie',
+    content: 'Treść',
+    channel: 'Kanał',
+    form: 'Forma wsparcia',
+    duration: 'Czas (min)',
+    when: 'Kiedy',
+    empty: 'Brak wpisów.',
+    minutes: (n: number) => `${n} min`,
+    system: {
+      contact_created: 'Dodano do bazy',
+      participant_added: (title: string) => `Dodano do działania: ${title}`,
+      action_status: (from: string, to: string) => `Zmiana statusu: ${from} → ${to}`,
+      unknown: 'Wpis systemowy'
+    }
   },
   calendar: {
     title: 'Kalendarz',
