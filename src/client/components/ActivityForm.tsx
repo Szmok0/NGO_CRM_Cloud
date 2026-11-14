@@ -1,4 +1,4 @@
-// Formularz wpisu na osi (przeniesiony z desktopu). Powiązanie wpisu z działaniem dojdzie w kroku 4.
+// Formularz wpisu na osi (przeniesiony z desktopu); wpis przy osobie albo przy działaniu.
 import { useState } from 'react'
 import { CHANNELS, type Channel } from '@shared/domain'
 import { pl } from '../i18n/pl'
@@ -18,7 +18,7 @@ function useActivityForm(type: NewActivityType) {
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
 
-  const save = async (contactIds: string[]) => {
+  const save = async (contactIds: string[], actionId: string | null) => {
     setBusy(true)
     try {
       await call('activities.add', {
@@ -28,7 +28,8 @@ function useActivityForm(type: NewActivityType) {
         form: type === 'support' ? form : null,
         durationMinutes: duration ? Number(duration) : null,
         occurredAt: new Date(when).toISOString(),
-        contactIds
+        contactIds,
+        actionId
       })
       return true
     } catch (e) {
@@ -77,15 +78,27 @@ function useActivityForm(type: NewActivityType) {
   return { fields, save, canSave: content.trim().length > 0 && !!when && !busy }
 }
 
-/** Formularz wpisu na osi (na karcie osoby). */
-export function ActivityForm({ type, contactIds, onCancel, onSaved }: { type: NewActivityType; contactIds: string[]; onCancel: () => void; onSaved: () => void }) {
+/** Formularz wpisu na osi (na karcie osoby albo działania). */
+export function ActivityForm({
+  type,
+  contactIds,
+  actionId,
+  onCancel,
+  onSaved
+}: {
+  type: NewActivityType
+  contactIds: string[]
+  actionId?: string
+  onCancel: () => void
+  onSaved: () => void
+}) {
   const f = useActivityForm(type)
   return (
     <form
       className="mb-4 flex flex-col gap-3 rounded-control border border-border bg-subtle p-3"
       onSubmit={(e) => {
         e.preventDefault()
-        void f.save(contactIds).then((ok) => ok && onSaved())
+        void f.save(contactIds, actionId ?? null).then((ok) => ok && onSaved())
       }}
     >
       <div className="flex flex-wrap gap-3">
@@ -120,7 +133,7 @@ export function ActivityDialog({
   const [contact, setContact] = useState(preset ?? null)
   const save = async () => {
     if (!contact) return
-    if (await f.save([contact.id])) {
+    if (await f.save([contact.id], null)) {
       onSaved(contact.id)
       onClose()
     }

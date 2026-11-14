@@ -11,6 +11,7 @@ import {
   ChevronsRight,
   ClipboardList,
   FolderOpen,
+  HandHeart,
   LogOut,
   MessageSquare,
   NotebookPen,
@@ -23,6 +24,7 @@ import {
   UserPlus,
   Users
 } from 'lucide-react'
+import type { ModuleId } from '@shared/modules'
 import type { SearchHit } from '@shared/types'
 import { Avatar, Button } from '../components/ui'
 import { pl } from '../i18n/pl'
@@ -30,14 +32,14 @@ import { call } from '../lib/api'
 import { cn } from '../lib/cn'
 import { useApp, type CreateKind, type Route } from './context'
 
-const NAV: { route?: Route['name']; label: string; icon: ReactNode; also?: Route['name'][] }[] = [
+const NAV: { route?: Route['name']; label: string; icon: ReactNode; also?: Route['name'][]; module?: ModuleId }[] = [
   { route: 'today', label: pl.nav.today, icon: <Sun size={18} /> },
   { route: 'contacts', label: pl.nav.contacts, icon: <Users size={18} />, also: ['contact'] },
-  { label: pl.nav.actions, icon: <ClipboardList size={18} /> },
+  { route: 'actions', label: pl.nav.actions, icon: <ClipboardList size={18} />, also: ['action'], module: 'actions' },
   { label: pl.nav.calendar, icon: <CalendarDays size={18} /> },
   { label: pl.nav.tasks, icon: <CheckSquare size={18} /> },
   { label: pl.nav.materials, icon: <FolderOpen size={18} /> },
-  { label: pl.nav.topics, icon: <BookOpen size={18} /> },
+  { route: 'topics', label: pl.nav.topics, icon: <BookOpen size={18} />, also: ['topic'], module: 'actions' },
   { label: pl.nav.trash, icon: <Trash2 size={18} /> },
   { route: 'settings', label: pl.nav.settings, icon: <Settings size={18} /> }
 ]
@@ -54,7 +56,7 @@ function useMedia(query: string): boolean {
 }
 
 function Sidebar() {
-  const { session, route: current, go, logout: onLogout } = useApp()
+  const { session, route: current, go, moduleOn, logout: onLogout } = useApp()
   const route = current.name
   const onNavigate = (name: Route['name']) => go({ name } as Route)
   const user = { id: session.me.userId, name: session.account.name, role: session.me.role }
@@ -91,7 +93,7 @@ function Sidebar() {
         </button>
       </div>
 
-      {NAV.map((n) => {
+      {NAV.filter((n) => !n.module || moduleOn(n.module)).map((n) => {
         const active = n.route === route || !!n.also?.includes(route)
         const target = n.route
         return (
@@ -139,7 +141,7 @@ const HIT_ICON = {
   topic: { icon: <BookOpen size={14} />, cls: 'bg-warning-soft text-orange' }
 }
 
-/** Wyszukiwarka globalna (od 2 znaków). Działania i tematy dojdą w kroku 4. */
+/** Wyszukiwarka globalna (od 2 znaków): osoby, instytucje, działania, tematy. */
 function GlobalSearch() {
   const { go } = useApp()
   const [q, setQ] = useState('')
@@ -163,7 +165,7 @@ function GlobalSearch() {
   }, [])
 
   const pick = (h: SearchHit) => {
-    go({ name: 'contact', id: h.id })
+    go(h.type === 'action' ? { name: 'action', id: h.id } : h.type === 'topic' ? { name: 'topic', id: h.id } : { name: 'contact', id: h.id })
     setQ('')
     setOpen(false)
   }
@@ -198,9 +200,9 @@ function GlobalSearch() {
   )
 }
 
-/** Menu „+ Utwórz” (zadanie i działanie dojdą w krokach 4–5). */
+/** Menu „+ Utwórz” (zadanie dojdzie w kroku 5). */
 function CreateMenu() {
-  const { create } = useApp()
+  const { create, moduleOn } = useApp()
   const [open, setOpen] = useState(false)
   const box = useRef<HTMLDivElement>(null)
   const first = useRef<HTMLButtonElement>(null)
@@ -217,7 +219,8 @@ function CreateMenu() {
     { kind: 'person', icon: <UserPlus size={16} /> },
     { kind: 'institution', icon: <Building2 size={16} /> },
     { kind: 'note', icon: <NotebookPen size={16} /> },
-    { kind: 'contactEntry', icon: <MessageSquare size={16} /> }
+    { kind: 'contactEntry', icon: <MessageSquare size={16} /> },
+    ...(moduleOn('actions') ? [{ kind: 'action' as const, icon: <HandHeart size={16} /> }] : [])
   ]
 
   return (

@@ -250,3 +250,11 @@ Nie aktualizuj Sejfu bez zgody MOC.
 - RPC: 19 nowych metod (odczyt wszystkie role, zapis `admin`/`staff`; podgląd wklejonej listy też tylko zapis, bo służy dodawaniu).
 - Testy: `services/actions.test.ts` (8): temat tylko przy szkoleniu, wpis o zmianie statusu i konflikt wersji, filtry listy i wyszukiwarka, para uczestnika bez duplikatu i przywrócenie, wklejona lista (dopasowanie, sprzeczny e-mail, nowe osoby), frekwencja, konflikt i ponowne zaznaczenie obecności bez duplikatu, wpis na osi działania bez osób. Razem 495.
 - **Odstępstwa (D1):** bez `actions.setStatus` (pasek etapów), `actions.shiftTasks` (zadania w kroku 5) i filtra „moje” (osoba odpowiedzialna) — to elementy działań v2.
+
+### Krok 4, etap b: tematy i działania — ekrany (2026-11-15)
+- `views/actions/ActionsList.tsx`, `ActionForm.tsx`, `ActionDetail.tsx`, `PasteDialog.tsx`, `AttendanceSheet.tsx` i `views/TopicsView.tsx` przeniesione z desktopu bez elementów działań v2 (osoba odpowiedzialna, pasek etapów, odwołanie przyciskiem, przesuwanie zadań, przygotowanie, budżet, ewaluacja, pliki i notatki — D1). Zapisy odsyłają `version`, obecność odsyła wersję zaznaczenia.
+- Szczegóły działania: nagłówek, pasek podsumowań (uczestnicy, frekwencja, zajęcia; szerokość pasków klasami co 10%, bo CSP blokuje `style`), zakładki Informacje / Uczestnicy / Zajęcia i obecność / Historia (oś działania z wpisami bez osób).
+- Lista obecności: arkusz w stronie widoczny tylko przy drukowaniu (`hidden print:block`), reszta ekranu `print:hidden`; przycisk „Lista obecności (druk)” → okno drukowania przeglądarki (zamiast PDF z Electrona).
+- Menu: „Działania” i „Tematy szkoleń” aktywne (ukryte przy wyłączonym module „actions”). Wyszukiwarka prowadzi do działań i tematów. „+ Utwórz” → Działanie. Karta osoby: „Udział w działaniach”. Oś osoby: link do działania przy wpisie.
+- Sprawdzone w przeglądarce na zbudowanej aplikacji: temat, szkolenie z tematem przez „+ Utwórz”, wklejenie listy 3 osób (1 dopasowana, 2 nowe), zajęcia, klikanie obecności (frekwencja 33%, pasek podsumowań), konsola bez błędów CSP; arkusz do druku obecny w stronie i ukryty na ekranie, reguły `@media print` w zbudowanym CSS. Okna drukowania nie otwierano (nie da się w tym narzędziu).
+- **Do sprawdzenia przez MOC:** wydruk listy obecności z przeglądarki (orientacja strony: desktop drukował A4 poziomo; tu domyślna przeglądarki).

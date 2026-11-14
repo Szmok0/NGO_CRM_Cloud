@@ -1,11 +1,10 @@
-// Karta osoby lub instytucji (przeniesiona z desktopu). Udział w działaniach i zadania dochodzą w krokach 4–5
-// ZADANIA_02. Każdy zapis odsyła `version` rekordu; błąd (np. konflikt wersji) pokazuje karta.
+// Karta osoby lub instytucji (przeniesiona z desktopu). Zadania dochodzą w kroku 5 ZADANIA_02. Każdy zapis odsyła `version` rekordu; błąd (np. konflikt wersji) pokazuje karta.
 import { useState, type ReactNode } from 'react'
 import { Building2, HandHeart, MessageSquare, NotebookPen, Pencil, Plus, Trash2, X } from 'lucide-react'
 import { CONSENT_TYPES, RELATIONSHIP_TYPES, ROLES, type ConsentType, type RelationshipType, type Role } from '@shared/domain'
 import type { ContactDetail, ContactListItem } from '@shared/types'
 import { useApp } from '../../app/context'
-import { RoleChip } from '../../components/chips'
+import { ActionStatusChip, RoleChip } from '../../components/chips'
 import { ActivityDialog, type NewActivityType } from '../../components/ActivityForm'
 import { ContactPicker } from '../../components/ContactPicker'
 import { Timeline } from '../../components/Timeline'
@@ -28,7 +27,7 @@ function useAction(onChange: () => void) {
 }
 
 export function ContactCard({ id }: { id: string }) {
-  const { back, canWrite } = useApp()
+  const { back, go, canWrite, moduleOn } = useApp()
   const { data, error, reload } = useLoad('contacts.get', { id })
   const [editing, setEditing] = useState(false)
   const [entry, setEntry] = useState<NewActivityType | null>(null)
@@ -116,6 +115,23 @@ export function ContactCard({ id }: { id: string }) {
           {isPerson && <RolesCard data={data} editable={editable} onChange={reload} />}
           <RelationshipsCard data={data} editable={editable} onChange={reload} />
           {isPerson && <ConsentsCard data={data} editable={editable} onChange={reload} />}
+          {isPerson && moduleOn('actions') && (
+            <Card title={pl.contacts.participations}>
+              {data.participations.length === 0 && <Empty>{pl.contacts.noParticipations}</Empty>}
+              <ul className="flex flex-col gap-1">
+                {data.participations.map((p) => (
+                  <li key={p.participantId} className="flex items-center gap-2 text-sm">
+                    <button type="button" className="cursor-pointer font-medium text-primary hover:underline" onClick={() => go({ name: 'action', id: p.action.id })}>
+                      {p.action.title}
+                    </button>
+                    <span className="text-xs text-muted-foreground">{formatDate(p.action.startDate)}</span>
+                    <ActionStatusChip status={p.action.status} />
+                    <Badge tone={p.status === 'resigned' ? 'muted' : 'default'}>{pl.participantStatuses[p.status]}</Badge>
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          )}
         </div>
         <div className="flex flex-col gap-4">
           <Timeline activities={data.activities} contactIds={[id]} editable={editable} onChange={reload} />

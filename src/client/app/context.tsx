@@ -5,10 +5,18 @@ import type { ApiOutputs, OrgSettings } from '@shared/api'
 import type { Role } from '@shared/domain'
 import type { ModuleId } from '@shared/modules'
 
-export type Route = { name: 'today' } | { name: 'contacts' } | { name: 'contact'; id: string } | { name: 'settings' }
+export type Route =
+  | { name: 'today' }
+  | { name: 'contacts' }
+  | { name: 'contact'; id: string }
+  | { name: 'actions' }
+  | { name: 'action'; id: string }
+  | { name: 'topics' }
+  | { name: 'topic'; id: string }
+  | { name: 'settings' }
 
 /** Co można utworzyć z „+ Utwórz”. */
-export type CreateKind = 'person' | 'institution' | 'note' | 'contactEntry'
+export type CreateKind = 'person' | 'institution' | 'note' | 'contactEntry' | 'action'
 
 /** Zalogowana osoba i ustawienia organizacji. */
 export interface SessionInfo {

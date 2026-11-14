@@ -1,5 +1,5 @@
 // Oś aktywności z dodawaniem notatki, kontaktu i wsparcia (przeniesiona z desktopu).
-// Usunięcie odsyła `version` wpisu. Link do działania przy wpisie dojdzie w kroku 4.
+// Usunięcie odsyła `version` wpisu.
 import { useState } from 'react'
 import { HandHeart, MessageSquare, NotebookPen, Phone, Settings2, Trash2 } from 'lucide-react'
 import type { ActionStatus } from '@shared/domain'
@@ -34,12 +34,14 @@ const ICONS = {
 export function Timeline({
   activities,
   contactIds,
+  actionId,
   onChange,
   showContacts,
   editable
 }: {
   activities: ActivityView[]
   contactIds: string[]
+  actionId?: string
   onChange: () => void
   showContacts?: boolean
   editable: boolean
@@ -83,6 +85,7 @@ export function Timeline({
           key={adding}
           type={adding}
           contactIds={contactIds}
+          actionId={actionId}
           onCancel={() => onAdding(null)}
           onSaved={() => {
             onAdding(null)
@@ -105,6 +108,11 @@ export function Timeline({
                 {a.form && <span>· {a.form}</span>}
                 {a.durationMinutes ? <span>· {pl.timeline.minutes(a.durationMinutes)}</span> : null}
                 {a.authorName && <span>· {a.authorName}</span>}
+                {a.actionTitle && !actionId && (
+                  <button type="button" className="cursor-pointer text-primary hover:underline" onClick={() => go({ name: 'action', id: a.actionId! })}>
+                    · {a.actionTitle}
+                  </button>
+                )}
               </div>
               <p className={`text-sm whitespace-pre-wrap ${a.type === 'system' ? 'text-muted-foreground' : ''}`}>{a.type === 'system' ? systemText(a.content) : a.content}</p>
               {showContacts && a.contacts.length > 0 && (

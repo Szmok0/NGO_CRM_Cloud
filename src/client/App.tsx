@@ -2,6 +2,10 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { Health } from '@shared/health'
 import { AppContext, type AppContextValue, type CreateKind, type Route, type SessionInfo } from './app/context'
 import { ActivityDialog } from './components/ActivityForm'
+import { ActionDetailView } from './views/actions/ActionDetail'
+import { ActionForm } from './views/actions/ActionForm'
+import { ActionsList } from './views/actions/ActionsList'
+import { TopicDetailView, TopicsView } from './views/TopicsView'
 import { ContactCard } from './views/contacts/ContactCard'
 import { ContactForm } from './views/contacts/ContactForm'
 import { ContactsList } from './views/contacts/ContactsList'
@@ -159,6 +163,7 @@ export function App() {
             )}
           </Layout>
           {(creating === 'person' || creating === 'institution') && <ContactForm kind={creating} onClose={() => setCreating(null)} onSaved={(id) => ctx!.go({ name: 'contact', id })} />}
+          {creating === 'action' && <ActionForm onClose={() => setCreating(null)} onSaved={(id) => ctx!.go({ name: 'action', id })} />}
           {(creating === 'note' || creating === 'contactEntry') && (
             <ActivityDialog type={creating === 'note' ? 'note' : 'contact'} onClose={() => setCreating(null)} onSaved={(id) => ctx!.go({ name: 'contact', id })} />
           )}
@@ -175,5 +180,13 @@ function RouteView({ route, name, notice }: { route: Exclude<Route, { name: 'set
       return <ContactsList />
     case 'contact':
       return <ContactCard key={route.id} id={route.id} />
+    case 'actions':
+      return <ActionsList />
+    case 'action':
+      return <ActionDetailView key={route.id} id={route.id} />
+    case 'topics':
+      return <TopicsView />
+    case 'topic':
+      return <TopicDetailView key={route.id} id={route.id} />
   }
 }
