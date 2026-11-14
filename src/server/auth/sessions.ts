@@ -89,7 +89,7 @@ export function clearSessionCookie(reply: FastifyReply) {
   reply.clearCookie(SESSION_COOKIE, { httpOnly: true, secure: true, sameSite: 'strict', path: '/' })
 }
 
-/** Prawdziwe źródło sesji dla strażnika RPC (podpinane, gdy będzie logowanie; do tego czasu produkcja: noSessions). */
-export const dbSessions = (db: Db): SessionProvider => ({
-  get: (req) => getSession(db, req.cookies[SESSION_COOKIE])
+/** Źródło sesji dla strażnika RPC: sesje z bazy po ciasteczku. `now`: zegar (testy). */
+export const dbSessions = (db: Db, now: () => Date = () => new Date()): SessionProvider => ({
+  get: (req) => getSession(db, req.cookies[SESSION_COOKIE], now())
 })

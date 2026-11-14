@@ -2,7 +2,10 @@
 // Sesja podstawiana przez SessionProvider. Wymaga lokalnej bazy testowej (TEST_DATABASE_URL, zob. testDb.ts).
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { apiMethods, ROLES, type Method, type Role } from '@shared/api'
+import { like } from 'drizzle-orm'
 import { buildApp } from './app'
+import type { Db } from './db/connection'
+import { accessLog } from './db/schema'
 import { openTestDb } from './testDb'
 import type { Session, SessionProvider } from './rpc'
 
@@ -11,14 +14,18 @@ const testSessions: SessionProvider = { get: async () => current }
 
 let app: ReturnType<typeof buildApp>
 let close: () => Promise<void>
+let testDb: Db
 
 beforeAll(async () => {
   const opened = await openTestDb()
   close = opened.close
+  testDb = opened.db
   app = buildApp(opened.db, [], testSessions)
 })
 afterAll(async () => {
   await app?.close()
+  // wpisy wylogowań podstawionych użytkowników (user-admin itd.)
+  await testDb?.delete(accessLog).where(like(accessLog.userId, 'user-%'))
   await close?.()
 })
 

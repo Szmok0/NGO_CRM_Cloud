@@ -1,6 +1,7 @@
 import { loadConfig } from './config'
 import { openDb, runMigrations } from './db/connection'
 import { buildApp } from './app'
+import { dbSessions } from './auth/sessions'
 
 // Bez await na najwyższym poziomie: Hostinger (lsnode.js) wczytuje ten plik przez require().
 async function start() {
@@ -16,7 +17,7 @@ async function start() {
   const { db } = await openDb(config.DATABASE_URL)
   await runMigrations(db)
 
-  const app = buildApp(db)
+  const app = buildApp(db, [], dbSessions(db), { appSecret: config.APP_SECRET })
   await app.listen({ port: config.PORT, host: config.HOST })
 }
 

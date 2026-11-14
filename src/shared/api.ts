@@ -20,6 +20,10 @@ const ALL = ['admin', 'staff', 'readonly'] as const
 export const apiMethods = {
   /** Kim jestem w tej sesji (także przed 2FA: klient wie, że ma pokazać konfigurację 2FA). */
   'auth.me': { input: none, roles: ALL, before2fa: true },
+  /** Wylogowanie tej sesji (także przed 2FA). */
+  'auth.logout': { input: none, roles: ALL, before2fa: true },
+  /** „Wyloguj wszędzie”: koniec wszystkich sesji tej osoby. */
+  'auth.logoutAll': { input: none, roles: ALL },
   /** Dane techniczne instancji (wersja, migracje). Bez danych organizacji. */
   'system.info': { input: none, roles: ['admin'] }
 } satisfies Record<string, MethodSpec>
@@ -30,6 +34,8 @@ export type ApiParsed<M extends Method> = z.output<(typeof apiMethods)[M]['input
 
 export interface ApiOutputs {
   'auth.me': { userId: string; role: Role; totpVerified: boolean }
+  'auth.logout': void
+  'auth.logoutAll': void
   'system.info': { version: string; migrations: number }
 }
 

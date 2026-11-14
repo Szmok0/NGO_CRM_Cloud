@@ -2,6 +2,8 @@
 // Polskie komunikaty: src/client/i18n/pl.ts (errors).
 export const ERROR_CODES = [
   'UNAUTHENTICATED',
+  'LOGIN_FAILED',
+  'RATE_LIMITED',
   'TOTP_REQUIRED',
   'FORBIDDEN',
   'VALIDATION',

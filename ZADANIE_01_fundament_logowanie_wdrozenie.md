@@ -80,6 +80,8 @@ Cel: sprawdzić, że Hostinger uruchamia nasz układ, zanim zbudujemy na nim cok
 18. Klucz prywatny szyfrowany `wrapKey`: AES-GCM, losowe IV 96 bitów, dane dodatkowe (AAD) = id konta. Slot związany z wersją klucza organizacji (etykieta RSA-OAEP / AAD).
 19. Klucz odzyskiwania: Crockford Base32 (bez I, L, O, U), 14 grup po 4 znaki = 256 bitów klucza + 24 bity sumy kontrolnej (wykrywa literówki); odczyt wybacza małe litery, spacje oraz O/I/L zamiast 0/1.
 20. Pola techniczne logowania w `users` (`totpLastStep`, `failedAttempts`, `lockedUntil`, `lastLoginAt`) zapisywane wprost, bez `change_log` i bez zmiany `version` (to nie zmiany danych; zdarzenia logowania trafiają do `access_log`). Sekret TOTP szyfrowany z AAD = id konta. Kod QR: SVG z serwera (bez stylów inline, zgodny z CSP).
+21. Logowanie: trasy poza RPC `/api/auth/prelogin`, `/api/auth/login`, `/api/auth/totp`; wylogowanie jako metody RPC (`auth.logout` także przed 2FA, `auth.logoutAll`). Jedna odpowiedź `LOGIN_FAILED` (401) dla złego hasła, nieznanego e-maila, konta wyłączonego i zablokowanego; dla nieznanego e-maila serwer też liczy scrypt (ten sam czas odpowiedzi). Po kodzie TOTP sesja dostaje nowy token.
+22. Do limitu IP liczą się tylko nieudane próby (udane są zwracane); przekroczenie → 429 `RATE_LIMITED` do końca okna. Próby w trakcie blokady konta nie są liczone. Adres IP brany z `req.ip` (`trustProxy`), nigdzie nie zapisywany ani logowany.
 Realizacja etapami: a) tabele i sesje, b) szyfrowanie w przeglądarce, c) TOTP z QR, d) blokada, e) ekrany; po każdym commit i podsumowanie.
 
 ## Krok 6: kreator pierwszego uruchomienia
