@@ -15,9 +15,11 @@ export interface Actor {
 
 export const repoFor = (db: Pick<Db, 'transaction'>, actor: Actor) => createRepo(db, { userId: actor.userId, now: () => actor.now })
 
-/** Dzisiejsza data lokalna serwera jako RRRR-MM-DD. */
-export const today = (now: Date = new Date()): string =>
-  `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+/** Strefa czasu organizacji: serwer hostingu może działać w UTC, a „dziś” ma być polskie. */
+const WARSAW_DAY = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Warsaw', year: 'numeric', month: '2-digit', day: '2-digit' })
+
+/** Data w Polsce (Europe/Warsaw) jako RRRR-MM-DD. */
+export const today = (now: Date = new Date()): string => WARSAW_DAY.format(now)
 
 const iso = (d: Date | null): string | null => (d ? d.toISOString() : null)
 

@@ -11,7 +11,8 @@ import { changePassword, confirmTotpSetup, getAccount, getKeys, startTotpSetup }
 import { registerSuccess } from './auth/lockout'
 import { disableUser, inviteUser, listUsers, resetUser, setUserRole } from './auth/users'
 import type { AuthOptions } from './auth/options'
-import { getSettings } from './services/settings'
+import { getSettings, updateSettings } from './services/settings'
+import * as overview from './services/overview'
 import * as actions from './services/actions'
 import * as activities from './services/activities'
 import * as contacts from './services/contacts'
@@ -158,6 +159,13 @@ const handlers: Handlers = {
   'taskItems.add': (p, ctx) => tasks.addTaskItem(ctx.db, p, actor(ctx)),
   'taskItems.toggle': (p, ctx) => tasks.toggleTaskItem(ctx.db, p, actor(ctx)),
   'taskItems.delete': (p, ctx) => tasks.deleteTaskItem(ctx.db, p, actor(ctx)),
+  // „Dziś”, kalendarz, kosz, ustawienia organizacji
+  'today.get': (_p, ctx) => overview.getToday(ctx.db, actor(ctx)),
+  'today.counter': (_p, ctx) => overview.taskCounter(ctx.db, actor(ctx)),
+  'calendar.entries': ({ from, to }, { db, now }) => overview.calendarEntries(db, from, to, now),
+  'trash.list': (_p, { db }) => overview.listTrash(db),
+  'trash.restore': (p, ctx) => overview.restoreFromTrash(ctx.db, p, actor(ctx)),
+  'settings.update': (p, ctx) => updateSettings(ctx.db, p, actor(ctx)),
   'search.global': ({ q }, { db }) => contacts.searchGlobal(db, q)
 }
 

@@ -274,3 +274,11 @@ Nie aktualizuj Sejfu bez zgody MOC.
 - Sprawdzone w przeglądarce na zbudowanej aplikacji: zadanie z checklistą przy szkoleniu (termin, wysoki priorytet), odhaczenie pozycji (1/3 na liście pod oknem), kanban: przesunięcie strzałką do „W trakcie”, pasek postępu; konsola bez błędów CSP.
 - **Nie sprawdzono w przeglądarce:** przeciągania karty myszą — narzędzie symuluje ruchy myszy, z których przeglądarka nie uruchamia natywnego przeciągania HTML5. Kod przeciągania jak w desktopie; zmiana statusu (`tasks.move`) jest w testach serwera. **Do przeklikania przez MOC.**
 - Licznik zadań przy „Zadaniach” w menu dojdzie z ekranem „Dziś” (krok 6).
+
+### Krok 6, etap a: „Dziś”, kalendarz, Kosz, ustawienia — serwer (2026-11-15)
+- `server/services/overview.ts` z desktopu: `today.get` (moje zadania zaległe / na dziś / odhaczone dziś, najbliższe 30 dni, zajęcia w tygodniu, „Wymaga uwagi”, „Ostatnio w organizacji”), `today.counter` (licznik w menu), `calendar.entries` (wpisy z `buildCalendar`; zakres do ok. 13 miesięcy), `trash.list` / `trash.restore` (osoby, działania, zadania, tematy; przywrócenie z `version`).
+- `settings.update` (tylko `admin`, D4): nazwa, profil, moduły (normalizowane), własne nazwy ról (puste = domyślne), dni do „Wymaga uwagi”; z `version`.
+- **„Dziś” w strefie `Europe/Warsaw`** (`today()` w `services/common.ts`): serwer hostingu może działać w UTC, a daty „dziś” (zaległe zadania, role od dziś, frekwencja, kalendarz) mają być polskie. Dotyczy też wcześniejszych kroków.
+- „Ostatnio w organizacji”: zmiana tożsamości (`contact_identity`, w `change_log` same nazwy pól) to „zmiana danych: {osoba}” i łączy się w serię ze zmianą kontaktu (`shared/feed.ts`, lookup `identityContact`).
+- Bez karty kopii (ZADANIE_04) i alertów przygotowania (ZADANIE_05).
+- Testy: `services/overview.test.ts` (8): data polska przy UTC, zadania na „Dziś” i licznik, najbliższe dni i tydzień bez odwołanych, „Wymaga uwagi” i jego zdjęcie kontaktem, feed ze zmianą tożsamości, kalendarz bez usuniętych, Kosz z przywróceniem i konfliktem wersji, ustawienia; do tego test feedu w `feedText.test.ts`. Razem 590.

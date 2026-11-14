@@ -6,7 +6,8 @@ import { KDF_ITERATIONS, authKeySchema, emailSchema, kdfSaltSchema, sealedSchema
 import * as d from './domain'
 import type { RoleLabels } from './domain'
 import type * as T from './types'
-import type { ModuleId, Profile } from './modules'
+import { PROFILES, type ModuleId, type Profile } from './modules'
+import type { CalendarData } from './calendar'
 
 export const ROLES = ['admin', 'staff', 'readonly'] as const
 export type Role = (typeof ROLES)[number]
@@ -268,6 +269,28 @@ export const apiMethods = {
   'taskItems.add': { input: z.object({ taskId: uuid, label: z.string().trim().min(1).max(500) }), roles: WRITE },
   'taskItems.toggle': { input: z.object({ id: uuid, version, done: z.boolean() }), roles: WRITE },
   'taskItems.delete': { input: ref, roles: WRITE },
+  // --- „Dziś”, kalendarz, kosz, ustawienia organizacji (krok 6) ---
+  'today.get': { input: none, roles: ALL },
+  /** Licznik przy „Zadaniach” w menu: moje niezrobione zadania zaległe i na dziś. */
+  'today.counter': { input: none, roles: ALL },
+  'calendar.entries': {
+    input: z.object({ from: day, to: day }).refine((r) => r.from <= r.to && Date.parse(r.to) - Date.parse(r.from) <= 400 * 86_400_000, { message: 'Zakres do ok. 13 miesięcy' }),
+    roles: ALL
+  },
+  'trash.list': { input: none, roles: ALL },
+  'trash.restore': { input: z.object({ entity: z.enum(['contacts', 'actions', 'tasks', 'topics']), id: uuid, version }), roles: WRITE },
+  /** Ustawienia organizacji (tylko administrator, D4). */
+  'settings.update': {
+    input: z.object({
+      version,
+      orgName: z.string().trim().min(1).max(200),
+      profile: z.enum(PROFILES),
+      enabledModules: z.array(z.string().max(32)).max(20),
+      roleLabels: z.partialRecord(z.enum(d.ROLES), z.string().trim().max(40)),
+      staleDays: z.number().int().min(1).max(3650)
+    }),
+    roles: ADMIN
+  },
   /** Wyszukiwarka w pasku górnym (od 2 znaków; po tożsamości, nie po danych wrażliwych). */
   'search.global': { input: z.object({ q: z.string().max(200) }), roles: ALL }
 } satisfies Record<string, MethodSpec>
@@ -367,6 +390,12 @@ export interface ApiOutputs {
   'taskItems.add': void
   'taskItems.toggle': void
   'taskItems.delete': void
+  'today.get': T.TodayData
+  'today.counter': number
+  'calendar.entries': CalendarData
+  'trash.list': T.TrashItem[]
+  'trash.restore': void
+  'settings.update': void
   'search.global': T.SearchHit[]
 }
 

@@ -62,6 +62,8 @@ export interface FeedLookup {
   activity(id: string): { type: ActivityType; contactId: string | null } | undefined
   consent(id: string): { contactId: string; type: ConsentType } | undefined
   topic(id: string): { name: string } | undefined
+  /** Wiersz tożsamości → id kontaktu (chmura: contact_identity). */
+  identityContact?(id: string): string | undefined
 }
 
 interface Described {
@@ -82,6 +84,14 @@ function describe(e: ChangeLogRow, l: FeedLookup): Described | null {
         item: { kind, subject: c.label, contactKind: c.kind, target: { type: 'contact', id: e.entityId } },
         mergeKey: `${kind}:${e.entityId}`
       }
+    }
+    case 'contact_identity': {
+      // w chmurze imię, nazwisko i kontakt leżą w osobnej tabeli: zmiana tożsamości = zmiana danych osoby
+      if (e.op !== 'update') return null
+      const contactId = l.identityContact?.(e.entityId)
+      const c = contactId ? l.contact(contactId) : undefined
+      if (!contactId || !c) return null
+      return { item: { kind: 'contactUpdated', subject: c.label, contactKind: c.kind, target: { type: 'contact', id: contactId } }, mergeKey: `contactUpdated:${contactId}` }
     }
     case 'actions': {
       const a = l.action(e.entityId)

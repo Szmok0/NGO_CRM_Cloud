@@ -66,6 +66,12 @@ describe('„Ostatnio w organizacji”', () => {
     expect(feedText(feed[0]!)).toBe('zadanie zrobione: „Plakat festynu”')
   })
 
+  it('zmiana tożsamości (contact_identity) to „zmiana danych” osoby; seria łączy się ze zmianą kontaktu', () => {
+    const l = { ...lookup, identityContact: (id: string) => (id === 'i1' ? 'c1' : undefined) }
+    const feed = buildFeed([row('contact_identity', 'i1', 'insert'), row('contacts', 'c1', 'update'), row('contact_identity', 'i1', 'update')], l)
+    expect(feed.map((f) => [feedText(f), f.count])).toEqual([['zmiana danych: Barbara Testowska', 2]])
+  })
+
   it('pomija ustawienia, użytkowników i wpisy techniczne', () => {
     const log = [
       row('settings', 'x', 'update'),

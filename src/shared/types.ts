@@ -1,5 +1,7 @@
 // Typy wyników API (wzór: desktopowe src/shared/types.ts). W odróżnieniu od desktopu nie wynikają ze schematu bazy:
 // znaczniki czasu przychodzą z serwera jako ISO 8601 (tekst), daty jako RRRR-MM-DD, a tożsamość osoby leży w osobnej tabeli.
+import type { CalendarEntry } from './calendar'
+import type { FeedItem } from './feed'
 import type { ActionStatus, ActionType, ActivityType, AttendanceStatus, Channel, ConsentType, ContactKind, Framework, ParticipantStatus, Priority, RelationshipType, Role, TargetType, TaskStatus } from './domain'
 
 /** Pola techniczne rekordu widoczne dla klienta (`version` odsyłany przy zapisie: blokada optymistyczna). */
@@ -240,4 +242,38 @@ export interface TaskDetail {
 export interface UserOption {
   id: string
   name: string
+}
+
+// ---------- „Dziś”, kosz (krok 6) ----------
+
+export interface StaleContact {
+  contact: ContactRef
+  days: number
+  lastTouch: string | null
+  /** Działanie, w którym osoba uczestniczy (najwcześniej dopisana). */
+  actionTitle: string | null
+}
+
+/** Ekran „Dziś” (bez karty kopii zapasowej — ZADANIE_04, i bez alertów przygotowania — ZADANIE_05). */
+export interface TodayData {
+  tasksToday: TaskListItem[]
+  tasksOverdue: TaskListItem[]
+  /** Moje zadania (termin dziś lub wcześniej) odhaczone dziś — zostają na liście przekreślone. */
+  tasksDoneToday: TaskListItem[]
+  /** Zajęcia i działania z najbliższych 30 dni (maks. 5). */
+  upcoming: CalendarEntry[]
+  /** Zajęcia w tym tygodniu (pn–nd) i najbliższe zajęcia od dziś. */
+  week: { sessions: number; next: { date: string; startTime: string | null } | null }
+  stale: StaleContact[]
+  feed: FeedItem[]
+}
+
+export interface TrashItem {
+  entity: 'contacts' | 'actions' | 'tasks' | 'topics'
+  id: string
+  version: number
+  label: string
+  kind: ContactKind | null
+  deletedAt: string
+  deletedBy: string
 }
