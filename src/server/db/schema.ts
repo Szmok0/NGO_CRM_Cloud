@@ -76,6 +76,34 @@ export const authSessions = mysqlTable(
   (t) => [uniqueIndex('auth_sessions_token_uq').on(t.tokenHash), index('auth_sessions_user_idx').on(t.userId)]
 )
 
+/** Wersje klucza organizacji: same metadane. Klucz istnieje tylko w slotach, zaszyfrowany; serwer go nie zna. */
+export const orgKeys = mysqlTable('org_keys', {
+  version: int('version').primaryKey(),
+  createdAt: datetime('created_at', { mode: 'date', fsp: 3 }).notNull(),
+  createdBy: char('created_by', { length: 36 }).notNull(),
+  retiredAt: datetime('retired_at', { mode: 'date', fsp: 3 })
+})
+
+/**
+ * Sloty: klucz organizacji zaszyfrowany w przeglądarce kluczem publicznym osoby (RSA-OAEP)
+ * albo kluczem odzyskiwania (`userId` = null). Serwer tylko przechowuje.
+ * UNIQUE nie obejmuje wierszy z `userId` = null: jeden slot odzyskiwania na wersję pilnuje kod zapisu.
+ */
+export const keySlots = mysqlTable(
+  'key_slots',
+  {
+    id: char('id', { length: 36 }).primaryKey(),
+    userId: char('user_id', { length: 36 }).references(() => users.id),
+    keyVersion: int('key_version')
+      .notNull()
+      .references(() => orgKeys.version),
+    wrappedKey: text('wrapped_key').notNull(),
+    grantedBy: char('granted_by', { length: 36 }).notNull(),
+    grantedAt: datetime('granted_at', { mode: 'date', fsp: 3 }).notNull()
+  },
+  (t) => [uniqueIndex('key_slots_user_version_uq').on(t.userId, t.keyVersion)]
+)
+
 /** Dziennik dostępu: kto i kiedy (logowanie, wylogowanie, odsłonięcia…). Bez danych osobowych; tylko dopisywanie. */
 export const accessLog = mysqlTable(
   'access_log',

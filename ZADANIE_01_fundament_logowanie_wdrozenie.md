@@ -76,6 +76,9 @@ Cel: sprawdzić, że Hostinger uruchamia nasz układ, zanim zbudujemy na nim cok
 14. Pary kluczy: RSA-OAEP 3072 (D3).
 15. `qrcode` bez `@types/qrcode`: własna deklaracja typów.
 16. Testy z bazą tylko na lokalnej bazie testowej (`TEST_DATABASE_URL`, host lokalny, nazwa z `_test`, nie przy `NODE_ENV=production`); konta testowe tylko w testach, sprzątane po nich. Do kroku 6 produkcja nie ma żadnego konta.
+17. Sól PBKDF2 losowa dla każdej osoby (`kdfSalt`); e-mail nie wchodzi do wyprowadzenia kluczy. Hasło przed PBKDF2 normalizowane (NFKC).
+18. Klucz prywatny szyfrowany `wrapKey`: AES-GCM, losowe IV 96 bitów, dane dodatkowe (AAD) = id konta. Slot związany z wersją klucza organizacji (etykieta RSA-OAEP / AAD).
+19. Klucz odzyskiwania: Crockford Base32 (bez I, L, O, U), 14 grup po 4 znaki = 256 bitów klucza + 24 bity sumy kontrolnej (wykrywa literówki); odczyt wybacza małe litery, spacje oraz O/I/L zamiast 0/1.
 Realizacja etapami: a) tabele i sesje, b) szyfrowanie w przeglądarce, c) TOTP z QR, d) blokada, e) ekrany; po każdym commit i podsumowanie.
 
 ## Krok 6: kreator pierwszego uruchomienia
