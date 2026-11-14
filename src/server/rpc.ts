@@ -7,7 +7,10 @@ import { AppError, type ErrorCode } from '@shared/errors'
 import pkg from '../../package.json'
 import { migrationCount, type Db } from './db/connection'
 import { logAccess } from './auth/accessLog'
-import { SESSION_COOKIE, clearSessionCookie, revokeAllSessions, revokeSession } from './auth/sessions'
+import { changePassword, confirmTotpSetup, getAccount, getKeys, startTotpSetup } from './auth/account'
+import { registerSuccess } from './auth/lockout'
+import type { AuthOptions } from './auth/options'
+import { SESSION_COOKIE, clearSessionCookie, createSession, revokeAllSessions, revokeSession, setSessionCookie } from './auth/sessions'
 
 /** Sesja logowania widziana przez strażnika. */
 export interface Session {
@@ -30,12 +33,54 @@ interface RpcContext {
   db: Db
   req: FastifyRequest
   reply: FastifyReply
+  now: Date
+  /** Ustawienia logowania; brak (np. w testach innych modułów) → metody wymagające APP_SECRET zgłaszają błąd. */
+  auth?: AuthOptions
+}
+
+const requireAuth = (ctx: RpcContext) => {
+  if (!ctx.auth) throw new Error('Brak konfiguracji logowania')
+  return ctx.auth
+}
+
+/** Nowa pełna sesja w miejsce bieżącej (nowy token w ciasteczku). */
+async function issueFullSession({ db, req, reply, session, now }: RpcContext) {
+  const full = await createSession(db, session.userId, { mfaPassed: true, userAgent: req.headers['user-agent'], now })
+  setSessionCookie(reply, full.token, full.expiresAt)
 }
 
 type Handlers = { [M in Method]: (params: ApiParsed<M>, ctx: RpcContext) => ApiOutputs[M] | Promise<ApiOutputs[M]> }
 
 const handlers: Handlers = {
   'auth.me': (_p, { session }) => ({ userId: session.userId, role: session.role, totpVerified: session.totpVerified }),
+  'auth.account': (_p, { session, db }) => getAccount(db, session.userId),
+  'auth.totpSetup.start': (_p, ctx) => startTotpSetup(ctx.db, ctx.session.userId, requireAuth(ctx).appSecret),
+  'auth.totpSetup.confirm': async ({ code }, ctx) => {
+    const { db, session, req, now } = ctx
+    await confirmTotpSetup(db, session.userId, code, requireAuth(ctx).appSecret, now)
+    // 2FA włączone i potwierdzone: sesja sprzed 2FA zamienia się w pełną.
+    const token = req.cookies[SESSION_COOKIE]
+    if (token) await revokeSession(db, token)
+    await issueFullSession(ctx)
+    await registerSuccess(db, session.userId, now)
+    await logAccess(db, session.userId, 'login', now)
+  },
+  'auth.keys': (_p, { session, db }) => getKeys(db, session.userId),
+  'auth.changePassword': async (input, ctx) => {
+    const { db, session, reply, now } = ctx
+    const result = await changePassword(db, session.userId, input, requireAuth(ctx), now)
+    if (result === 'locked') {
+      // Blokada konta (także po nieudanych próbach tutaj): koniec wszystkich sesji.
+      await revokeAllSessions(db, session.userId)
+      clearSessionCookie(reply)
+      throw new AppError('LOGIN_FAILED')
+    }
+    if (result === 'wrong_password') throw new AppError('LOGIN_FAILED')
+    if (result === 'wrong_code') throw new AppError('TOTP_INVALID')
+    // Nowe hasło: pozostałe sesje tej osoby kończą się, ta dostaje nowy token.
+    await revokeAllSessions(db, session.userId)
+    await issueFullSession(ctx)
+  },
   'auth.logout': async (_p, { session, db, req, reply }) => {
     const token = req.cookies[SESSION_COOKIE]
     if (token) await revokeSession(db, token)
@@ -54,6 +99,7 @@ export const HTTP_STATUS: Record<ErrorCode, number> = {
   UNAUTHENTICATED: 401,
   LOGIN_FAILED: 401,
   RATE_LIMITED: 429,
+  TOTP_INVALID: 400,
   TOTP_REQUIRED: 403,
   FORBIDDEN: 403,
   VALIDATION: 400,
@@ -84,7 +130,7 @@ export function sendError(e: unknown, reply: FastifyReply, log: FastifyBaseLogge
 
 const isMethod = (m: string): m is Method => Object.hasOwn(apiMethods, m)
 
-export function registerRpc(app: FastifyInstance, db: Db, sessions: SessionProvider) {
+export function registerRpc(app: FastifyInstance, db: Db, sessions: SessionProvider, auth?: AuthOptions) {
   app.post('/api/rpc', async (req, reply) => {
     let method: string | undefined
     let session: Session | null = null
@@ -104,7 +150,7 @@ export function registerRpc(app: FastifyInstance, db: Db, sessions: SessionProvi
 
       const params = spec.input.parse(body.data.params)
       const handler = handlers[method] as (p: unknown, ctx: RpcContext) => unknown
-      const data = await handler(params, { session, db, req, reply })
+      const data = await handler(params, { session, db, req, reply, now: auth?.now?.() ?? new Date(), auth })
       // Log bez parametrów i wyników (zasada danych 9): metoda, id użytkownika, kod.
       req.log.info({ rpc: method, userId: session.userId, code: 'OK' }, 'rpc')
       return { ok: true, data }

@@ -37,7 +37,7 @@ function makeApp() {
 
 const newAuthKey = () => randomBytes(32).toString('base64')
 
-async function createUser(opts: { status?: string; totp?: boolean; role?: string } = {}) {
+async function createUser(opts: { status?: string; totp?: boolean; role?: string; privateKeyEnc?: string } = {}) {
   const id = randomUUID()
   const authKey = newAuthKey()
   const secret = generateTotpSecret()
@@ -57,7 +57,8 @@ async function createUser(opts: { status?: string; totp?: boolean; role?: string
     kdfIterations: 600_000,
     authHash: await hashAuthKey(authKey, FAST),
     totpSecretEnc: opts.totp === false ? null : encryptTotpSecret(secret, APP_SECRET, id),
-    totpEnabledAt: opts.totp === false ? null : clock()
+    totpEnabledAt: opts.totp === false ? null : clock(),
+    privateKeyEnc: opts.privateKeyEnc ?? null
   })
   return { id, email, authKey, secret }
 }
@@ -83,6 +84,7 @@ async function post(app: ReturnType<typeof buildApp>, url: string, payload: unkn
 const login = (app: ReturnType<typeof buildApp>, u: { email: string; authKey: string }, ip?: string) => post(app, '/api/auth/login', { email: u.email, authKey: u.authKey }, { ip })
 const totp = (app: ReturnType<typeof buildApp>, cookie: string | undefined, c: string, ip?: string) => post(app, '/api/auth/totp', { code: c }, { cookie, ip })
 const me = (app: ReturnType<typeof buildApp>, cookie?: string) => post(app, '/api/rpc', { method: 'auth.me' }, { cookie })
+const rpc = (app: ReturnType<typeof buildApp>, cookie: string | undefined, method: string, params?: unknown) => post(app, '/api/rpc', { method, params }, { cookie })
 const FAILED = { status: 401, body: { ok: false, code: 'LOGIN_FAILED' } }
 
 async function fullLogin(app: ReturnType<typeof buildApp>, u: TestUser) {
@@ -438,5 +440,162 @@ describe('trasy logowania a konfiguracja', () => {
     expect((await app.inject({ method: 'POST', url: '/api/auth/login', headers: noHeader, payload })).statusCode).toBe(403)
     expect((await app.inject({ method: 'POST', url: '/api/auth/login', headers: { ...baseHeaders, origin: 'https://evil.example' }, payload })).statusCode).toBe(403)
     expect((await app.inject({ method: 'POST', url: '/api/auth/login', headers: { ...baseHeaders, 'x-forwarded-proto': 'http', origin: `http://${HOST}` }, payload })).statusCode).toBe(403)
+  })
+})
+
+describe('konfiguracja 2FA (konto bez TOTP)', () => {
+  it('start → kod QR i sekret; błędny kod nie włącza; poprawny włącza 2FA i daje pełną sesję z nowym tokenem', async () => {
+    const app = makeApp()
+    const u = await createUser({ totp: false })
+    const pre = await login(app, u)
+    expect((await rpc(app, pre.cookie, 'auth.account')).body.data).toEqual({ email: u.email, name: 'Konto testowe', totpEnabled: false })
+
+    const start = await rpc(app, pre.cookie, 'auth.totpSetup.start')
+    expect(start.status).toBe(200)
+    const { secret, otpauthUrl, qrSvg } = start.body.data as { secret: string; otpauthUrl: string; qrSvg: string }
+    expect(secret).toMatch(/^[A-Z2-7]{32}$/)
+    expect(otpauthUrl).toContain(`secret=${secret}`)
+    expect(qrSvg).toMatch(/^<svg /)
+    expect((await userRow(u.id)).totpSecretEnc).not.toContain(secret)
+
+    const nowCode = () => hotp(base32Decode(secret), totpStep(nowMs))
+    expect(await rpc(app, pre.cookie, 'auth.totpSetup.confirm', { code: nowCode() === '000000' ? '111111' : '000000' })).toMatchObject({ status: 400, body: { code: 'TOTP_INVALID' } })
+    expect((await userRow(u.id)).totpEnabledAt).toBeNull()
+
+    const done = await rpc(app, pre.cookie, 'auth.totpSetup.confirm', { code: nowCode() })
+    expect(done.status).toBe(200)
+    expect(done.cookie).toBeDefined()
+    expect(done.cookie).not.toBe(pre.cookie)
+    expect((await me(app, done.cookie)).body.data).toMatchObject({ userId: u.id, totpVerified: true })
+    expect((await me(app, pre.cookie)).status).toBe(401)
+    expect((await userRow(u.id)).totpEnabledAt).toEqual(clock())
+    expect(await logCount(u.id, 'totp_enabled')).toBe(1)
+    expect(await logCount(u.id, 'login')).toBe(1)
+
+    // 2FA włączone: ponowna konfiguracja odmawia, a następne logowanie wymaga kodu
+    expect((await rpc(app, done.cookie, 'auth.totpSetup.start')).status).toBe(400)
+    advance(30_000)
+    const again = await login(app, u)
+    expect(again.body.data).toEqual({ totpEnabled: true })
+    expect((await totp(app, again.cookie, nowCode())).status).toBe(200)
+  })
+
+  it('ponowny start przed potwierdzeniem zastępuje sekret: kod ze starego nie działa', async () => {
+    const app = makeApp()
+    const u = await createUser({ totp: false })
+    const pre = await login(app, u)
+    const first = (await rpc(app, pre.cookie, 'auth.totpSetup.start')).body.data as { secret: string }
+    const second = (await rpc(app, pre.cookie, 'auth.totpSetup.start')).body.data as { secret: string }
+    expect(second.secret).not.toBe(first.secret)
+    const codeOf = (s: string) => hotp(base32Decode(s), totpStep(nowMs))
+    if (codeOf(first.secret) !== codeOf(second.secret)) {
+      expect((await rpc(app, pre.cookie, 'auth.totpSetup.confirm', { code: codeOf(first.secret) })).status).toBe(400)
+    }
+    expect((await rpc(app, pre.cookie, 'auth.totpSetup.confirm', { code: codeOf(second.secret) })).status).toBe(200)
+  })
+
+  it('konto z włączonym 2FA: start i potwierdzenie odmawiają, sekret bez zmian', async () => {
+    const app = makeApp()
+    const u = await createUser()
+    const pre = await login(app, u)
+    const before = (await userRow(u.id)).totpSecretEnc
+    expect((await rpc(app, pre.cookie, 'auth.totpSetup.start')).status).toBe(400)
+    expect((await rpc(app, pre.cookie, 'auth.totpSetup.confirm', { code: code(u) })).status).toBe(400)
+    expect((await userRow(u.id)).totpSecretEnc).toBe(before)
+    expect((await me(app, pre.cookie)).body.data).toMatchObject({ totpVerified: false })
+  })
+})
+
+describe('klucze i zmiana hasła', () => {
+  const sealedValue = () => `v1.${randomBytes(12).toString('base64')}.${randomBytes(64).toString('base64')}`
+  const SEALED = sealedValue()
+  const newSalt = () => randomBytes(16).toString('base64')
+  const change = (app: ReturnType<typeof buildApp>, cookie: string, u: TestUser, over: Record<string, unknown> = {}) =>
+    rpc(app, cookie, 'auth.changePassword', { currentAuthKey: u.authKey, totpCode: code(u), newAuthKey: newAuthKey(), newKdfSalt: newSalt(), newKdfIterations: 600_000, ...over })
+
+  it('auth.keys: przed 2FA odmowa; po zalogowaniu sól, iteracje i zaszyfrowany klucz prywatny', async () => {
+    const app = makeApp()
+    const u = await createUser({ privateKeyEnc: SEALED })
+    const pre = await login(app, u)
+    expect((await rpc(app, pre.cookie, 'auth.keys')).status).toBe(403)
+    const full = (await totp(app, pre.cookie, code(u))).cookie
+    expect((await rpc(app, full, 'auth.keys')).body.data).toEqual({ kdfSalt: (await userRow(u.id)).kdfSalt, kdfIterations: 600_000, publicKey: null, privateKeyEnc: SEALED })
+  })
+
+  it('zmiana hasła: stare przestaje działać, nowe działa, inne sesje kończą się, ta dostaje nowy token', async () => {
+    const app = makeApp()
+    const u = await createUser({ privateKeyEnc: SEALED })
+    const other = await fullLogin(app, u)
+    advance(30_000)
+    const mine = await fullLogin(app, u)
+    advance(30_000) // świeży kod TOTP (ten z logowania jest już zużyty)
+
+    const fresh = { authKey: newAuthKey(), salt: newSalt(), privateKeyEnc: sealedValue() }
+    const res = await change(app, mine, u, { newAuthKey: fresh.authKey, newKdfSalt: fresh.salt, newPrivateKeyEnc: fresh.privateKeyEnc })
+    expect(res.status).toBe(200)
+    expect(res.cookie).toBeDefined()
+    expect((await me(app, res.cookie)).body.data).toMatchObject({ userId: u.id, totpVerified: true })
+    expect((await me(app, mine)).status).toBe(401)
+    expect((await me(app, other)).status).toBe(401)
+
+    const row = await userRow(u.id)
+    expect(row).toMatchObject({ kdfSalt: fresh.salt, privateKeyEnc: fresh.privateKeyEnc, failedAttempts: 0, version: 1 })
+    expect(row.authHash).not.toContain(fresh.authKey)
+    expect(await logCount(u.id, 'password_changed')).toBe(1)
+
+    expect(await login(app, u)).toMatchObject(FAILED) // stare hasło
+    expect((await post(app, '/api/auth/prelogin', { email: u.email })).body.data).toMatchObject({ kdfSalt: fresh.salt })
+    expect((await login(app, { email: u.email, authKey: fresh.authKey })).status).toBe(200)
+  })
+
+  it('złe obecne hasło → odmowa i próba liczona do blokady; hasło bez zmian', async () => {
+    const app = makeApp()
+    const u = await createUser()
+    const mine = await fullLogin(app, u)
+    advance(30_000)
+    const before = (await userRow(u.id)).authHash
+    expect(await change(app, mine, u, { currentAuthKey: newAuthKey() })).toMatchObject(FAILED)
+    expect(await userRow(u.id)).toMatchObject({ failedAttempts: 1, authHash: before })
+    expect((await me(app, mine)).status).toBe(200)
+  })
+
+  it('błędny kod albo kod już użyty przy logowaniu → TOTP_INVALID, próba liczona; hasło bez zmian', async () => {
+    const app = makeApp()
+    const u = await createUser()
+    const mine = await fullLogin(app, u)
+    const before = (await userRow(u.id)).authHash
+    // ten sam kod co przy logowaniu (to samo okno): zużyty
+    expect(await change(app, mine, u)).toMatchObject({ status: 400, body: { code: 'TOTP_INVALID' } })
+    expect(await change(app, mine, u, { totpCode: wrongCode(u) })).toMatchObject({ status: 400, body: { code: 'TOTP_INVALID' } })
+    expect(await userRow(u.id)).toMatchObject({ failedAttempts: 2, authHash: before })
+  })
+
+  it('5 nieudanych prób zmiany hasła blokuje konto i kończy wszystkie sesje', async () => {
+    const app = makeApp()
+    const u = await createUser()
+    const mine = await fullLogin(app, u)
+    advance(30_000)
+    for (let i = 0; i < MAX_FAILED_ATTEMPTS - 1; i++) expect((await change(app, mine, u, { currentAuthKey: newAuthKey() })).status).toBe(401)
+    const last = await change(app, mine, u, { currentAuthKey: newAuthKey() })
+    expect(last).toMatchObject(FAILED)
+    expect(last.set?.value).toBe('')
+    expect((await userRow(u.id)).lockedUntil).toEqual(new Date(nowMs + LOCK_MS))
+    expect((await me(app, mine)).status).toBe(401)
+    expect(await db.select().from(authSessions).where(eq(authSessions.userId, u.id))).toHaveLength(0)
+  })
+
+  it('konto z kluczem prywatnym: zmiana hasła bez przeszyfrowanego klucza → 400; złe formaty → 400; sesja przed 2FA → 403', async () => {
+    const app = makeApp()
+    const u = await createUser({ privateKeyEnc: SEALED })
+    const pre = await login(app, u)
+    expect((await change(app, pre.cookie!, u)).status).toBe(403)
+    const mine = (await totp(app, pre.cookie, code(u))).cookie!
+    advance(30_000)
+    expect((await change(app, mine, u)).status).toBe(400)
+    expect((await change(app, mine, u, { newPrivateKeyEnc: 'jawny-klucz' })).status).toBe(400)
+    expect((await change(app, mine, u, { newPrivateKeyEnc: SEALED, newKdfSalt: 'za-krotka' })).status).toBe(400)
+    expect((await change(app, mine, u, { newPrivateKeyEnc: SEALED, newKdfIterations: 1000 })).status).toBe(400)
+    expect((await change(app, mine, u, { newPrivateKeyEnc: SEALED, newAuthKey: 'nowe-haslo-jawnym-tekstem' })).status).toBe(400)
+    expect(await userRow(u.id)).toMatchObject({ failedAttempts: 0, privateKeyEnc: SEALED })
   })
 })

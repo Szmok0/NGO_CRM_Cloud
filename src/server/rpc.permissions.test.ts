@@ -20,7 +20,7 @@ beforeAll(async () => {
   const opened = await openTestDb()
   close = opened.close
   testDb = opened.db
-  app = buildApp(opened.db, [], testSessions)
+  app = buildApp(opened.db, [], testSessions, { appSecret: 'testowy-sekret-aplikacji-tylko-do-testow-0123456789' })
 })
 afterAll(async () => {
   await app?.close()

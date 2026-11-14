@@ -9,7 +9,8 @@ import { migrationCount, type Db } from './db/connection'
 import { appRoot } from './config'
 import { registerSecurity } from './security'
 import { noSessions, registerRpc, type SessionProvider } from './rpc'
-import { registerAuthRoutes, type AuthOptions } from './auth/routes'
+import { registerAuthRoutes } from './auth/routes'
+import type { AuthOptions } from './auth/options'
 
 /**
  * db = null: tryb kreatora (brak lub błędna konfiguracja), `missing` to nazwy zmiennych do ustawienia; API (RPC) wtedy nie działa.
@@ -40,7 +41,7 @@ export function buildApp(db: Db | null, missing: string[] = [], sessions: Sessio
     return { status: 'ok', version: pkg.version, migrations: await migrationCount(db), https }
   })
 
-  if (db) registerRpc(app, db, sessions)
+  if (db) registerRpc(app, db, sessions, auth)
   if (db && auth) registerAuthRoutes(app, db, auth)
 
   // Zbudowany klient (po `npm run build`). W trybie deweloperskim klienta serwuje Vite.

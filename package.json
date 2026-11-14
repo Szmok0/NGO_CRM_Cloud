@@ -9,7 +9,8 @@
   },
   "scripts": {
     "dev": "node scripts/dev.mjs",
-    "dev:server": "tsx watch src/server/index.ts",
+    "dev:server": "tsx watch --tsconfig tsconfig.server.json src/server/index.ts",
+    "dev:account": "tsx --tsconfig tsconfig.server.json scripts/dev-account.ts",
     "dev:client": "vite",
     "build": "npm run typecheck && vite build && vite build --config vite.server.config.mjs",
     "start": "node dist/server/index.js",

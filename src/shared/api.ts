@@ -2,6 +2,7 @@
 // na serwerze), lista ról, które mogą ją wywołać, i czy jest dostępna przed 2FA. Typ wyniku: ApiOutputs.
 // Wzór: desktopowe src/shared/ipc.ts.
 import { z } from 'zod'
+import { authKeySchema } from './auth'
 
 export const ROLES = ['admin', 'staff', 'readonly'] as const
 export type Role = (typeof ROLES)[number]
@@ -16,10 +17,34 @@ export interface MethodSpec {
 
 const none = z.object({}).optional()
 const ALL = ['admin', 'staff', 'readonly'] as const
+const totpCode = z.string().max(20)
+/** Szyfrogram z przeglądarki: „v1.IV.szyfrogram” (base64). */
+const sealed = z.string().max(8000).regex(/^v1\.[A-Za-z0-9+/=]+\.[A-Za-z0-9+/=]+$/)
 
 export const apiMethods = {
   /** Kim jestem w tej sesji (także przed 2FA: klient wie, że ma pokazać konfigurację 2FA). */
   'auth.me': { input: none, roles: ALL, before2fa: true },
+  /** Dane własnego konta (także przed 2FA: klient wie, czy pokazać konfigurację 2FA). */
+  'auth.account': { input: none, roles: ALL, before2fa: true },
+  /** Konfiguracja 2FA: nowy sekret z kodem QR (tylko gdy 2FA nie jest jeszcze włączone). */
+  'auth.totpSetup.start': { input: none, roles: ALL, before2fa: true },
+  /** Konfiguracja 2FA: potwierdzenie pierwszym kodem; włącza 2FA i daje pełną sesję. */
+  'auth.totpSetup.confirm': { input: z.object({ code: totpCode }), roles: ALL, before2fa: true },
+  /** Zaszyfrowany klucz prywatny i parametry KDF (odszyfrowanie tylko w przeglądarce). */
+  'auth.keys': { input: none, roles: ALL },
+  /** Zmiana hasła: obecny authKey, świeży kod TOTP, nowy authKey i klucz prywatny przeszyfrowany w przeglądarce. */
+  'auth.changePassword': {
+    input: z.object({
+      currentAuthKey: authKeySchema,
+      totpCode,
+      newAuthKey: authKeySchema,
+      /** Nowa sól PBKDF2: 16 bajtów w base64. */
+      newKdfSalt: z.string().regex(/^[A-Za-z0-9+/]{22}==$/),
+      newKdfIterations: z.literal(600_000),
+      newPrivateKeyEnc: sealed.optional()
+    }),
+    roles: ALL
+  },
   /** Wylogowanie tej sesji (także przed 2FA). */
   'auth.logout': { input: none, roles: ALL, before2fa: true },
   /** „Wyloguj wszędzie”: koniec wszystkich sesji tej osoby. */
@@ -34,6 +59,11 @@ export type ApiParsed<M extends Method> = z.output<(typeof apiMethods)[M]['input
 
 export interface ApiOutputs {
   'auth.me': { userId: string; role: Role; totpVerified: boolean }
+  'auth.account': { email: string; name: string; totpEnabled: boolean }
+  'auth.totpSetup.start': { secret: string; otpauthUrl: string; qrSvg: string }
+  'auth.totpSetup.confirm': void
+  'auth.keys': { kdfSalt: string; kdfIterations: number; publicKey: string | null; privateKeyEnc: string | null }
+  'auth.changePassword': void
   'auth.logout': void
   'auth.logoutAll': void
   'system.info': { version: string; migrations: number }

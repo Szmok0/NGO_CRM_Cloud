@@ -12,22 +12,14 @@ import type { Db } from '../db/connection'
 import { users } from '../db/schema'
 import { sendError } from '../rpc'
 import { logAccess } from './accessLog'
-import { createIpLimiter, isLocked, registerFailure, registerSuccess, type IpLimiter } from './lockout'
-import { hashAuthKey, verifyAuthKey, type ScryptParams } from './password'
+import { createIpLimiter, isLocked, registerFailure, registerSuccess } from './lockout'
+import type { AuthOptions } from './options'
+import { hashAuthKey, verifyAuthKey } from './password'
 import { SESSION_COOKIE, clearSessionCookie, createSession, getSession, revokeSession, setSessionCookie } from './sessions'
 import { consumeTotpCode } from './totp'
 
 /** Liczba iteracji PBKDF2 podawana dla nieznanego e-maila (taka sama jak dla nowych kont). */
 const KDF_ITERATIONS = 600_000
-
-export interface AuthOptions {
-  appSecret: string
-  /** Zegar (testy). */
-  now?: () => Date
-  /** Parametry scrypt dla pozornego skrótu (testy: tańsze). */
-  scryptParams?: ScryptParams
-  ipLimiter?: IpLimiter
-}
 
 export function registerAuthRoutes(app: FastifyInstance, db: Db, opts: AuthOptions) {
   const now = opts.now ?? (() => new Date())
