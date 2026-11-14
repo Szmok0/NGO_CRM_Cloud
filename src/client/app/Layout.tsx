@@ -134,7 +134,9 @@ function Sidebar() {
 
 const HIT_ICON = {
   person: { icon: <User size={14} />, cls: 'bg-primary-soft text-primary-soft-foreground' },
-  institution: { icon: <Building2 size={14} />, cls: 'bg-info-soft text-info' }
+  institution: { icon: <Building2 size={14} />, cls: 'bg-info-soft text-info' },
+  action: { icon: <ClipboardList size={14} />, cls: 'bg-violet-soft text-violet' },
+  topic: { icon: <BookOpen size={14} />, cls: 'bg-warning-soft text-orange' }
 }
 
 /** Wyszukiwarka globalna (od 2 znaków). Działania i tematy dojdą w kroku 4. */

@@ -7,7 +7,7 @@ import { AppError } from '@shared/errors'
 import type { ActivityView, Contact } from '@shared/types'
 import type { Db } from '../db/connection'
 import type { Repo } from '../db/repo'
-import { activities, activityContacts, contacts, users } from '../db/schema'
+import { actions, activities, activityContacts, contacts, users } from '../db/schema'
 import { contactRef, contactsById, meta, repoFor, type Actor } from './common'
 
 /** Wpis systemowy na osi. Treść to JSON ze zdarzeniem; tekst po polsku składa klient (Timeline.tsx). */
@@ -18,8 +18,14 @@ export async function addSystemActivity(repo: Repo, now: Date, event: Record<str
 
 export async function addActivity(db: Db, i: ApiParsed<'activities.add'>, actor: Actor): Promise<void> {
   const ids = [...new Set(i.contactIds)]
-  const live = await db.select({ id: contacts.id }).from(contacts).where(and(inArray(contacts.id, ids), isNull(contacts.deletedAt)))
-  if (live.length !== ids.length) throw new AppError('NOT_FOUND')
+  if (ids.length) {
+    const live = await db.select({ id: contacts.id }).from(contacts).where(and(inArray(contacts.id, ids), isNull(contacts.deletedAt)))
+    if (live.length !== ids.length) throw new AppError('NOT_FOUND')
+  }
+  if (i.actionId) {
+    const [a] = await db.select({ id: actions.id }).from(actions).where(and(eq(actions.id, i.actionId), isNull(actions.deletedAt)))
+    if (!a) throw new AppError('NOT_FOUND')
+  }
   await db.transaction(async (tx) => {
     const repo = repoFor(tx, actor)
     const a = await repo.insert(activities, {
@@ -29,7 +35,7 @@ export async function addActivity(db: Db, i: ApiParsed<'activities.add'>, actor:
       channel: i.type === 'contact' ? i.channel : null,
       form: i.type === 'support' ? i.form : null,
       durationMinutes: i.type === 'note' ? null : i.durationMinutes,
-      actionId: null
+      actionId: i.actionId
     })
     for (const contactId of ids) await repo.insert(activityContacts, { activityId: a.id, contactId })
   })
@@ -43,17 +49,25 @@ export async function deleteActivity(db: Db, { id, version }: ApiParsed<'activit
   await repoFor(db, actor).softDelete(activities, id, version)
 }
 
-/** Wpisy na osi osoby (najnowsze najpierw). Wpisy działań dojdą z krokiem 4. */
-export async function loadActivities(db: Db, filter: { contactId: string }, all?: Map<string, Contact>): Promise<ActivityView[]> {
-  const linked = await db
-    .select({ id: activityContacts.activityId })
-    .from(activityContacts)
-    .where(and(eq(activityContacts.contactId, filter.contactId), isNull(activityContacts.deletedAt)))
-  if (linked.length === 0) return []
-  const rows = await db
-    .select()
-    .from(activities)
-    .where(and(isNull(activities.deletedAt), inArray(activities.id, linked.map((l) => l.id))))
+/** Wpisy na osi osoby albo działania (najnowsze najpierw). */
+export async function loadActivities(db: Db, filter: { contactId: string } | { actionId: string }, all?: Map<string, Contact>): Promise<ActivityView[]> {
+  let rows
+  if ('contactId' in filter) {
+    const linked = await db
+      .select({ id: activityContacts.activityId })
+      .from(activityContacts)
+      .where(and(eq(activityContacts.contactId, filter.contactId), isNull(activityContacts.deletedAt)))
+    if (linked.length === 0) return []
+    rows = await db
+      .select()
+      .from(activities)
+      .where(and(isNull(activities.deletedAt), inArray(activities.id, linked.map((l) => l.id))))
+  } else {
+    rows = await db
+      .select()
+      .from(activities)
+      .where(and(isNull(activities.deletedAt), eq(activities.actionId, filter.actionId)))
+  }
   if (rows.length === 0) return []
 
   const links = await db
@@ -62,6 +76,10 @@ export async function loadActivities(db: Db, filter: { contactId: string }, all?
     .where(and(inArray(activityContacts.activityId, rows.map((r) => r.id)), isNull(activityContacts.deletedAt)))
   const people = all ?? (await contactsById(db))
   const authors = new Map((await db.select({ id: users.id, name: users.name }).from(users)).map((u) => [u.id, u.name]))
+  const actionIds = [...new Set(rows.flatMap((r) => (r.actionId ? [r.actionId] : [])))]
+  const actionTitles = new Map(
+    actionIds.length ? (await db.select({ id: actions.id, title: actions.title }).from(actions).where(inArray(actions.id, actionIds))).map((a) => [a.id, a.title]) : []
+  )
 
   return rows
     .map(
@@ -75,11 +93,13 @@ export async function loadActivities(db: Db, filter: { contactId: string }, all?
         content: a.content,
         actionId: a.actionId,
         authorName: authors.get(a.updatedBy) ?? '',
-        actionTitle: null,
-        contacts: links.flatMap((l) => {
-          const c = l.activityId === a.id ? people.get(l.contactId) : undefined
-          return c ? [contactRef(c)] : []
-        })
+        actionTitle: a.actionId ? (actionTitles.get(a.actionId) ?? null) : null,
+        contacts: links
+          .flatMap((l) => {
+            const c = l.activityId === a.id ? people.get(l.contactId) : undefined
+            return c ? [contactRef(c)] : []
+          })
+          .sort((x, y) => x.label.localeCompare(y.label, 'pl'))
       })
     )
     .sort((x, y) => y.occurredAt.localeCompare(x.occurredAt))

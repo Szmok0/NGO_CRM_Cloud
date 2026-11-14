@@ -12,6 +12,7 @@ import { registerSuccess } from './auth/lockout'
 import { disableUser, inviteUser, listUsers, resetUser, setUserRole } from './auth/users'
 import type { AuthOptions } from './auth/options'
 import { getSettings } from './services/settings'
+import * as actions from './services/actions'
 import * as activities from './services/activities'
 import * as contacts from './services/contacts'
 import type { Actor } from './services/common'
@@ -125,6 +126,26 @@ const handlers: Handlers = {
   'consents.delete': (p, ctx) => contacts.deleteConsent(ctx.db, p, actor(ctx)),
   'activities.add': (p, ctx) => activities.addActivity(ctx.db, p, actor(ctx)),
   'activities.delete': (p, ctx) => activities.deleteActivity(ctx.db, p, actor(ctx)),
+  // tematy i działania
+  'topics.list': (_p, { db }) => actions.listTopics(db),
+  'topics.get': ({ id }, { db }) => actions.getTopic(db, id),
+  'topics.create': (p, ctx) => actions.createTopic(ctx.db, p, actor(ctx)),
+  'topics.update': (p, ctx) => actions.updateTopic(ctx.db, p, actor(ctx)),
+  'topics.delete': (p, ctx) => actions.deleteTopic(ctx.db, p, actor(ctx)),
+  'actions.list': (p, { db }) => actions.listActions(db, p),
+  'actions.get': ({ id }, { db, now }) => actions.getActionDetail(db, id, now),
+  'actions.create': (p, ctx) => actions.createAction(ctx.db, p, actor(ctx)),
+  'actions.update': (p, ctx) => actions.updateAction(ctx.db, p, actor(ctx)),
+  'actions.delete': (p, ctx) => actions.deleteAction(ctx.db, p, actor(ctx)),
+  'participants.add': (p, ctx) => actions.addParticipantById(ctx.db, p, actor(ctx)),
+  'participants.setStatus': (p, ctx) => actions.setParticipantStatus(ctx.db, p, actor(ctx)),
+  'participants.remove': (p, ctx) => actions.removeParticipant(ctx.db, p, actor(ctx)),
+  'participants.previewPaste': (p, { db }) => actions.previewPaste(db, p),
+  'participants.applyPaste': (p, ctx) => actions.applyPaste(ctx.db, p, actor(ctx)),
+  'sessions.add': (p, ctx) => actions.addSession(ctx.db, p, actor(ctx)),
+  'sessions.update': (p, ctx) => actions.updateSession(ctx.db, p, actor(ctx)),
+  'sessions.delete': (p, ctx) => actions.deleteSession(ctx.db, p, actor(ctx)),
+  'attendance.set': (p, ctx) => actions.setAttendance(ctx.db, p, actor(ctx)),
   'search.global': ({ q }, { db }) => contacts.searchGlobal(db, q)
 }
 

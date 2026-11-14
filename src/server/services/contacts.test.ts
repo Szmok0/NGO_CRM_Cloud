@@ -141,7 +141,7 @@ describe('osoby i instytucje', () => {
 
 describe('oś aktywności', () => {
   const entry = (contactIds: string[], extra: Partial<Parameters<typeof act.addActivity>[1]> = {}) =>
-    act.addActivity(db, { type: 'note', channel: null, form: null, durationMinutes: null, occurredAt: '2026-11-14T09:00:00.000Z', content: 'Rozmowa testowa', contactIds, ...extra }, actor)
+    act.addActivity(db, { type: 'note', channel: null, form: null, durationMinutes: null, occurredAt: '2026-11-14T09:00:00.000Z', content: 'Rozmowa testowa', contactIds, actionId: null, ...extra }, actor)
 
   it('nowa osoba dostaje wpis systemowy „contact_created”', async () => {
     const p = await person('Maria', 'Osiowa')

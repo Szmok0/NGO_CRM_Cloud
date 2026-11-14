@@ -241,3 +241,12 @@ Nie aktualizuj Sejfu bez zgody MOC.
 - „+ Utwórz” → Notatka, Kontakt (wybór osoby, po zapisie przejście na jej kartę).
 - Sprawdzone w przeglądarce na zbudowanej aplikacji: wpis kontaktu z „+ Utwórz” (kanał, czas), notatka z osi na karcie; konsola bez błędów CSP. Usuwania wpisu nie klikano (okno potwierdzenia przeglądarki); jest w testach serwera.
 - Znane: gdy „+ Utwórz” doda wpis osobie, której karta jest właśnie otwarta, karta odświeży się dopiero po ponownym wejściu (jak w desktopie; widoki odświeżają się po własnych zapisach).
+
+### Krok 4, etap a: tematy i działania — serwer (2026-11-15)
+- Tabele (migracja `0008`): `topics`, `actions` (pola rdzenia wg D1), `action_sessions`, `action_participants` (UNIQUE `action_id`+`contact_id`), `attendance` (UNIQUE `session_id`+`contact_id`); klucz obce do działań, osób i tematów; `activities.action_id` dostał klucz obcy do `actions`.
+- `server/services/actions.ts` (z desktopowych `actions.ts` i części `tasks.ts`): tematy (lista, karta z działaniami, CRUD), działania (lista z filtrami typu/statusu/ram/okresu/tekstu, szczegóły z uczestnikami, zajęciami, obecnością, frekwencją i osią; tworzenie, edycja z wpisem systemowym przy zmianie statusu, usuwanie), uczestnicy (dodanie z przywróceniem wcześniej usuniętej pary, status, usunięcie, podgląd i zapis wklejonej listy — nowe osoby z tożsamością i rolą uczestnika), zajęcia (z prowadzącym), obecność.
+- Obecność z blokadą optymistyczną: klient odsyła wersję zaznaczenia, które widział (`null` = puste); inny stan w bazie → `VERSION_CONFLICT`. Równoczesne dodanie tej samej pary (UNIQUE) → też `VERSION_CONFLICT` zamiast błędu 500.
+- Oś: wpisy przy działaniu (także bez osób), tytuł działania przy wpisie; osoby przy wpisie posortowane po nazwie. Karta osoby: udział w działaniach. Wyszukiwarka: działania i tematy.
+- RPC: 19 nowych metod (odczyt wszystkie role, zapis `admin`/`staff`; podgląd wklejonej listy też tylko zapis, bo służy dodawaniu).
+- Testy: `services/actions.test.ts` (8): temat tylko przy szkoleniu, wpis o zmianie statusu i konflikt wersji, filtry listy i wyszukiwarka, para uczestnika bez duplikatu i przywrócenie, wklejona lista (dopasowanie, sprzeczny e-mail, nowe osoby), frekwencja, konflikt i ponowne zaznaczenie obecności bez duplikatu, wpis na osi działania bez osób. Razem 495.
+- **Odstępstwa (D1):** bez `actions.setStatus` (pasek etapów), `actions.shiftTasks` (zadania w kroku 5) i filtra „moje” (osoba odpowiedzialna) — to elementy działań v2.

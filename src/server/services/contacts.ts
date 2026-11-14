@@ -3,12 +3,12 @@
 // Przy założeniu osoby wpis systemowy „Dodano do bazy” na osi aktywności (jak w desktopie).
 import { and, eq, isNull, or } from 'drizzle-orm'
 import type { ApiParsed } from '@shared/api'
-import type { ConsentType, ContactKind, RelationshipType, Role } from '@shared/domain'
+import type { ActionStatus, ActionType, ConsentType, ContactKind, ParticipantStatus, RelationshipType, Role } from '@shared/domain'
 import { AppError } from '@shared/errors'
 import { displayName, isPossibleDuplicate, matchesQuery } from '@shared/text'
 import type { Consent, ContactDetail, ContactListItem, ContactRole, IdentityFields, SearchHit } from '@shared/types'
 import type { Db } from '../db/connection'
-import { consents, contactIdentity, contactRoles, contacts, relationships } from '../db/schema'
+import { actionParticipants, actions, consents, contactIdentity, contactRoles, contacts, relationships, topics } from '../db/schema'
 import { addSystemActivity, loadActivities } from './activities'
 import { contactRef, contactsById, meta, repoFor, today, type Actor } from './common'
 
@@ -140,6 +140,19 @@ export async function getContact(db: Db, id: string): Promise<ContactDetail> {
         })
       )
       .sort((a, b) => b.givenAt.localeCompare(a.givenAt)),
+    participations: (
+      await db
+        .select({ p: actionParticipants, a: actions })
+        .from(actionParticipants)
+        .innerJoin(actions, eq(actions.id, actionParticipants.actionId))
+        .where(and(eq(actionParticipants.contactId, id), isNull(actionParticipants.deletedAt), isNull(actions.deletedAt)))
+    )
+      .map(({ p, a }) => ({
+        participantId: p.id,
+        status: p.status as ParticipantStatus,
+        action: { id: a.id, title: a.title, type: a.type as ActionType, status: a.status as ActionStatus, startDate: a.startDate, endDate: a.endDate }
+      }))
+      .sort((x, y) => (y.action.startDate ?? '').localeCompare(x.action.startDate ?? '')),
     activities: await loadActivities(db, { contactId: id }, all)
   }
 }
@@ -180,7 +193,7 @@ export const withdrawConsent = async (db: Db, i: ApiParsed<'consents.withdraw'>,
   void (await repoFor(db, actor).update(consents, i.id, i.version, { withdrawnAt: i.at }))
 export const deleteConsent = async (db: Db, i: ApiParsed<'consents.delete'>, actor: Actor) => void (await repoFor(db, actor).softDelete(consents, i.id, i.version))
 
-// ---------- wyszukiwarka globalna (działania, tematy i zadania dojdą w krokach 4–5) ----------
+// ---------- wyszukiwarka globalna (zadania dojdą w kroku 5) ----------
 
 export async function searchGlobal(db: Db, q: string): Promise<SearchHit[]> {
   if (q.trim().length < 2) return []
@@ -188,6 +201,12 @@ export async function searchGlobal(db: Db, q: string): Promise<SearchHit[]> {
   for (const c of (await contactsById(db)).values()) {
     if (c.deletedAt) continue
     if (matchesQuery(q, c.firstName, c.lastName, c.name, c.email, c.phone)) hits.push({ type: c.kind, id: c.id, label: displayName(c), sub: c.email ?? c.city ?? null })
+  }
+  for (const a of await db.select().from(actions).where(isNull(actions.deletedAt))) {
+    if (matchesQuery(q, a.title, a.place)) hits.push({ type: 'action', id: a.id, label: a.title, sub: a.startDate })
+  }
+  for (const t of await db.select().from(topics).where(isNull(topics.deletedAt))) {
+    if (matchesQuery(q, t.name)) hits.push({ type: 'topic', id: t.id, label: t.name, sub: null })
   }
   return hits.slice(0, 20)
 }

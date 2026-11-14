@@ -268,7 +268,7 @@ export const consents = mysqlTable(
 
 /**
  * Wpis na osi: notatka, kontakt, wsparcie albo wpis systemowy (`content` = JSON zdarzenia, tekst składa klient).
- * `actionId` dostanie klucz obcy do `actions` razem z tą tabelą (krok 4).
+ * `actionId`: wpis przy działaniu (opcjonalnie).
  */
 export const activities = mysqlTable(
   'activities',
@@ -283,7 +283,7 @@ export const activities = mysqlTable(
     durationMinutes: int('duration_minutes'),
     occurredAt: datetime('occurred_at', { mode: 'date', fsp: 3 }).notNull(),
     content: text('content').notNull(),
-    actionId: char('action_id', { length: 36 })
+    actionId: char('action_id', { length: 36 }).references(() => actions.id, { onDelete: 'restrict' })
   },
   (t) => [index('activities_action_idx').on(t.actionId), index('activities_occurred_idx').on(t.occurredAt)]
 )
@@ -301,4 +301,90 @@ export const activityContacts = mysqlTable(
       .references(() => contacts.id, contactFk())
   },
   (t) => [index('activity_contacts_activity_idx').on(t.activityId), index('activity_contacts_contact_idx').on(t.contactId)]
+)
+
+// ---------- Tematy szkoleń i działania (ZADANIE_02, krok 4) ----------
+
+export const topics = mysqlTable('topics', {
+  ...domainColumns(),
+  name: varchar('name', { length: 255 }).notNull(),
+  description: text('description'),
+  program: text('program'),
+  durationHours: int('duration_hours')
+})
+
+/** Działanie (D1: pola rdzenia; osoba odpowiedzialna i szablon przygotowania dojdą w ZADANIU_05). */
+export const actions = mysqlTable(
+  'actions',
+  {
+    ...domainColumns(),
+    /** 'training' | 'workshop' | 'event' | 'meeting' | 'fundraiser' | 'other' */
+    type: varchar('type', { length: 16 }).notNull(),
+    /** 'project' | 'statutory_free' | 'statutory_paid' | 'business' */
+    framework: varchar('framework', { length: 16 }).notNull(),
+    title: varchar('title', { length: 255 }).notNull(),
+    /** 'planned' | 'ongoing' | 'done' | 'cancelled' */
+    status: varchar('status', { length: 16 }).notNull(),
+    startDate: date('start_date', { mode: 'string' }),
+    endDate: date('end_date', { mode: 'string' }),
+    place: varchar('place', { length: 255 }),
+    /** temat tylko przy szkoleniu */
+    topicId: char('topic_id', { length: 36 }).references(() => topics.id, { onDelete: 'restrict' }),
+    description: text('description'),
+    expectedParticipants: int('expected_participants')
+  },
+  (t) => [index('actions_start_idx').on(t.startDate), index('actions_topic_idx').on(t.topicId)]
+)
+
+/** Zajęcia / termin działania (w desktopie `sessions`; nazwa zmieniona, żeby nie mylić z sesją logowania). */
+export const actionSessions = mysqlTable(
+  'action_sessions',
+  {
+    ...domainColumns(),
+    actionId: char('action_id', { length: 36 })
+      .notNull()
+      .references(() => actions.id, { onDelete: 'restrict' }),
+    date: date('date', { mode: 'string' }).notNull(),
+    /** HH:mm */
+    startTime: char('start_time', { length: 5 }),
+    endTime: char('end_time', { length: 5 }),
+    leaderContactId: char('leader_contact_id', { length: 36 }).references(() => contacts.id, contactFk()),
+    note: text('note')
+  },
+  (t) => [index('action_sessions_action_idx').on(t.actionId), index('action_sessions_date_idx').on(t.date)]
+)
+
+/** Uczestnik działania. Para (działanie, osoba) jedna (UNIQUE); usunięty wiersz wraca przy ponownym dodaniu. */
+export const actionParticipants = mysqlTable(
+  'action_participants',
+  {
+    ...domainColumns(),
+    actionId: char('action_id', { length: 36 })
+      .notNull()
+      .references(() => actions.id, { onDelete: 'restrict' }),
+    contactId: char('contact_id', { length: 36 })
+      .notNull()
+      .references(() => contacts.id, contactFk()),
+    /** 'registered' | 'confirmed' | 'resigned' */
+    status: varchar('status', { length: 16 }).notNull(),
+    note: text('note')
+  },
+  (t) => [uniqueIndex('action_participants_pair_uq').on(t.actionId, t.contactId), index('action_participants_contact_idx').on(t.contactId)]
+)
+
+/** Obecność na zajęciach. Para (zajęcia, osoba) jedna (UNIQUE); wyczyszczenie = oznaczenie `deletedAt`. */
+export const attendance = mysqlTable(
+  'attendance',
+  {
+    ...domainColumns(),
+    sessionId: char('session_id', { length: 36 })
+      .notNull()
+      .references(() => actionSessions.id, { onDelete: 'restrict' }),
+    contactId: char('contact_id', { length: 36 })
+      .notNull()
+      .references(() => contacts.id, contactFk()),
+    /** 'present' | 'absent' | 'excused' */
+    status: varchar('status', { length: 16 }).notNull()
+  },
+  (t) => [uniqueIndex('attendance_pair_uq').on(t.sessionId, t.contactId), index('attendance_contact_idx').on(t.contactId)]
 )

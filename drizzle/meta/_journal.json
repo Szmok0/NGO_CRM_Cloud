@@ -57,6 +57,13 @@
       "when": 1794698780670,
       "tag": "0007_charming_pet_avengers",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "5",
+      "when": 1794699167259,
+      "tag": "0008_majestic_domino",
+      "breakpoints": true
     }
   ]
 }

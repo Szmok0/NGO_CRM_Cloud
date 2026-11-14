@@ -64,6 +64,28 @@ const identityFields = {
   notes: opt
 }
 const tags = z.array(z.string().trim().min(1).max(60)).max(30).default([])
+const optTime = z
+  .string()
+  .regex(/^([01]\d|2[0-3]):[0-5]\d$/)
+  .nullish()
+  .or(z.literal(''))
+  .transform((v) => (v ? v : null))
+const optInt = z.number().int().min(0).max(1_000_000).nullish().transform((v) => v ?? null)
+
+const topicFields = { name: z.string().trim().min(1).max(255), description: opt, program: opt, durationHours: optInt }
+const actionFields = {
+  type: z.enum(d.ACTION_TYPES),
+  framework: z.enum(d.FRAMEWORKS),
+  title: z.string().trim().min(1).max(255),
+  status: z.enum(d.ACTION_STATUSES),
+  startDate: optDay,
+  endDate: optDay,
+  place: short(255),
+  topicId: uuid.nullish().or(z.literal('')).transform((v) => (v ? v : null)),
+  description: opt,
+  expectedParticipants: optInt
+}
+const sessionFields = { date: day, startTime: optTime, endTime: optTime, leaderContactId: uuid.nullish().or(z.literal('')).transform((v) => (v ? v : null)), note: opt }
 
 export const apiMethods = {
   /** Kim jestem w tej sesji (także przed 2FA: klient wie, że ma pokazać konfigurację 2FA). */
@@ -140,7 +162,7 @@ export const apiMethods = {
   },
   'consents.withdraw': { input: z.object({ id: uuid, version, at: day }), roles: WRITE },
   'consents.delete': { input: ref, roles: WRITE },
-  // --- oś aktywności (krok 3; powiązanie z działaniem dojdzie w kroku 4) ---
+  // --- oś aktywności (krok 3) ---
   'activities.add': {
     input: z.object({
       type: z.enum(['note', 'contact', 'support']),
@@ -158,11 +180,63 @@ export const apiMethods = {
         .transform((v) => v ?? null),
       occurredAt: z.iso.datetime(),
       content: z.string().trim().min(1).max(20_000),
-      contactIds: z.array(uuid).min(1).max(200)
-    }),
+      contactIds: z.array(uuid).max(500),
+      /** wpis przy działaniu (wtedy osoby mogą być puste) */
+      actionId: uuid.nullish().transform((v) => v ?? null)
+    }).refine((i) => i.contactIds.length > 0 || i.actionId, { message: 'Wpis musi dotyczyć osoby albo działania' }),
     roles: WRITE
   },
   'activities.delete': { input: ref, roles: WRITE },
+  // --- tematy szkoleń i działania (krok 4) ---
+  'topics.list': { input: none, roles: ALL },
+  'topics.get': { input: z.object({ id: uuid }), roles: ALL },
+  'topics.create': { input: z.object(topicFields), roles: WRITE },
+  'topics.update': { input: z.object({ id: uuid, version, ...topicFields }), roles: WRITE },
+  'topics.delete': { input: ref, roles: WRITE },
+  'actions.list': {
+    input: z
+      .object({
+        type: z.enum(d.ACTION_TYPES).nullish(),
+        status: z.enum(d.ACTION_STATUSES).nullish(),
+        framework: z.enum(d.FRAMEWORKS).nullish(),
+        from: day.nullish(),
+        to: day.nullish(),
+        q: z.string().max(200).nullish()
+      })
+      .default({}),
+    roles: ALL
+  },
+  'actions.get': { input: z.object({ id: uuid }), roles: ALL },
+  'actions.create': { input: z.object(actionFields), roles: WRITE },
+  /** Zmiana statusu dopisuje wpis systemowy na osi działania. */
+  'actions.update': { input: z.object({ id: uuid, version, ...actionFields }), roles: WRITE },
+  'actions.delete': { input: ref, roles: WRITE },
+  'participants.add': { input: z.object({ actionId: uuid, contactId: uuid }), roles: WRITE },
+  'participants.setStatus': { input: z.object({ id: uuid, version, status: z.enum(d.PARTICIPANT_STATUSES) }), roles: WRITE },
+  'participants.remove': { input: ref, roles: WRITE },
+  /** Podgląd wklejonej listy: dopasowanie do osób w bazie po imieniu i nazwisku (bez zapisu). */
+  'participants.previewPaste': { input: z.object({ actionId: uuid, text: z.string().max(100_000) }), roles: WRITE },
+  /** Zapis wklejonej listy: istniejące osoby (`contactId`) albo nowe (uczestnik). */
+  'participants.applyPaste': {
+    input: z.object({
+      actionId: uuid,
+      rows: z
+        .array(z.object({ firstName: z.string().trim().min(1).max(100), lastName: z.string().trim().min(1).max(100), email: short(254), phone: short(50), contactId: uuid.nullable() }))
+        .max(500)
+    }),
+    roles: WRITE
+  },
+  'sessions.add': { input: z.object({ actionId: uuid, ...sessionFields }), roles: WRITE },
+  'sessions.update': { input: z.object({ id: uuid, version, ...sessionFields }), roles: WRITE },
+  'sessions.delete': { input: ref, roles: WRITE },
+  /**
+   * Obecność; `status` null = wyczyść. `version`: wersja zaznaczenia, które widział klient (null = nie było zaznaczenia).
+   * Inna niż w bazie → VERSION_CONFLICT.
+   */
+  'attendance.set': {
+    input: z.object({ sessionId: uuid, contactId: uuid, status: z.enum(d.ATTENDANCE_STATUSES).nullable(), version: version.nullable() }),
+    roles: WRITE
+  },
   /** Wyszukiwarka w pasku górnym (od 2 znaków; po tożsamości, nie po danych wrażliwych). */
   'search.global': { input: z.object({ q: z.string().max(200) }), roles: ALL }
 } satisfies Record<string, MethodSpec>
@@ -233,6 +307,25 @@ export interface ApiOutputs {
   'consents.delete': void
   'activities.add': void
   'activities.delete': void
+  'topics.list': T.Topic[]
+  'topics.get': T.TopicDetail
+  'topics.create': { id: string }
+  'topics.update': void
+  'topics.delete': void
+  'actions.list': T.ActionListItem[]
+  'actions.get': T.ActionDetail
+  'actions.create': { id: string }
+  'actions.update': void
+  'actions.delete': void
+  'participants.add': void
+  'participants.setStatus': void
+  'participants.remove': void
+  'participants.previewPaste': T.PastePreviewRow[]
+  'participants.applyPaste': { added: number; created: number }
+  'sessions.add': void
+  'sessions.update': void
+  'sessions.delete': void
+  'attendance.set': void
   'search.global': T.SearchHit[]
 }
 
