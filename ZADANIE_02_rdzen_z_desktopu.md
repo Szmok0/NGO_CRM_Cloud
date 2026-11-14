@@ -216,3 +216,13 @@ Nie aktualizuj Sejfu bez zgody MOC.
 - **Odstępstwa:**
   - porównania `utf8mb4_polish_ci` nie ustawiono w bazie: sortowanie i wyszukiwanie robi serwer w JS (`localeCompare('pl')`, `matchesQuery`), jak w desktopie;
   - karta osoby nie ma jeszcze udziału w działaniach, zadań ani osi (kroki 3–5); wpis systemowy „dodano osobę” dojdzie z osią (krok 3).
+
+### Krok 2, etap b: osoby i instytucje — ekrany (2026-11-15)
+- `views/contacts/ContactsList.tsx`, `ContactCard.tsx`, `ContactForm.tsx`, `components/ContactPicker.tsx` przeniesione z desktopu; zapisy odsyłają `version` (kontakt, tożsamość, role, powiązania, zgody), błędy akcji (np. konflikt wersji) pokazuje karta.
+- Pasek górny: przycisk „Wstecz”, wyszukiwarka globalna (osoby i instytucje), „+ Utwórz” → Osoba / Instytucja. Menu: „Osoby i instytucje” aktywne.
+- Rola `readonly`: bez przycisków zapisu (`canWrite` w kontekście); serwer i tak odmawia (test uprawnień).
+- Sprawdzone w przeglądarce na zbudowanej aplikacji: założenie osoby z rolą i tagami przez „+ Utwórz”, edycja (telefon), dodanie zgody, lista z rolą i tagami, wyszukiwarka. Konsola bez błędów CSP.
+- **Odstępstwa:**
+  - bez eksportu CSV listy: eksport danych osobowych ma mieć ostrzeżenie i wpis w dzienniku dostępu (ZADANIE_03);
+  - na karcie nie ma jeszcze szybkich akcji Notatka / Kontakt / Wsparcie / Zadanie, udziału w działaniach ani dokumentów (kroki 3–5, załączniki w ZADANIU_03).
+- Drobiazg z desktopu (zostawiony): wyszukiwarka przez ułamek sekundy pokazuje „Nic nie znaleziono”, zanim przyjdą wyniki.

@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { Health } from '@shared/health'
-import { AppContext, type AppContextValue, type Route, type SessionInfo } from './app/context'
+import { AppContext, type AppContextValue, type CreateKind, type Route, type SessionInfo } from './app/context'
+import { ContactCard } from './views/contacts/ContactCard'
+import { ContactForm } from './views/contacts/ContactForm'
+import { ContactsList } from './views/contacts/ContactsList'
 import { Layout } from './app/Layout'
 import { AuthCard } from './components/ui'
 import { toBase64 } from './crypto/encoding'
@@ -37,6 +40,7 @@ const loadSession = async (): Promise<SessionInfo> => {
 export function App() {
   const [view, setView] = useState<View>({ name: 'loading' })
   const [history, setHistory] = useState<Route[]>([{ name: 'today' }])
+  const [creating, setCreating] = useState<CreateKind | null>(null)
 
   /** Ustala widok na podstawie sesji; po pełnym logowaniu odblokowuje klucze, jeśli w tej karcie podano hasło. */
   const enter = useCallback(async (wrapKey: CryptoKey | null = null, notice?: string) => {
@@ -98,6 +102,8 @@ export function App() {
       canGoBack: history.length > 1,
       roleLabel: (r) => session.settings.roleLabels[r] || pl.roles[r],
       moduleOn: (m) => session.settings.enabledModules.includes(m),
+      canWrite: session.me.role !== 'readonly',
+      create: setCreating,
       logout
     }
   }, [session, history, refreshSession, logout])
@@ -139,9 +145,7 @@ export function App() {
       return (
         <AppContext.Provider value={ctx}>
           <Layout>
-            {ctx!.route.name === 'today' ? (
-              <TodayScreen name={view.session.account.name} notice={view.notice} />
-            ) : (
+            {ctx!.route.name === 'settings' ? (
               <SettingsScreen
                 me={view.session.me}
                 account={view.session.account}
@@ -149,9 +153,23 @@ export function App() {
                 onChangePassword={() => setView({ ...view, name: 'changePassword' })}
                 onSignedOut={toLogin}
               />
+            ) : (
+              <RouteView route={ctx!.route} name={view.session.account.name} notice={view.notice} />
             )}
           </Layout>
+          {creating && <ContactForm kind={creating} onClose={() => setCreating(null)} onSaved={(id) => ctx!.go({ name: 'contact', id })} />}
         </AppContext.Provider>
       )
+  }
+}
+
+function RouteView({ route, name, notice }: { route: Exclude<Route, { name: 'settings' }>; name: string; notice?: string }) {
+  switch (route.name) {
+    case 'today':
+      return <TodayScreen name={name} notice={notice} />
+    case 'contacts':
+      return <ContactsList />
+    case 'contact':
+      return <ContactCard key={route.id} id={route.id} />
   }
 }

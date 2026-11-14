@@ -1,15 +1,36 @@
-// Układ aplikacji jak w wersji desktopowej: menu boczne (zwijane poniżej 1280 px), nagłówek, treść.
-// Moduły z ZADANIA_02 są w menu wyszarzone („wkrótce”).
-import { useEffect, useState, type ReactNode } from 'react'
-import { BookOpen, CalendarDays, CheckSquare, ChevronsLeft, ChevronsRight, ClipboardList, FolderOpen, LogOut, Settings, Sun, Trash2, Users } from 'lucide-react'
-import { Avatar } from '../components/ui'
+// Układ aplikacji jak w wersji desktopowej: menu boczne (zwijane poniżej 1280 px), pasek górny (wyszukiwarka, „+ Utwórz”), treść.
+// Moduły, które jeszcze nie przeszły z desktopu, są w menu wyszarzone („wkrótce”).
+import { useEffect, useRef, useState, type ReactNode } from 'react'
+import {
+  ArrowLeft,
+  BookOpen,
+  Building2,
+  CalendarDays,
+  CheckSquare,
+  ChevronsLeft,
+  ChevronsRight,
+  ClipboardList,
+  FolderOpen,
+  LogOut,
+  Plus,
+  Search,
+  Settings,
+  Sun,
+  Trash2,
+  User,
+  UserPlus,
+  Users
+} from 'lucide-react'
+import type { SearchHit } from '@shared/types'
+import { Avatar, Button } from '../components/ui'
 import { pl } from '../i18n/pl'
+import { call } from '../lib/api'
 import { cn } from '../lib/cn'
-import { useApp, type Route } from './context'
+import { useApp, type CreateKind, type Route } from './context'
 
-const NAV: { route?: Route['name']; label: string; icon: ReactNode }[] = [
+const NAV: { route?: Route['name']; label: string; icon: ReactNode; also?: Route['name'][] }[] = [
   { route: 'today', label: pl.nav.today, icon: <Sun size={18} /> },
-  { label: pl.nav.contacts, icon: <Users size={18} /> },
+  { route: 'contacts', label: pl.nav.contacts, icon: <Users size={18} />, also: ['contact'] },
   { label: pl.nav.actions, icon: <ClipboardList size={18} /> },
   { label: pl.nav.calendar, icon: <CalendarDays size={18} /> },
   { label: pl.nav.tasks, icon: <CheckSquare size={18} /> },
@@ -33,7 +54,7 @@ function useMedia(query: string): boolean {
 function Sidebar() {
   const { session, route: current, go, logout: onLogout } = useApp()
   const route = current.name
-  const onNavigate = (name: Route['name']) => go({ name })
+  const onNavigate = (name: Route['name']) => go({ name } as Route)
   const user = { id: session.me.userId, name: session.account.name, role: session.me.role }
   const orgName = session.settings.orgName
   const narrow = useMedia('(max-width: 1279px)')
@@ -69,7 +90,7 @@ function Sidebar() {
       </div>
 
       {NAV.map((n) => {
-        const active = n.route === route
+        const active = n.route === route || !!n.also?.includes(route)
         const target = n.route
         return (
           <button
@@ -109,16 +130,147 @@ function Sidebar() {
   )
 }
 
+const HIT_ICON = {
+  person: { icon: <User size={14} />, cls: 'bg-primary-soft text-primary-soft-foreground' },
+  institution: { icon: <Building2 size={14} />, cls: 'bg-info-soft text-info' }
+}
+
+/** Wyszukiwarka globalna (od 2 znaków). Działania i tematy dojdą w kroku 4. */
+function GlobalSearch() {
+  const { go } = useApp()
+  const [q, setQ] = useState('')
+  const [hits, setHits] = useState<SearchHit[]>([])
+  const [open, setOpen] = useState(false)
+  const box = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (q.trim().length < 2) {
+      setHits([])
+      return
+    }
+    const t = setTimeout(() => call('search.global', { q }).then(setHits).catch(() => setHits([])), 150)
+    return () => clearTimeout(t)
+  }, [q])
+
+  useEffect(() => {
+    const onDoc = (e: MouseEvent) => !box.current?.contains(e.target as Node) && setOpen(false)
+    document.addEventListener('mousedown', onDoc)
+    return () => document.removeEventListener('mousedown', onDoc)
+  }, [])
+
+  const pick = (h: SearchHit) => {
+    go({ name: 'contact', id: h.id })
+    setQ('')
+    setOpen(false)
+  }
+
+  return (
+    <div ref={box} className="relative max-w-[460px] min-w-0 flex-1" onKeyDown={(e) => e.key === 'Escape' && setOpen(false)}>
+      <label className="flex h-10 items-center gap-2 rounded-[10px] border border-input bg-subtle px-3 text-muted-foreground focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20">
+        <Search size={18} aria-hidden="true" />
+        <input
+          type="search"
+          aria-label={pl.common.search}
+          className="min-w-0 flex-1 border-0 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
+          placeholder={pl.nav.globalSearch}
+          value={q}
+          onChange={(e) => (setQ(e.target.value), setOpen(true))}
+          onFocus={() => setOpen(true)}
+        />
+      </label>
+      {open && q.trim().length >= 2 && (
+        <div className="absolute z-20 mt-1 w-full overflow-hidden rounded-control border border-border bg-background py-1 shadow-lg">
+          {hits.length === 0 && <p className="px-3 py-2 text-sm text-muted-foreground">{pl.nav.searchNoResults}</p>}
+          {hits.map((h) => (
+            <button key={h.type + h.id} type="button" onClick={() => pick(h)} className="flex w-full cursor-pointer items-center gap-2.5 px-3 py-2 text-left text-sm hover:bg-subtle focus-visible:bg-subtle">
+              <span className={cn('flex h-7 w-7 shrink-0 items-center justify-center rounded-full', HIT_ICON[h.type].cls)}>{HIT_ICON[h.type].icon}</span>
+              <span className="font-semibold">{h.label}</span>
+              {h.sub && <span className="truncate text-xs text-muted-foreground">{h.sub}</span>}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/** Menu „+ Utwórz” (notatka, kontakt, zadanie i działanie dojdą w krokach 3–5). */
+function CreateMenu() {
+  const { create } = useApp()
+  const [open, setOpen] = useState(false)
+  const box = useRef<HTMLDivElement>(null)
+  const first = useRef<HTMLButtonElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+    first.current?.focus()
+    const onDoc = (e: MouseEvent) => !box.current?.contains(e.target as Node) && setOpen(false)
+    document.addEventListener('mousedown', onDoc)
+    return () => document.removeEventListener('mousedown', onDoc)
+  }, [open])
+
+  const items: { kind: CreateKind; icon: ReactNode }[] = [
+    { kind: 'person', icon: <UserPlus size={16} /> },
+    { kind: 'institution', icon: <Building2 size={16} /> }
+  ]
+
+  return (
+    <div
+      ref={box}
+      className="relative"
+      onKeyDown={(e) => {
+        if (e.key === 'Escape') setOpen(false)
+        if (open && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
+          e.preventDefault()
+          const btns = [...(box.current?.querySelectorAll<HTMLButtonElement>('[role=menuitem]') ?? [])]
+          const i = btns.indexOf(document.activeElement as HTMLButtonElement)
+          btns[(i + (e.key === 'ArrowDown' ? 1 : -1) + btns.length) % btns.length]?.focus()
+        }
+      }}
+    >
+      <Button size="lg" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen(!open)}>
+        <Plus size={18} strokeWidth={2.2} /> {pl.create.button}
+      </Button>
+      {open && (
+        <div role="menu" aria-label={pl.create.menuLabel} className="absolute right-0 z-30 mt-1 w-56 rounded-control border border-border bg-background py-1 shadow-lg">
+          {items.map((i, idx) => (
+            <button
+              key={i.kind}
+              ref={idx === 0 ? first : undefined}
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                setOpen(false)
+                create(i.kind)
+              }}
+              className="flex w-full cursor-pointer items-center gap-2.5 px-3 py-2 text-left text-sm hover:bg-subtle focus-visible:bg-subtle focus-visible:outline-none"
+            >
+              <span className="text-muted-foreground">{i.icon}</span>
+              {pl.create[i.kind]}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export function Layout({ children }: { children: ReactNode }) {
-  const { session } = useApp()
+  const { session, back, canGoBack, canWrite } = useApp()
   const name = session.account.name
   return (
     <div className="flex h-full">
       <Sidebar />
       <div className="flex min-w-0 flex-1 flex-col">
-        {/* Pasek górny; wyszukiwarka globalna i „+ Utwórz” dojdą z modułami (ZADANIE_02, kroki 2–5). */}
         <header className="flex min-h-16 items-center gap-3 border-b border-border bg-background px-8 py-3 print:hidden">
+          {canGoBack && (
+            <Button variant="ghost" size="icon" onClick={back} aria-label={pl.common.back} title={pl.common.back}>
+              <ArrowLeft size={18} />
+            </Button>
+          )}
+          <GlobalSearch />
           <div className="ml-auto flex items-center gap-2.5">
+            {canWrite && <CreateMenu />}
             <span title={name}>
               <Avatar id={session.me.userId} name={name} size={40} />
             </span>
