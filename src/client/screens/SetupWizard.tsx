@@ -143,7 +143,7 @@ export function SetupWizard({ onDone }: { onDone: () => void }) {
           <fieldset className="mt-4 text-sm">
             <legend className="font-medium text-slate-700">{t.org.profile}</legend>
             {PROFILES.map((p) => (
-              <label key={p} className="mt-2 flex cursor-pointer items-start gap-2 rounded border border-slate-200 p-3 has-[:checked]:border-sky-600 has-[:checked]:bg-sky-50">
+              <label key={p} className="mt-2 flex cursor-pointer items-start gap-2 rounded border border-slate-200 p-3 has-[:checked]:border-primary has-[:checked]:bg-primary-soft">
                 <input type="radio" name="profile" className="mt-1" checked={profile === p} onChange={() => setProfile(p)} />
                 <span>
                   <span className="font-medium">{t.org.profiles[p][0]}</span>

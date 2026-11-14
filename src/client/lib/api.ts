@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import type { ApiInput, ApiOutputs, Method } from '@shared/api'
 import type { LoginResult, PreloginResult } from '@shared/auth'
 import type { ErrorCode } from '@shared/errors'
+import type { InviteAcceptInput, InviteInfo, InviteTotpResult } from '@shared/invite'
 import type { SetupCheckResult, SetupCompleteInput, SetupStatus, SetupTotpResult } from '@shared/setup'
 import { pl } from '../i18n/pl'
 
@@ -32,7 +33,7 @@ async function postJson<T>(url: string, body: unknown): Promise<T> {
   return r.data
 }
 
-const MUTATION = /\.(create|update|delete|add|remove|set|setStatus|move|toggle|end|withdraw|restore|applyPaste|apply|shiftTasks)$/
+const MUTATION = /\.(create|update|delete|add|remove|set|setStatus|move|toggle|end|withdraw|restore|applyPaste|apply|shiftTasks|invite|setRole|disable|reset)$/
 const CHANGED = 'ngo-data-changed'
 
 export async function call<M extends Method>(method: M, params: ApiInput<M>): Promise<ApiOutputs[M]> {
@@ -55,6 +56,13 @@ export const setupApi = {
   check: (token: string) => postJson<SetupCheckResult>('/api/setup/check', { token }),
   totp: (token: string, email: string) => postJson<SetupTotpResult>('/api/setup/totp', { token, email }),
   complete: (input: SetupCompleteInput) => postJson<void>('/api/setup/complete', input)
+}
+
+/** Przyjęcie zaproszenia z jednorazowego linku (trasy poza RPC, bez sesji). */
+export const inviteApi = {
+  info: (token: string) => postJson<InviteInfo>('/api/invite/info', { token }),
+  totp: (token: string) => postJson<InviteTotpResult>('/api/invite/totp', { token }),
+  accept: (input: InviteAcceptInput) => postJson<void>('/api/invite/accept', input)
 }
 
 /** Wywołuje `cb` po każdym zapisie do bazy. */

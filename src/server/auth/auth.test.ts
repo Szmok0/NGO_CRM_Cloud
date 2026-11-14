@@ -471,7 +471,7 @@ describe('konfiguracja 2FA (konto bez TOTP)', () => {
     const app = makeApp()
     const u = await createUser({ totp: false })
     const pre = await login(app, u)
-    expect((await rpc(app, pre.cookie, 'auth.account')).body.data).toEqual({ email: u.email, name: 'Konto testowe', totpEnabled: false })
+    expect((await rpc(app, pre.cookie, 'auth.account')).body.data).toEqual({ email: u.email, name: 'Konto testowe', totpEnabled: false, orgName: '' })
 
     const start = await rpc(app, pre.cookie, 'auth.totpSetup.start')
     expect(start.status).toBe(200)

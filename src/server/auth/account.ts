@@ -4,7 +4,7 @@ import { and, eq, isNull } from 'drizzle-orm'
 import type { ApiOutputs, ApiParsed } from '@shared/api'
 import { AppError } from '@shared/errors'
 import type { Db } from '../db/connection'
-import { users } from '../db/schema'
+import { settings, users } from '../db/schema'
 import { logAccess } from './accessLog'
 import { isLocked, registerFailure } from './lockout'
 import { hashAuthKey, verifyAuthKey, type ScryptParams } from './password'
@@ -19,7 +19,8 @@ async function loadUser(db: Db, userId: string) {
 
 export async function getAccount(db: Db, userId: string): Promise<ApiOutputs['auth.account']> {
   const u = await loadUser(db, userId)
-  return { email: u.email, name: u.name, totpEnabled: !!u.totpEnabledAt }
+  const [org] = await db.select({ orgName: settings.orgName }).from(settings).limit(1)
+  return { email: u.email, name: u.name, totpEnabled: !!u.totpEnabledAt, orgName: org?.orgName ?? '' }
 }
 
 /** Nowy sekret TOTP (jeszcze nieaktywny) z adresem i kodem QR. Tylko gdy 2FA nie jest włączone. */

@@ -9,6 +9,7 @@ import { migrationCount, type Db } from './db/connection'
 import { logAccess } from './auth/accessLog'
 import { changePassword, confirmTotpSetup, getAccount, getKeys, startTotpSetup } from './auth/account'
 import { registerSuccess } from './auth/lockout'
+import { disableUser, inviteUser, listUsers, resetUser, setUserRole } from './auth/users'
 import type { AuthOptions } from './auth/options'
 import { SESSION_COOKIE, clearSessionCookie, createSession, revokeAllSessions, revokeSession, setSessionCookie } from './auth/sessions'
 
@@ -92,6 +93,11 @@ const handlers: Handlers = {
     clearSessionCookie(reply)
     await logAccess(db, session.userId, 'logout_all')
   },
+  'users.list': (_p, { db, now }) => listUsers(db, now),
+  'users.invite': (input, { db, session, now }) => inviteUser(db, input, { userId: session.userId, now }),
+  'users.setRole': (input, { db, session, now }) => setUserRole(db, input, { userId: session.userId, now }),
+  'users.disable': (input, { db, session, now }) => disableUser(db, input, { userId: session.userId, now }),
+  'users.reset': (input, { db, session, now }) => resetUser(db, input, { userId: session.userId, now }),
   'system.info': async (_p, { db }) => ({ version: pkg.version, migrations: await migrationCount(db) })
 }
 
@@ -102,6 +108,9 @@ export const HTTP_STATUS: Record<ErrorCode, number> = {
   TOTP_INVALID: 400,
   SETUP_TOKEN_INVALID: 401,
   SETUP_UNAVAILABLE: 409,
+  INVITE_INVALID: 400,
+  EMAIL_TAKEN: 409,
+  LAST_ADMIN: 409,
   TOTP_REQUIRED: 403,
   FORBIDDEN: 403,
   VALIDATION: 400,

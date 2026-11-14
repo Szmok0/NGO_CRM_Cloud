@@ -1,1 +1,98 @@
 @import 'tailwindcss';
+
+/* Krój Inter z plików lokalnych (bez Google Fonts; licencja OFL w assets/fonts/LICENSE-Inter.txt). */
+@font-face {
+  font-family: 'Inter Variable';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 900;
+  src: url('./assets/fonts/inter-latin-ext-wght-normal.woff2') format('woff2-variations');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113,
+    U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Inter Variable';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 900;
+  src: url('./assets/fonts/inter-latin-wght-normal.woff2') format('woff2-variations');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+/* System wyglądu jak w wersji desktopowej (makieta: ..\NGO_CRM\docs\makieta_ui). Kolory tylko tutaj. */
+@theme {
+  /* tło robocze, karty, linie */
+  --color-canvas: #f3f5f9;
+  --color-background: #ffffff;
+  --color-subtle: #f7f9fc;
+  --color-muted: #f0f2f7;
+  --color-border: #e2e7f0;
+  --color-input: #d9dfea;
+  --color-line: #eef1f6;
+
+  /* tekst */
+  --color-foreground: #1b2333;
+  --color-muted-foreground: #5a6478;
+  --color-secondary-foreground: #3d4657;
+  --color-faint: #687184;
+
+  /* kolor główny */
+  --color-primary: #0f7f73;
+  --color-primary-hover: #0a5f56;
+  --color-primary-soft: #e3f4f1;
+  --color-primary-soft-foreground: #0b6158;
+  --color-primary-foreground: #ffffff;
+
+  /* statusy (tło / tekst) */
+  --color-info-soft: #e6eefc;
+  --color-info: #2e5bba;
+  --color-success-soft: #dcf5e6;
+  --color-success: #11703d;
+  --color-destructive-soft: #fee4e2;
+  --color-destructive: #b42318;
+  --color-warning-soft: #fff1e3;
+  --color-warning: #9a4a08;
+  --color-warning-bg: #fff6ec;
+  --color-warning-border: #f6d8b5;
+  --color-violet-soft: #efe8fc;
+  --color-violet: #5b32a6;
+
+  /* menu boczne */
+  --color-nav: #1e2940;
+  --color-nav-foreground: #c5cedf;
+  --color-nav-muted: #a9b5cc;
+  --color-nav-hover: #2a3757;
+  --color-nav-line: #2f3b57;
+  --color-nav-logo: #14a090;
+  --color-counter: #f08c2e;
+
+  --radius-card: 14px;
+  --radius-control: 9px;
+  --shadow-card: 0 1px 2px rgba(16, 24, 40, 0.05);
+  --font-sans: 'Inter Variable', 'Segoe UI', system-ui, sans-serif;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  background: var(--color-canvas);
+  color: var(--color-foreground);
+  font-family: var(--font-sans);
+  font-size: 14px;
+}
+
+/* widoczny fokus z klawiatury */
+:where(a, button, [role='tab'], [tabindex]):focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+@media print {
+  body {
+    background: #ffffff;
+  }
+}

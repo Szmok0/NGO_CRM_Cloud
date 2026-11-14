@@ -1,0 +1,233 @@
+// Ustawienia: własne konto (dla każdego) i użytkownicy programu (tylko administrator).
+import { useState } from 'react'
+import type { ApiOutputs, InviteLink, Role, UserListItem } from '@shared/api'
+import { ROLES } from '@shared/api'
+import { Badge, Button, ErrorNote, Field, Panel, SelectField } from '../components/ui'
+import { pl } from '../i18n/pl'
+import { call, errorMessage, isApiError, useLoad } from '../lib/api'
+import { formatDateTime } from '../lib/format'
+
+interface Props {
+  me: ApiOutputs['auth.me']
+  account: ApiOutputs['auth.account']
+  keysUnlocked: boolean
+  onChangePassword: () => void
+  onSignedOut: () => void
+}
+
+export function SettingsScreen({ me, account, keysUnlocked, onChangePassword, onSignedOut }: Props) {
+  const [error, setError] = useState<string | null>(null)
+
+  async function logoutAll() {
+    try {
+      await call('auth.logoutAll', {})
+      onSignedOut()
+    } catch (e) {
+      setError(errorMessage(e))
+    }
+  }
+
+  return (
+    <>
+      <h1 className="text-2xl font-semibold">{pl.settings.title}</h1>
+      <div className="mt-6 space-y-6">
+        <Panel
+          title={pl.home.account}
+          actions={
+            <div className="flex gap-2">
+              <Button variant="secondary" size="sm" onClick={onChangePassword}>
+                {pl.home.changePassword}
+              </Button>
+              <Button variant="secondary" size="sm" onClick={logoutAll}>
+                {pl.home.logoutAll}
+              </Button>
+            </div>
+          }
+        >
+          <ErrorNote>{error}</ErrorNote>
+          <dl className="mt-4 grid grid-cols-[14rem_1fr] gap-y-2 text-sm">
+            <dt className="text-muted-foreground">{pl.settings.organization}</dt>
+            <dd>{account.orgName}</dd>
+            <dt className="text-muted-foreground">{pl.home.email}</dt>
+            <dd>{account.email}</dd>
+            <dt className="text-muted-foreground">{pl.home.role}</dt>
+            <dd>{pl.roles[me.role]}</dd>
+            <dt className="text-muted-foreground">{pl.home.keys}</dt>
+            <dd className={keysUnlocked ? 'text-success' : 'text-warning'}>{keysUnlocked ? pl.home.keysUnlocked : pl.home.keysLocked}</dd>
+          </dl>
+        </Panel>
+        {me.role === 'admin' && <UsersPanel myId={me.userId} onSignedOut={onSignedOut} />}
+      </div>
+    </>
+  )
+}
+
+const STATUS_TONE = { invited: 'info', active: 'success', disabled: 'neutral' } as const
+const inviteUrl = (token: string) => `${window.location.origin}/#zaproszenie=${token}`
+
+function UsersPanel({ myId, onSignedOut }: { myId: string; onSignedOut: () => void }) {
+  const { data, error: loadError, reload } = useLoad('users.list', {})
+  const [error, setError] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [inviting, setInviting] = useState(false)
+  const [email, setEmail] = useState('')
+  const [role, setRole] = useState<Role>('staff')
+  const [link, setLink] = useState<{ email: string; link: InviteLink } | null>(null)
+  const [copied, setCopied] = useState(false)
+
+  /** Wspólna obsługa akcji: blokada przycisków, komunikat, odświeżenie listy. */
+  async function run(fn: () => Promise<void>) {
+    setBusy(true)
+    setError(null)
+    try {
+      await fn()
+    } catch (e) {
+      if (isApiError(e, 'UNAUTHENTICATED')) return onSignedOut()
+      setError(errorMessage(e))
+    } finally {
+      setBusy(false)
+      reload()
+    }
+  }
+  const showLink = (forEmail: string, l: InviteLink) => {
+    setCopied(false)
+    setLink({ email: forEmail, link: l })
+  }
+  const who = (u: UserListItem) => (u.name === u.email ? u.email : `${u.name} (${u.email})`)
+
+  return (
+    <Panel
+      title={pl.users.title}
+      actions={
+        !inviting && (
+          <Button size="sm" onClick={() => (setInviting(true), setLink(null))}>
+            {pl.users.invite}
+          </Button>
+        )
+      }
+    >
+      {inviting && (
+        <form
+          className="mt-4 rounded-control border border-border bg-subtle p-4"
+          onSubmit={(e) => {
+            e.preventDefault()
+            void run(async () => {
+              const mail = email.trim().toLowerCase()
+              showLink(mail, await call('users.invite', { email: mail, role }))
+              setInviting(false)
+              setEmail('')
+            })
+          }}
+        >
+          <h3 className="text-sm font-semibold">{pl.users.inviteTitle}</h3>
+          <div className="grid grid-cols-2 gap-4">
+            <Field label={pl.users.email} type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="off" autoFocus required disabled={busy} />
+            <SelectField label={pl.users.role} value={role} onChange={(e) => setRole(e.target.value as Role)} disabled={busy}>
+              {ROLES.map((r) => (
+                <option key={r} value={r}>
+                  {pl.roles[r]}
+                </option>
+              ))}
+            </SelectField>
+          </div>
+          <div className="mt-4 flex gap-2">
+            <Button type="submit" size="sm" disabled={busy}>
+              {pl.users.inviteSubmit}
+            </Button>
+            <Button variant="secondary" size="sm" onClick={() => setInviting(false)} disabled={busy}>
+              {pl.users.cancel}
+            </Button>
+          </div>
+        </form>
+      )}
+
+      {link && (
+        <div className="mt-4 rounded-control border border-warning-border bg-warning-bg p-4">
+          <h3 className="text-sm font-semibold">{pl.users.linkTitle}</h3>
+          <p className="mt-1 text-sm text-secondary-foreground">{pl.users.linkIntro(link.email, formatDateTime(link.link.expiresAt))}</p>
+          <p className="mt-2 select-all break-all rounded-control bg-background px-3 py-2 font-mono text-xs">{inviteUrl(link.link.token)}</p>
+          <div className="mt-3 flex items-center gap-2">
+            <Button size="sm" onClick={() => void navigator.clipboard.writeText(inviteUrl(link.link.token)).then(() => setCopied(true))}>
+              {copied ? pl.users.copied : pl.users.copy}
+            </Button>
+            <Button variant="secondary" size="sm" onClick={() => setLink(null)}>
+              {pl.users.close}
+            </Button>
+          </div>
+        </div>
+      )}
+
+      <ErrorNote>{error ?? loadError}</ErrorNote>
+      {!data && !loadError && <p className="mt-4 text-sm text-muted-foreground">{pl.app.loading}</p>}
+      {data && (
+        <table className="mt-4 w-full text-left text-sm">
+          <thead className="border-b border-border text-xs text-muted-foreground">
+            <tr>
+              <th className="py-2 pr-3 font-medium">{pl.users.name}</th>
+              <th className="py-2 pr-3 font-medium">{pl.users.role}</th>
+              <th className="py-2 pr-3 font-medium">{pl.users.status}</th>
+              <th className="py-2 pr-3 font-medium">{pl.users.twoFactor}</th>
+              <th className="py-2 pr-3 font-medium">{pl.users.lastLogin}</th>
+              <th className="py-2" />
+            </tr>
+          </thead>
+          <tbody>
+            {data.map((u) => (
+              <tr key={u.id} className="border-b border-line align-top">
+                <td className="py-2.5 pr-3">
+                  <div className="font-medium">
+                    {u.name === u.email ? '—' : u.name} {u.id === myId && <span className="font-normal text-muted-foreground">{pl.users.you}</span>}
+                  </div>
+                  <div className="text-xs text-muted-foreground">{u.email}</div>
+                </td>
+                <td className="py-2.5 pr-3">
+                  <select
+                    aria-label={`${pl.users.role}: ${u.email}`}
+                    className="rounded-control border border-input bg-background px-2 py-1 text-sm disabled:bg-muted disabled:text-faint"
+                    value={u.role}
+                    disabled={busy || u.status === 'disabled'}
+                    onChange={(e) => {
+                      const next = e.target.value as Role
+                      if (window.confirm(pl.users.confirmRole(who(u), pl.roles[next]))) void run(() => call('users.setRole', { id: u.id, version: u.version, role: next }))
+                    }}
+                  >
+                    {ROLES.map((r) => (
+                      <option key={r} value={r}>
+                        {pl.roles[r]}
+                      </option>
+                    ))}
+                  </select>
+                </td>
+                <td className="py-2.5 pr-3">
+                  <Badge tone={STATUS_TONE[u.status]}>{pl.users.statuses[u.status]}</Badge>
+                  {u.status === 'invited' && <div className="mt-1 text-xs text-muted-foreground">{u.inviteExpiresAt ? pl.users.inviteUntil(formatDateTime(u.inviteExpiresAt)) : pl.users.inviteExpired}</div>}
+                </td>
+                <td className="py-2.5 pr-3">{u.totpEnabled ? pl.users.twoFactorOn : pl.users.twoFactorOff}</td>
+                <td className="py-2.5 pr-3">{u.lastLoginAt ? formatDateTime(u.lastLoginAt) : pl.users.never}</td>
+                <td className="py-2.5 text-right">
+                  <div className="flex justify-end gap-2">
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      disabled={busy}
+                      onClick={() => {
+                        if (u.status === 'invited' || window.confirm(pl.users.confirmReset(who(u)))) void run(async () => showLink(u.email, await call('users.reset', { id: u.id, version: u.version })))
+                      }}
+                    >
+                      {u.status === 'invited' ? pl.users.resend : pl.users.reset}
+                    </Button>
+                    {u.status !== 'disabled' && (
+                      <Button variant="danger" size="sm" disabled={busy} onClick={() => window.confirm(pl.users.confirmDisable(who(u))) && void run(() => call('users.disable', { id: u.id, version: u.version }))}>
+                        {pl.users.disable}
+                      </Button>
+                    )}
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </Panel>
+  )
+}

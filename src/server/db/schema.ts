@@ -95,6 +95,26 @@ export const authSessions = mysqlTable(
   (t) => [uniqueIndex('auth_sessions_token_uq').on(t.tokenHash), index('auth_sessions_user_idx').on(t.userId)]
 )
 
+/**
+ * Zaproszenia: jednorazowy link do ustawienia hasła, 2FA i pary kluczy (nowa osoba albo reset konta).
+ * W bazie tylko skrót tokenu z linku. Konto (`users`, status `invited`) istnieje od chwili zaproszenia.
+ */
+export const invitations = mysqlTable(
+  'invitations',
+  {
+    id: char('id', { length: 36 }).primaryKey(),
+    tokenHash: char('token_hash', { length: 64 }).notNull(),
+    userId: char('user_id', { length: 36 })
+      .notNull()
+      .references(() => users.id),
+    invitedBy: char('invited_by', { length: 36 }).notNull(),
+    createdAt: datetime('created_at', { mode: 'date', fsp: 3 }).notNull(),
+    expiresAt: datetime('expires_at', { mode: 'date', fsp: 3 }).notNull(),
+    usedAt: datetime('used_at', { mode: 'date', fsp: 3 })
+  },
+  (t) => [uniqueIndex('invitations_token_uq').on(t.tokenHash), index('invitations_user_idx').on(t.userId)]
+)
+
 /** Wersje klucza organizacji: same metadane. Klucz istnieje tylko w slotach, zaszyfrowany; serwer go nie zna. */
 export const orgKeys = mysqlTable('org_keys', {
   version: int('version').primaryKey(),

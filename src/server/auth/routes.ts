@@ -16,6 +16,7 @@ import { createIpLimiter, isLocked, registerFailure, registerSuccess } from './l
 import type { AuthOptions } from './options'
 import { hashAuthKey, verifyAuthKey } from './password'
 import { SESSION_COOKIE, clearSessionCookie, createSession, getSession, revokeSession, setSessionCookie } from './sessions'
+import { registerInviteRoutes } from './inviteRoutes'
 import { registerSetupRoutes } from './setupRoutes'
 import { consumeTotpCode } from './totp'
 
@@ -65,6 +66,7 @@ export function registerAuthRoutes(app: FastifyInstance, db: Db, opts: AuthOptio
 
   const route = <T>(url: string, step: string, handler: RouteHandler<T>) => postRoute(app, url, step, handler)
   registerSetupRoutes(app, db, opts, limiter, now)
+  registerInviteRoutes(app, db, opts, limiter, now)
 
   route('/api/auth/prelogin', 'prelogin', async (req): Promise<PreloginResult> => {
     const { email } = preloginInput.parse(req.body)
