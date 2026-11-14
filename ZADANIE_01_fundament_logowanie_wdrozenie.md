@@ -130,4 +130,5 @@ Adres próbny: https://ivory-elk-740131.hostingersite.com (`/api/health` → `st
   - `/api/health` odpowiada także bez HTTPS (bez danych, pokazuje `https: false`), żeby dało się zdiagnozować pośrednika i tryb kreatora;
   - sprawdzanie CSRF obejmuje wszystkie metody poza GET/HEAD/OPTIONS, nie tylko POST (żeby przyszła trasa PUT/DELETE nie ominęła ochrony);
   - adres aplikacji do porównania z `Origin` brany z żądania (`req.protocol` + `req.host`), bez nowej zmiennej środowiskowej.
+- **Na Hostingerze:** wszystkie nagłówki obecne; konsola przeglądarki bez błędów CSP. LiteSpeed dokłada własny drugi nagłówek `Content-Security-Policy: upgrade-insecure-requests` (przeglądarka stosuje obie polityki, ta druga niczego nie zawęża). Żądania `http://` Hostinger przekierowuje 301 na `https://`, zanim dotrą do aplikacji, więc strona „tylko HTTPS” to zabezpieczenie zapasowe (np. na innym hostingu).
 - Do kroku 8: lokalny krój Inter musi być plikiem (CSP nie ma `font-src data:`), a style tylko w plikach CSS (bez atrybutów `style` w HTML).
