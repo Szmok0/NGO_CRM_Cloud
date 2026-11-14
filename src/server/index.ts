@@ -5,6 +5,14 @@ import { buildApp } from './app'
 // Bez await na najwyższym poziomie: Hostinger (lsnode.js) wczytuje ten plik przez require().
 async function start() {
   const config = loadConfig()
+  if (!config.ready) {
+    // Tryb kreatora: bez bazy, /api/health mówi, które zmienne ustawić.
+    console.warn(config.message)
+    const app = buildApp(null, config.missing)
+    await app.listen({ port: config.PORT, host: config.HOST })
+    return
+  }
+
   const { db } = await openDb(config.DATABASE_URL)
   await runMigrations(db)
 

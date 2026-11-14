@@ -8,6 +8,13 @@
       "when": 1794657887943,
       "tag": "0000_rich_lucky_pierre",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "5",
+      "when": 1794666581121,
+      "tag": "0001_numerous_aaron_stack",
+      "breakpoints": true
     }
   ]
 }

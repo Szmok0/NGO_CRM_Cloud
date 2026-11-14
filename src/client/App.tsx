@@ -18,7 +18,12 @@ export function App() {
       <h1 className="text-2xl font-semibold">NGO CRM — działa</h1>
       {error && <p className="mt-4 text-red-700">Brak połączenia z serwerem albo bazą danych.</p>}
       {!health && !error && <p className="mt-4 text-slate-500">Sprawdzam serwer…</p>}
-      {health && (
+      {health?.status === 'setup' && (
+        <p className="mt-4 text-amber-800">
+          Aplikacja czeka na konfigurację. W panelu hostingu ustaw: {health.missing.join(', ')} (opis w pliku .env.example).
+        </p>
+      )}
+      {health?.status === 'ok' && (
         <dl className="mt-4 grid grid-cols-2 gap-y-1 text-sm">
           <dt className="text-slate-500">Wersja</dt>
           <dd>{health.version}</dd>

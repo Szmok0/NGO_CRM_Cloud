@@ -1,6 +1,6 @@
 # ZADANIE 01 — Fundament: próbne wdrożenie, logowanie, klucze, role
 
-Status: w realizacji, krok 1 (decyzje D1–D6 zatwierdzone przez MOC 2026-11-14) · Kontekst: `CLAUDE.md`, `NGO_CRM_CLOUD_KONCEPCJA.md` (4.1–4.3, 4.7), `NGO_CRM_CLOUD_BEZPIECZENSTWO.md` (rozdziały 4 i 5), `NGO_CRM_CLOUD_PROCESY_I_MODEL_DANYCH.md` (2.2) · Wzór: iV_CRM `ZADANIE_02_logowanie_i_wdrozenie.md` i `lib/auth/`
+Status: w realizacji, krok 2 zrobiony, następny krok 3 (decyzje D1–D6 zatwierdzone przez MOC 2026-11-14; krok 1 działa na Hostingerze, zob. „Wynik”) · Kontekst: `CLAUDE.md`, `NGO_CRM_CLOUD_KONCEPCJA.md` (4.1–4.3, 4.7), `NGO_CRM_CLOUD_BEZPIECZENSTWO.md` (rozdziały 4 i 5), `NGO_CRM_CLOUD_PROCESY_I_MODEL_DANYCH.md` (2.2) · Wzór: iV_CRM `ZADANIE_02_logowanie_i_wdrozenie.md` i `lib/auth/`
 
 ## Cel
 Pusta, ale **bezpieczna** aplikacja działa na Hostingerze: organizacja przechodzi kreator pierwszego uruchomienia, zakłada administratora z 2FA i dostaje klucz odzyskiwania do wydruku; administrator zaprasza kolejne osoby. Hasło nie trafia do serwera. Każda metoda API ma przypisane role i test to sprawdza. Na tym fundamencie ZADANIE_02 przeniesie rdzeń z desktopu.
@@ -92,4 +92,29 @@ Działa tylko, gdy w bazie nie ma żadnego użytkownika **i** podano poprawny `S
 13. Commit i `git push` po akceptacji MOC.
 
 ## Wynik
-_(uzupełnić po realizacji: wynik kroku 1 na Hostingerze, problemy i rozwiązania, odstępstwa od planu)_
+
+### Krok 1: próbne wdrożenie (2026-11-14) — działa
+Adres próbny: https://ivory-elk-740131.hostingersite.com (`/api/health` → `status: ok`, `https: true`). Plan B (Next.js) niepotrzebny.
+
+- **Typ aplikacji:** w panelu „Fastify”, Node 22, polecenie budowania `npm run build`, plik startowy `dist/server/index.js` (nie `npm start`). Auto-deploy z gałęzi `main` (każdy `git push` buduje i restartuje aplikację w ok. 20 s). Każda wersja ląduje w osobnym folderze `…/hbuilds/versions/<uuid>/nodejs`.
+- **Uruchamianie:** Hostinger (LiteSpeed, `lsnode.js`) wczytuje plik startowy przez `require()`. Zbudowany serwer nie może mieć `await` na najwyższym poziomie (`ERR_REQUIRE_ASYNC_MODULE`); start w funkcji `start()`.
+- **Katalog bieżący procesu ≠ katalog aplikacji.** Ścieżki (`.env`, `drizzle/`, `dist/client`) liczymy od położenia pliku serwera (`appRoot` w `src/server/config.ts`), nie od `process.cwd()`.
+- **Zmienne:** panel podaje je procesowi bezpośrednio, bez pliku `.env`. Zmiana zmiennej w panelu restartuje aplikację (i wywołuje nowy build).
+- **Port:** `PORT` z panelu, nasłuch na `0.0.0.0`; LiteSpeed przekierowuje ruch do procesu.
+- **HTTPS:** serwer stoi za pośrednikiem; przy `trustProxy: true` `req.protocol` = `https` (nagłówek `X-Forwarded-Proto`).
+- **Baza:** MySQL na tym samym serwerze, host `127.0.0.1`. Baza próbna `u161817445_ngocloud` z osobnym użytkownikiem. Migracja przy starcie działa (`migrations: 1`).
+- **`STORAGE_DIR`:** docelowo `/home/u161817445/domains/ivory-elk-740131.hostingersite.com/storage` (poza `public_html` i poza `hbuilds`, trwały między wdrożeniami). Zapis do niego sprawdzi kreator (krok 6).
+- **Logi:** wyjście procesu widać w panelu (Node.js → logi) i przez API Hostingera.
+
+**Problemy i rozwiązania**
+1. 503 `ERR_REQUIRE_ASYNC_MODULE` → serwer bez top-level await.
+2. `DATABASE_URL` nieczytany → ścieżki od katalogu aplikacji; komunikat błędu pokazuje, czy zmienna istnieje i jaki ma schemat (bez wartości).
+3. `ER_ACCESS_DENIED_ERROR 1045` mimo poprawnie sparsowanego adresu → nowa baza i nowy użytkownik w hPanel. Przy błędzie startu serwer loguje przyczynę z MySQL (`code`, `errno`, `sqlState`, komunikat), bez adresu i hasła.
+
+### Krok 2: szkielet aplikacji (2026-11-14)
+- `src/server/config.ts`: zod; brak albo błędny `DATABASE_URL` lub `APP_SECRET` krótszy niż 32 bajty → tryb kreatora (serwer bez bazy, `/api/health` → `status: setup` z listą zmiennych do ustawienia, strona pokazuje komunikat). Testy: `config.test.ts`.
+- `src/server/db/schema.ts`: `domainColumns()` (pola techniczne z zasady danych 1) i tabela `change_log` (migracja `0001`).
+- `src/server/db/repo.ts`: jedyna warstwa zapisu — `insert`, `update` (tylko zmienione pola), `softDelete`, `restore`; pola techniczne, `version` (stara wersja → `VERSION_CONFLICT`), wpis do `change_log` w tej samej transakcji. Test `repo.test.ts` na tabeli `test_records` tworzonej tylko w teście (poza migracjami).
+- `src/shared/errors.ts`: kody `NOT_FOUND`, `VERSION_CONFLICT` (polski komunikat w kliencie dojdzie z `i18n/pl.ts`).
+- Logi Fastify: tylko metoda, wzorzec trasy (bez parametrów i zapytania), kod wyniku, czas. Bez IP, nagłówków i treści.
+- **Odstępstwa:** id użytkownika w logach dojdzie z sesjami (krok 5). Zapis w `change_log` samych nazw pól dla `contact_identity` i `contact_sensitive` (zasada danych 8) dojdzie razem z tymi tabelami (ZADANIE_02).
