@@ -14,5 +14,8 @@ async function start() {
 
 start().catch((err) => {
   console.error(err)
+  // Drizzle chowa błąd MySQL w err.cause; logujemy tylko pola diagnostyczne (bez adresu bazy i hasła).
+  const c = err?.cause
+  if (c) console.error('Przyczyna:', { code: c.code, errno: c.errno, sqlState: c.sqlState, message: c.sqlMessage ?? c.message })
   process.exit(1)
 })
