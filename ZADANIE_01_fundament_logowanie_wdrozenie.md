@@ -79,6 +79,7 @@ Cel: sprawdzić, że Hostinger uruchamia nasz układ, zanim zbudujemy na nim cok
 17. Sól PBKDF2 losowa dla każdej osoby (`kdfSalt`); e-mail nie wchodzi do wyprowadzenia kluczy. Hasło przed PBKDF2 normalizowane (NFKC).
 18. Klucz prywatny szyfrowany `wrapKey`: AES-GCM, losowe IV 96 bitów, dane dodatkowe (AAD) = id konta. Slot związany z wersją klucza organizacji (etykieta RSA-OAEP / AAD).
 19. Klucz odzyskiwania: Crockford Base32 (bez I, L, O, U), 14 grup po 4 znaki = 256 bitów klucza + 24 bity sumy kontrolnej (wykrywa literówki); odczyt wybacza małe litery, spacje oraz O/I/L zamiast 0/1.
+20. Pola techniczne logowania w `users` (`totpLastStep`, `failedAttempts`, `lockedUntil`, `lastLoginAt`) zapisywane wprost, bez `change_log` i bez zmiany `version` (to nie zmiany danych; zdarzenia logowania trafiają do `access_log`). Sekret TOTP szyfrowany z AAD = id konta. Kod QR: SVG z serwera (bez stylów inline, zgodny z CSP).
 Realizacja etapami: a) tabele i sesje, b) szyfrowanie w przeglądarce, c) TOTP z QR, d) blokada, e) ekrany; po każdym commit i podsumowanie.
 
 ## Krok 6: kreator pierwszego uruchomienia
