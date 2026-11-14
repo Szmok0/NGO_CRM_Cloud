@@ -20,6 +20,25 @@ export const appMeta = mysqlTable('app_meta', {
   value: text('value').notNull()
 })
 
+/**
+ * Ustawienia organizacji: jeden wiersz o stałym id (SETTINGS_ID w auth/setup.ts), zakładany przez kreator.
+ * Stałe id jest też zabezpieczeniem: dwa równoczesne kreatory nie założą dwóch organizacji.
+ */
+export const settings = mysqlTable('settings', {
+  ...domainColumns(),
+  orgName: varchar('org_name', { length: 200 }).notNull(),
+  /** 'kgw' | 'donors' | 'projects' | 'custom' */
+  profile: varchar('profile', { length: 16 }).notNull(),
+  enabledModules: json('enabled_modules').$type<string[]>().notNull(),
+  /** Własne nazwy ról kontaktów (np. „uczestnik” → „podopieczny”); puste = domyślne. */
+  roleLabels: json('role_labels').$type<Record<string, string>>().notNull(),
+  staleDays: int('stale_days').notNull().default(30),
+  sensitiveFieldsEnabled: boolean('sensitive_fields_enabled').notNull().default(true),
+  retentionMonths: int('retention_months'),
+  /** Wylogowanie po bezczynności (15–120 min). Na razie sesje używają stałych 30 min. */
+  idleLogoutMinutes: int('idle_logout_minutes').notNull().default(30)
+})
+
 // ---------- Dostęp (model danych 2.2, bezpieczeństwo rozdział 5) ----------
 
 /**

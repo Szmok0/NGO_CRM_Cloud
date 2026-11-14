@@ -7,6 +7,8 @@ export default defineConfig({
     environment: 'node',
     include: ['src/**/*.test.ts'],
     globalSetup: ['src/server/testSetup.global.ts'],
+    // Pliki po kolei: test kreatora wymaga pustej tabeli użytkowników, a inne pliki zakładają konta testowe.
+    fileParallelism: false,
     testTimeout: 30000
   }
 })

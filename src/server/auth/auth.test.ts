@@ -70,13 +70,13 @@ const wrongCode = (u: TestUser) => {
   return ['000000', '111111', '222222', '333333'].find((c) => !allowed.includes(c))!
 }
 
-async function post(app: ReturnType<typeof buildApp>, url: string, payload: unknown, opts: { cookie?: string; ip?: string } = {}) {
+async function post(app: ReturnType<typeof buildApp>, url: string, payload: unknown, opts: { cookie?: string; ip?: string; xff?: string } = {}) {
   const res = await app.inject({
     method: 'POST',
     url,
-    headers: opts.cookie ? { ...baseHeaders, cookie: opts.cookie } : baseHeaders,
-    payload: payload as object,
-    remoteAddress: opts.ip ?? '198.51.100.1'
+    // Jak na hostingu: żądanie przychodzi od lokalnego pośrednika, który dopisuje adres klienta do X-Forwarded-For.
+    headers: { ...baseHeaders, 'x-forwarded-for': opts.xff ?? opts.ip ?? '198.51.100.1', ...(opts.cookie ? { cookie: opts.cookie } : {}) },
+    payload: payload as object
   })
   const set = res.cookies.find((c) => c.name === SESSION_COOKIE)
   return { status: res.statusCode, body: res.json() as { ok: boolean; code?: string; data?: Record<string, unknown> }, set, cookie: set ? `${SESSION_COOKIE}=${set.value}` : undefined }
@@ -421,6 +421,29 @@ describe('blokada z adresu IP', () => {
     advance(IP_WINDOW_MS)
     expect((await login(app, u, BAD_IP)).status).toBe(200)
     expect((await userRow(u.id)).failedAttempts).toBe(0)
+  })
+})
+
+describe('adres klienta a nagłówek X-Forwarded-For', () => {
+  const fail = (app: ReturnType<typeof buildApp>, xff: string) => post(app, '/api/auth/login', { email: 'nikt-xff@example.invalid', authKey: newAuthKey() }, { xff })
+
+  it('podrobione wpisy na początku nagłówka nie omijają limitu: liczy się adres dopisany przez pośrednika', async () => {
+    const app = makeApp()
+    // klient podrabia początek nagłówka, pośrednik dopisuje prawdziwy adres na końcu
+    for (let i = 0; i < IP_MAX_ATTEMPTS; i++) expect((await fail(app, `10.9.8.${i}, 203.0.113.50`)).status).toBe(401)
+    expect((await fail(app, '10.9.8.200, 203.0.113.50')).status).toBe(429)
+    expect((await fail(app, '203.0.113.50')).status).toBe(429)
+    // inny prawdziwy adres ma własny licznik, nawet gdy podrabia adres zablokowanego
+    expect((await fail(app, '203.0.113.50, 203.0.113.51')).status).toBe(401)
+  })
+
+  it('połączenie spoza maszyny nie jest pośrednikiem: jego X-Forwarded-* są ignorowane (HTTPS nierozpoznany, limit po adresie połączenia)', async () => {
+    const app = makeApp()
+    const direct = (xff: string) =>
+      app.inject({ method: 'POST', url: '/api/auth/login', headers: { ...baseHeaders, 'x-forwarded-for': xff }, payload: { email: 'nikt-xff@example.invalid', authKey: newAuthKey() }, remoteAddress: '203.0.113.60' })
+    // X-Forwarded-Proto od obcego połączenia nie udaje HTTPS
+    expect((await direct('198.51.100.9')).statusCode).toBe(403)
+    expect((await direct('198.51.100.9')).body).toContain('tylko przez HTTPS')
   })
 })
 

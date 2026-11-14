@@ -12,6 +12,16 @@ import { noSessions, registerRpc, type SessionProvider } from './rpc'
 import { registerAuthRoutes } from './auth/routes'
 import type { AuthOptions } from './auth/options'
 
+const LOOPBACK = new Set(['127.0.0.1', '::1', '::ffff:127.0.0.1'])
+
+/**
+ * Nagłówkom X-Forwarded-* ufamy tylko od bezpośredniego pośrednika na tej samej maszynie (serwer WWW hostingu:
+ * gniazdo lokalne bez adresu albo 127.0.0.1). Adres klienta to ostatni wpis X-Forwarded-For, czyli ten, który
+ * dopisał pośrednik; wcześniejsze wpisy może podrobić klient, więc ich nie bierzemy pod uwagę.
+ * Połączenie spoza maszyny nie jest pośrednikiem: jego nagłówki X-Forwarded-* są ignorowane.
+ */
+export const trustLocalProxy = (address: string | undefined, hop: number) => hop === 0 && (!address || LOOPBACK.has(address))
+
 /**
  * db = null: tryb kreatora (brak lub błędna konfiguracja), `missing` to nazwy zmiennych do ustawienia; API (RPC) wtedy nie działa.
  * `sessions`: źródło sesji dla strażnika RPC (na produkcji sesje z bazy, w testach podstawiane; domyślnie brak sesji).
@@ -28,7 +38,7 @@ export function buildApp(db: Db | null, missing: string[] = [], sessions: Sessio
         res: (res) => ({ statusCode: res.statusCode })
       }
     },
-    trustProxy: true
+    trustProxy: trustLocalProxy
   })
 
   registerSecurity(app)

@@ -73,6 +73,8 @@ export const pl = {
     LOGIN_FAILED: 'Nieprawidłowe dane logowania albo konto chwilowo zablokowane.',
     RATE_LIMITED: 'Zbyt wiele nieudanych prób logowania z tej sieci. Spróbuj ponownie za kilkanaście minut.',
     TOTP_INVALID: 'Nieprawidłowy kod. Sprawdź, czy telefon ma dobrze ustawioną godzinę, i wpisz aktualny kod.',
+    SETUP_TOKEN_INVALID: 'Nieprawidłowy token konfiguracji. Sprawdź wartość SETUP_TOKEN w panelu hostingu.',
+    SETUP_UNAVAILABLE: 'Kreator pierwszego uruchomienia nie jest dostępny (został już wykonany albo brakuje tokenu w konfiguracji).',
     TOTP_REQUIRED: 'Najpierw potwierdź logowanie kodem z aplikacji uwierzytelniającej.',
     FORBIDDEN: 'Nie masz uprawnień do tej operacji.',
     VALIDATION: 'Nieprawidłowe dane.',

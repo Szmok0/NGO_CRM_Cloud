@@ -2,7 +2,7 @@
 // na serwerze), lista ról, które mogą ją wywołać, i czy jest dostępna przed 2FA. Typ wyniku: ApiOutputs.
 // Wzór: desktopowe src/shared/ipc.ts.
 import { z } from 'zod'
-import { authKeySchema } from './auth'
+import { KDF_ITERATIONS, authKeySchema, kdfSaltSchema, sealedSchema } from './auth'
 
 export const ROLES = ['admin', 'staff', 'readonly'] as const
 export type Role = (typeof ROLES)[number]
@@ -18,8 +18,6 @@ export interface MethodSpec {
 const none = z.object({}).optional()
 const ALL = ['admin', 'staff', 'readonly'] as const
 const totpCode = z.string().max(20)
-/** Szyfrogram z przeglądarki: „v1.IV.szyfrogram” (base64). */
-const sealed = z.string().max(8000).regex(/^v1\.[A-Za-z0-9+/=]+\.[A-Za-z0-9+/=]+$/)
 
 export const apiMethods = {
   /** Kim jestem w tej sesji (także przed 2FA: klient wie, że ma pokazać konfigurację 2FA). */
@@ -38,10 +36,9 @@ export const apiMethods = {
       currentAuthKey: authKeySchema,
       totpCode,
       newAuthKey: authKeySchema,
-      /** Nowa sól PBKDF2: 16 bajtów w base64. */
-      newKdfSalt: z.string().regex(/^[A-Za-z0-9+/]{22}==$/),
-      newKdfIterations: z.literal(600_000),
-      newPrivateKeyEnc: sealed.optional()
+      newKdfSalt: kdfSaltSchema,
+      newKdfIterations: z.literal(KDF_ITERATIONS),
+      newPrivateKeyEnc: sealedSchema.optional()
     }),
     roles: ALL
   },

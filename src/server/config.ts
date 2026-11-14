@@ -17,7 +17,10 @@ const isProduction = process.env.NODE_ENV === 'production'
 // Bez tych ustawień serwer nie wystartuje wcale.
 const serverSchema = z.object({
   PORT: z.coerce.number().int().positive().default(isProduction ? 3000 : 3001),
-  HOST: z.string().default(isProduction ? '0.0.0.0' : '127.0.0.1')
+  HOST: z.string().default(isProduction ? '0.0.0.0' : '127.0.0.1'),
+  // Potrzebne dopiero kreatorowi pierwszego uruchomienia (sprawdza je i mówi, co poprawić).
+  SETUP_TOKEN: z.string().optional(),
+  STORAGE_DIR: z.string().optional()
 })
 
 // Bez tych ustawień serwer startuje tylko w trybie kreatora z informacją, co ustawić.

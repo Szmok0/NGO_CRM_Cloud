@@ -17,7 +17,12 @@ async function start() {
   const { db } = await openDb(config.DATABASE_URL)
   await runMigrations(db)
 
-  const app = buildApp(db, [], dbSessions(db), { appSecret: config.APP_SECRET })
+  const app = buildApp(db, [], dbSessions(db), {
+    appSecret: config.APP_SECRET,
+    setupToken: config.SETUP_TOKEN,
+    storageDir: config.STORAGE_DIR,
+    production: config.isProduction
+  })
   await app.listen({ port: config.PORT, host: config.HOST })
 }
 

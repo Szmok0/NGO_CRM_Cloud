@@ -35,8 +35,9 @@ type Op = 'insert' | 'update' | 'delete' | 'restore'
 /**
  * Jedyna warstwa zapisu do tabel domenowych. Ustawia pola techniczne, sprawdza `version`
  * (blokada optymistyczna) i w tej samej transakcji dopisuje wpis do change_log.
+ * `db` może być trwającą transakcją (zapisy stają się wtedy jej częścią).
  */
-export function createRepo(db: Db, ctx: RepoContext) {
+export function createRepo(db: Pick<Db, 'transaction'>, ctx: RepoContext) {
   const now = () => (ctx.now ? ctx.now() : new Date())
 
   const log = (tx: Tx, table: DomainTable, entityId: string, op: Op, changedFields: Record<string, unknown>, at: Date) =>

@@ -96,6 +96,15 @@ Działa tylko, gdy w bazie nie ma żadnego użytkownika **i** podano poprawny `S
 4. Klucz organizacji i klucz odzyskiwania: pokazany raz, do wydruku (strona do druku z przeglądarki) i z potwierdzeniem „wpisz 4 ostatnie znaki”. Tekst wprost: „Bez hasła osoby z dostępem i bez tego klucza danych wrażliwych nie da się odzyskać. Autor programu też ich nie odzyska.”
 5. Ekran końcowy: lista kontrolna (usuń `SETUP_TOKEN` z panelu, schowaj wydruk klucza, włącz kopie hostingu).
 
+**Decyzje do kroku 6 (MOC, 2026-11-14):**
+1. `SETUP_TOKEN` wpisywany w formularzu, nigdy w adresie strony; co najmniej 32 znaki (przy krótszym kreator odmawia); porównanie w stałym czasie; błędne tokeny liczą się do limitu prób z IP.
+2. Nic nie jest zapisywane przed końcem: organizacja, administrator z 2FA, klucz organizacji i oba sloty powstają w jednej transakcji. Sekret TOTP do tego czasu trzyma przeglądarka w postaci zaszyfrowanej przez serwer (ważnej 30 min).
+3. Po zakończeniu ekran logowania, bez automatycznego zalogowania.
+4. `STORAGE_DIR`: kreator zakłada folder i sprawdza zapis próbnym plikiem; blokuje, gdy zapis się nie udaje albo (w produkcji) folder leży w folderze aplikacji.
+5. Limit IP: nagłówkom `X-Forwarded-*` ufamy tylko od pośrednika na tej samej maszynie, a adres klienta to ostatni wpis `X-Forwarded-For` (`trustLocalProxy` w `app.ts`). Uwaga: Fastify celowo traktuje `trustProxy: 1` jako „nie ufaj nikomu”, stąd jawna funkcja.
+Bez pytania: profile jak w desktopie (`src/shared/modules.ts`); `idleLogoutMinutes` w `settings` powstaje, ale sesje używają stałych 30 min do czasu ekranu ustawień.
+Etapy: a) serwer i testy, b) ekrany i sprawdzenie w przeglądarce. Na produkcji kreator przechodzi MOC.
+
 ## Krok 7: użytkownicy
 - Ustawienia → Użytkownicy (tylko administrator): lista (imię, e-mail, rola, status, 2FA, ostatnie logowanie), zaproszenie (e-mail, rola) → jednorazowy link ważny 72 h do skopiowania, zmiana roli, wyłączenie konta (koniec wszystkich sesji, usunięcie slotów), reset konta (zapomniane hasło: nowy link, stare sloty usunięte).
 - Strona zaproszenia: hasło, 2FA, para kluczy tworzona w przeglądarce. Bez slotu klucza organizacji (nadawanie dostępu w ZADANIU_03).

@@ -7,6 +7,13 @@ export const emailSchema = z.string().trim().toLowerCase().pipe(z.email().max(25
 /** `authKey` z przeglądarki: 32 bajty w base64. */
 export const authKeySchema = z.string().regex(/^[A-Za-z0-9+/]{43}=$/)
 
+/** Sól PBKDF2: 16 bajtów w base64. */
+export const kdfSaltSchema = z.string().regex(/^[A-Za-z0-9+/]{22}==$/)
+/** Szyfrogram z przeglądarki: „v1.IV.szyfrogram” (base64). */
+export const sealedSchema = z.string().max(8000).regex(/^v1\.[A-Za-z0-9+/=]+\.[A-Za-z0-9+/=]+$/)
+/** Jedyna dopuszczana liczba iteracji PBKDF2 dla nowych haseł. */
+export const KDF_ITERATIONS = 600_000
+
 /** POST /api/auth/prelogin: sól i liczba iteracji do wyprowadzenia kluczy z hasła. */
 export const preloginInput = z.object({ email: emailSchema })
 export interface PreloginResult {

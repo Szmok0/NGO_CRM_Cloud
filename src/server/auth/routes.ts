@@ -6,7 +6,7 @@
 import { createHmac, randomBytes } from 'node:crypto'
 import { and, eq, isNull } from 'drizzle-orm'
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
-import { loginInput, preloginInput, totpInput, type LoginResult, type PreloginResult } from '@shared/auth'
+import { KDF_ITERATIONS, loginInput, preloginInput, totpInput, type LoginResult, type PreloginResult } from '@shared/auth'
 import { AppError } from '@shared/errors'
 import type { Db } from '../db/connection'
 import { users } from '../db/schema'
@@ -16,10 +16,24 @@ import { createIpLimiter, isLocked, registerFailure, registerSuccess } from './l
 import type { AuthOptions } from './options'
 import { hashAuthKey, verifyAuthKey } from './password'
 import { SESSION_COOKIE, clearSessionCookie, createSession, getSession, revokeSession, setSessionCookie } from './sessions'
+import { registerSetupRoutes } from './setupRoutes'
 import { consumeTotpCode } from './totp'
 
-/** Liczba iteracji PBKDF2 podawana dla nieznanego e-maila (taka sama jak dla nowych kont). */
-const KDF_ITERATIONS = 600_000
+export type RouteHandler<T> = (req: FastifyRequest, reply: FastifyReply, ctx: { userId?: string }) => Promise<T>
+
+/** Wspólna obsługa tras poza RPC: { ok, data } albo błąd; w logu tylko nazwa kroku, id użytkownika i kod (bez e-maila i IP). */
+export function postRoute<T>(app: FastifyInstance, url: string, step: string, handler: RouteHandler<T>) {
+  app.post(url, async (req, reply) => {
+    const ctx: { userId?: string } = {}
+    try {
+      const data = await handler(req, reply, ctx)
+      req.log.info({ auth: step, userId: ctx.userId, code: 'OK' }, 'auth')
+      return { ok: true, data }
+    } catch (e) {
+      return sendError(e, reply, req.log, { auth: step, userId: ctx.userId })
+    }
+  })
+}
 
 export function registerAuthRoutes(app: FastifyInstance, db: Db, opts: AuthOptions) {
   const now = opts.now ?? (() => new Date())
@@ -49,18 +63,8 @@ export function registerAuthRoutes(app: FastifyInstance, db: Db, opts: AuthOptio
         .where(and(eq(users.email, email), isNull(users.deletedAt)))
     )[0]
 
-  /** Wspólna obsługa: { ok, data } albo błąd; w logu tylko nazwa kroku, id użytkownika i kod (bez e-maila i IP). */
-  const route = <T>(url: string, step: string, handler: (req: FastifyRequest, reply: FastifyReply, ctx: { userId?: string }) => Promise<T>) =>
-    app.post(url, async (req, reply) => {
-      const ctx: { userId?: string } = {}
-      try {
-        const data = await handler(req, reply, ctx)
-        req.log.info({ auth: step, userId: ctx.userId, code: 'OK' }, 'auth')
-        return { ok: true, data }
-      } catch (e) {
-        return sendError(e, reply, req.log, { auth: step, userId: ctx.userId })
-      }
-    })
+  const route = <T>(url: string, step: string, handler: RouteHandler<T>) => postRoute(app, url, step, handler)
+  registerSetupRoutes(app, db, opts, limiter, now)
 
   route('/api/auth/prelogin', 'prelogin', async (req): Promise<PreloginResult> => {
     const { email } = preloginInput.parse(req.body)
