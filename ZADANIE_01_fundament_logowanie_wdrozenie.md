@@ -1,6 +1,6 @@
 # ZADANIE 01 — Fundament: próbne wdrożenie, logowanie, klucze, role
 
-Status: w realizacji, krok 2 zrobiony, następny krok 3 (decyzje D1–D6 zatwierdzone przez MOC 2026-11-14; krok 1 działa na Hostingerze, zob. „Wynik”) · Kontekst: `CLAUDE.md`, `NGO_CRM_CLOUD_KONCEPCJA.md` (4.1–4.3, 4.7), `NGO_CRM_CLOUD_BEZPIECZENSTWO.md` (rozdziały 4 i 5), `NGO_CRM_CLOUD_PROCESY_I_MODEL_DANYCH.md` (2.2) · Wzór: iV_CRM `ZADANIE_02_logowanie_i_wdrozenie.md` i `lib/auth/`
+Status: w realizacji, krok 3 zrobiony, następny krok 4 (decyzje D1–D6 zatwierdzone przez MOC 2026-11-14; krok 1 działa na Hostingerze, zob. „Wynik”) · Kontekst: `CLAUDE.md`, `NGO_CRM_CLOUD_KONCEPCJA.md` (4.1–4.3, 4.7), `NGO_CRM_CLOUD_BEZPIECZENSTWO.md` (rozdziały 4 i 5), `NGO_CRM_CLOUD_PROCESY_I_MODEL_DANYCH.md` (2.2) · Wzór: iV_CRM `ZADANIE_02_logowanie_i_wdrozenie.md` i `lib/auth/`
 
 ## Cel
 Pusta, ale **bezpieczna** aplikacja działa na Hostingerze: organizacja przechodzi kreator pierwszego uruchomienia, zakłada administratora z 2FA i dostaje klucz odzyskiwania do wydruku; administrator zaprasza kolejne osoby. Hasło nie trafia do serwera. Każda metoda API ma przypisane role i test to sprawdza. Na tym fundamencie ZADANIE_02 przeniesie rdzeń z desktopu.
@@ -118,3 +118,16 @@ Adres próbny: https://ivory-elk-740131.hostingersite.com (`/api/health` → `st
 - `src/shared/errors.ts`: kody `NOT_FOUND`, `VERSION_CONFLICT` (polski komunikat w kliencie dojdzie z `i18n/pl.ts`).
 - Logi Fastify: tylko metoda, wzorzec trasy (bez parametrów i zapytania), kod wyniku, czas. Bez IP, nagłówków i treści.
 - **Odstępstwa:** id użytkownika w logach dojdzie z sesjami (krok 5). Zapis w `change_log` samych nazw pól dla `contact_identity` i `contact_sensitive` (zasada danych 8) dojdzie razem z tymi tabelami (ZADANIE_02).
+
+### Krok 3: nagłówki, HTTPS, CSRF (2026-11-14)
+- `src/server/security.ts`, rejestrowane w `buildApp` (działa też w trybie kreatora):
+  - nagłówki z planu (CSP, HSTS, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`, `Cross-Origin-Opener-Policy`) w hooku `onSend`, więc przy każdej odpowiedzi, także 404, odmowach i plikach statycznych;
+  - bez HTTPS (`req.protocol` ≠ `https` przy `trustProxy`, adres inny niż `localhost`/`127.0.0.1`/`::1`) → 403 i strona „Ta aplikacja działa tylko przez HTTPS”, API nieobsługiwane;
+  - każde żądanie zmieniające stan: `Origin` równy `protokół://host` żądania i `X-NGO-CRM: 1`, inaczej 403 `{ error: 'forbidden' }`.
+- Build Vite bez wstawek inline (`assetsInlineLimit: 0`; `index.html` ma tylko `<script src>` i `<link href>`).
+- Testy: `security.test.ts` (14 przypadków: nagłówki przy różnych odpowiedziach, HTTPS przez pośrednika, strona „tylko HTTPS”, localhost, brak/obcy/`http` Origin, brak nagłówka, poprawne żądanie, DELETE, GET bez wymagań).
+- **Odstępstwa:**
+  - `/api/health` odpowiada także bez HTTPS (bez danych, pokazuje `https: false`), żeby dało się zdiagnozować pośrednika i tryb kreatora;
+  - sprawdzanie CSRF obejmuje wszystkie metody poza GET/HEAD/OPTIONS, nie tylko POST (żeby przyszła trasa PUT/DELETE nie ominęła ochrony);
+  - adres aplikacji do porównania z `Origin` brany z żądania (`req.protocol` + `req.host`), bez nowej zmiennej środowiskowej.
+- Do kroku 8: lokalny krój Inter musi być plikiem (CSP nie ma `font-src data:`), a style tylko w plikach CSS (bez atrybutów `style` w HTML).

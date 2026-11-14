@@ -6,6 +6,7 @@ import type { Health } from '@shared/health'
 import pkg from '../../package.json'
 import { migrationCount, type Db } from './db/connection'
 import { appRoot } from './config'
+import { registerSecurity } from './security'
 
 /** db = null: tryb kreatora (brak lub błędna konfiguracja), `missing` to nazwy zmiennych do ustawienia. */
 export function buildApp(db: Db | null, missing: string[] = []) {
@@ -21,6 +22,8 @@ export function buildApp(db: Db | null, missing: string[] = []) {
     },
     trustProxy: true
   })
+
+  registerSecurity(app)
 
   app.get('/api/health', async (req): Promise<Health> => {
     const https = req.protocol === 'https'
