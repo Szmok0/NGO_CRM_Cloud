@@ -135,7 +135,7 @@ function Kanban({ tasks, editable, onOpen, onChange }: { tasks: TaskListItem[]; 
                       className={cn('rounded-xl border border-border bg-background p-3 shadow-card', editable && 'cursor-grab active:cursor-grabbing', dragId === t.id && 'opacity-50')}
                     >
                       <button type="button" className={cn('w-full cursor-pointer text-left text-sm font-semibold hover:text-primary', done && 'text-faint line-through')} onClick={() => onOpen(t.id)}>
-                        {t.title}
+                        {t.title || `(${pl.anonymize.contentRemoved})`}
                       </button>
                       {t.targetLabel && <div className="mt-1 text-xs font-medium text-primary-soft-foreground">{t.targetLabel}</div>}
                       <div className="mt-2 flex flex-wrap items-center gap-1.5">
@@ -162,7 +162,7 @@ function Kanban({ tasks, editable, onOpen, onChange }: { tasks: TaskListItem[]; 
                         )}
                         {editable && (
                           <span className="flex shrink-0">
-                            <Button variant="ghost" size="icon" className="h-7 w-7" disabled={col === 0} aria-label={`${pl.tasks.moveLeft}: ${t.title}`} title={pl.tasks.moveLeft} onClick={() => move(t, -1)}>
+                            <Button variant="ghost" size="icon" className="h-7 w-7" disabled={col === 0} aria-label={`${pl.tasks.moveLeft}: ${t.title || pl.anonymize.contentRemoved}`} title={pl.tasks.moveLeft} onClick={() => move(t, -1)}>
                               <ChevronLeft size={15} />
                             </Button>
                             <Button
@@ -170,7 +170,7 @@ function Kanban({ tasks, editable, onOpen, onChange }: { tasks: TaskListItem[]; 
                               size="icon"
                               className="h-7 w-7"
                               disabled={col === TASK_STATUSES.length - 1}
-                              aria-label={`${pl.tasks.moveRight}: ${t.title}`}
+                              aria-label={`${pl.tasks.moveRight}: ${t.title || pl.anonymize.contentRemoved}`}
                               title={pl.tasks.moveRight}
                               onClick={() => move(t, 1)}
                             >

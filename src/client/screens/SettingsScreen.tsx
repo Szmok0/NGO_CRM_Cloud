@@ -30,6 +30,11 @@ export function SettingsScreen({ me, account, onChangePassword, onSignedOut }: P
   const [unlocking, setUnlocking] = useState(false)
   const { unlocked, hasOrgAccess } = useKeyring()
   const [rotateRequest, setRotateRequest] = useState(0)
+  // Czy konto ma slot klucza, wiemy z serwera (nie z odblokowania): po odświeżeniu strony nie pokazujemy „Odblokuj” komuś, kto nie ma czego odblokować.
+  const { data: mySlots, reload: reloadSlots } = useLoad('keys.mySlots', {})
+  const noSlot = mySlots !== null && mySlots.length === 0
+  const [recovered, setRecovered] = useState(false)
+  const [refresh, setRefresh] = useState(0)
 
   async function logoutAll() {
     try {
@@ -68,8 +73,8 @@ export function SettingsScreen({ me, account, onChangePassword, onSignedOut }: P
             <dd>{pl.userRoles[me.role]}</dd>
             <dt className="text-muted-foreground">{pl.home.keys}</dt>
             <dd className={unlocked ? 'text-success' : 'text-warning'}>
-              {unlocked ? (hasOrgAccess ? pl.home.keysUnlocked : pl.home.keysNoAccess) : pl.home.keysLocked}
-              {!unlocked && (
+              {unlocked ? (hasOrgAccess ? pl.home.keysUnlocked : pl.home.keysNoAccess) : noSlot ? pl.home.keysNoAccess : pl.home.keysLocked}
+              {!unlocked && !noSlot && (
                 <Button className="ml-3" variant="outline" size="sm" onClick={() => setUnlocking(true)}>
                   {pl.unlock.open}
                 </Button>
@@ -78,7 +83,15 @@ export function SettingsScreen({ me, account, onChangePassword, onSignedOut }: P
           </dl>
         </Card>
         {unlocking && <UnlockDialog userId={me.userId} onClose={() => setUnlocking(false)} />}
-        {me.role === 'admin' && unlocked && !hasOrgAccess && <RecoverAccessCard onDone={() => undefined} />}
+        {me.role === 'admin' && (noSlot || recovered) && (
+          <RecoverAccessCard
+            onDone={() => {
+              setRecovered(true)
+              reloadSlots()
+              setRefresh((n) => n + 1)
+            }}
+          />
+        )}
         {me.role === 'admin' && <OrgSettingsCard />}
         {me.role === 'admin' && (
           <div id={SECTION.rotate} className="scroll-mt-4">
@@ -87,7 +100,7 @@ export function SettingsScreen({ me, account, onChangePassword, onSignedOut }: P
         )}
         {me.role === 'admin' && (
           <div id={SECTION.users} className="scroll-mt-4">
-            <UsersPanel onRotate={() => setRotateRequest((n) => n + 1)} myId={me.userId} userKeysReady={unlocked && hasOrgAccess} onUnlock={() => setUnlocking(true)} onSignedOut={onSignedOut} />
+            <UsersPanel key={refresh} onRotate={() => setRotateRequest((n) => n + 1)} myId={me.userId} userKeysReady={unlocked && hasOrgAccess} onUnlock={() => setUnlocking(true)} onSignedOut={onSignedOut} />
           </div>
         )}
         {me.role === 'admin' && (
@@ -100,7 +113,7 @@ export function SettingsScreen({ me, account, onChangePassword, onSignedOut }: P
             <BackupsCard storageConfigured={me.storageConfigured} email={account.email} />
           </div>
         )}
-        {me.role === 'admin' && <AccessLogCard />}
+        {me.role === 'admin' && <AccessLogCard key={refresh} />}
       </div>
       <p className="mt-6 text-xs text-muted-foreground">{pl.security.footer(version, formatDate(releaseDate))}</p>
     </>

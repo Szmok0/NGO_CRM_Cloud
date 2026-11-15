@@ -161,16 +161,28 @@ function GlobalSearch() {
   const { go } = useApp()
   const [q, setQ] = useState('')
   const [hits, setHits] = useState<SearchHit[]>([])
+  // Zapytanie, dla którego przyszła odpowiedź: „Nic nie znaleziono” pokazujemy dopiero wtedy, nie w trakcie wpisywania i czekania.
+  const [answered, setAnswered] = useState('')
   const [open, setOpen] = useState(false)
   const box = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (q.trim().length < 2) {
       setHits([])
+      setAnswered('')
       return
     }
-    const t = setTimeout(() => call('search.global', { q }).then(setHits).catch(() => setHits([])), 150)
-    return () => clearTimeout(t)
+    let alive = true
+    const done = (h: SearchHit[]) => {
+      if (!alive) return // spóźniona odpowiedź na starsze zapytanie nie nadpisuje nowszej
+      setHits(h)
+      setAnswered(q)
+    }
+    const t = setTimeout(() => call('search.global', { q }).then(done).catch(() => done([])), 150)
+    return () => {
+      alive = false
+      clearTimeout(t)
+    }
   }, [q])
 
   useEffect(() => {
@@ -201,7 +213,7 @@ function GlobalSearch() {
       </label>
       {open && q.trim().length >= 2 && (
         <div className="absolute z-20 mt-1 w-full overflow-hidden rounded-control border border-border bg-background py-1 shadow-lg">
-          {hits.length === 0 && <p className="px-3 py-2 text-sm text-muted-foreground">{pl.nav.searchNoResults}</p>}
+          {hits.length === 0 && answered === q && <p className="px-3 py-2 text-sm text-muted-foreground">{pl.nav.searchNoResults}</p>}
           {hits.map((h) => (
             <button key={h.type + h.id} type="button" onClick={() => pick(h)} className="flex w-full cursor-pointer items-center gap-2.5 px-3 py-2 text-left text-sm hover:bg-subtle focus-visible:bg-subtle">
               <span className={cn('flex h-7 w-7 shrink-0 items-center justify-center rounded-full', HIT_ICON[h.type].cls)}>{HIT_ICON[h.type].icon}</span>
