@@ -253,3 +253,12 @@ Testy 920/920, typecheck i build czyste. Następny krok: krok 6 (poprawki z ZADA
 - Dokumenty w `docs/`: `INSTRUKCJA_WDROZENIA.md`, `LISTA_KONTROLNA.md`, `SRODKI_TECHNICZNE.md` (pisał podagent Sonnet, 16 miejsc niezweryfikowanych na żywo, głównie panel Hostingera).
 - Do rozstrzygnięcia: repozytorium prywatne (ZADANIE_01) a „open source” w README i instrukcji (adres forka); nieaktualny tekst ekranu „Gotowe” o kopiach w panelu hostingu.
 Testy 920/920, typecheck czysty. Następny: krok 6, etap b (sprawdzenie w przeglądarce, MOC czyta dokumenty).
+
+### Krok 6, etap b (2026-11-15) — sprawdzenie poprawek w przeglądarce
+Sprawdzone na zbudowanej aplikacji (serwer na 127.0.0.1:3001) z lokalną pustą bazą `ngocrm_test` (dev:account + dev:demo), konto administratora, 2FA przeklikane.
+- **Wyszukiwarka:** hipoteza z etapu a potwierdzona. Przy pisaniu „Szablonowa” litera po literze nie pojawia się „Nic nie znaleziono”, wynik jest poprawny; dla „zzzqq” komunikat pojawia się dopiero po odpowiedzi serwera.
+- **Konto bez slotu:** po odświeżeniu administrator widzi „brak dostępu do danych wrażliwych” i kartę „Odzyskaj dostęp”, bez przycisku „Odblokuj”.
+- **Kanban:** widok się ładuje i pokazuje karty (przypadku karty bez tytułu nie odtworzono).
+- **Niesprawdzone w przeglądarce:** ścieżka pracownika bez slotu („brak dostępu” bez karty odzyskiwania), odświeżanie listy użytkowników po faktycznym odzyskaniu klucza, karta „(treść usunięta)”. Pokrywa je kod z etapu a, brak testów UI.
+- **Uwaga środowiskowa:** w trybie `npm run dev` proxy Vite zwraca 403 na `/api/rpc` (kontrola Origin w `security.ts`), więc aplikacja pokazuje „Brak połączenia”. Do sprawdzenia przy następnym użyciu trybu dev; tu użyto `npm run build` + `npm start`. Użytkownik bazy `ngocrm` nie ma prawa CREATE DATABASE, dlatego użyto `ngocrm_test` (testy ją czyszczą).
+- Dokumenty z `docs/` czeka na czytanie MOC (czy zrozumie osoba nietechniczna).
