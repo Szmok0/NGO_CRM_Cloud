@@ -6,6 +6,7 @@ import pkg from '../../../package.json'
 import type { Db } from '../db/connection'
 import { attachments, backups, contactSensitive, keySlots, orgKeys, users } from '../db/schema'
 import { DOWNLOAD_REMINDER_DAYS } from './backups'
+import { listRetention } from './retention'
 import { updateCheckEnabled, updateStatus } from './updates'
 
 /** Progi z D8. */
@@ -82,6 +83,13 @@ async function accountItems(db: Db): Promise<SecurityItem[]> {
   return [{ id: 'twofa', tone: without.length ? 'yellow' : 'green', data: { missing: without.length, names: without } }, access, rotation]
 }
 
+/** Okresy przechowywania (D10): szare, gdy wyłączone; żółte, gdy są osoby po okresie (same liczby, bez nazwisk). */
+async function retentionItem(db: Db, now: Date): Promise<SecurityItem> {
+  const r = await listRetention(db, now)
+  if (r.months === null) return { id: 'retention', tone: 'grey', data: { configured: false, months: null, due: 0 } }
+  return { id: 'retention', tone: r.items.length > 0 ? 'yellow' : 'green', data: { configured: true, months: r.months, due: r.items.length } }
+}
+
 export async function getSecurityStatus(db: Db, ctx: StatusContext): Promise<SecurityStatus> {
   const enabled = await updateCheckEnabled(db)
   const update = await updateStatus(db, enabled)
@@ -92,8 +100,7 @@ export async function getSecurityStatus(db: Db, ctx: StatusContext): Promise<Sec
     { id: 'storage', tone: ctx.storageConfigured ? 'green' : 'red', data: { configured: ctx.storageConfigured } },
     ...(await backupItems(db, ctx)),
     ...(await accountItems(db)),
-    // Okresy przechowywania (D10): logika w kroku 5; do tego czasu szara sprawa „jeszcze nie skonfigurowane”.
-    { id: 'retention', tone: 'grey', data: { configured: false } }
+    await retentionItem(db, ctx.now)
   ]
   return { version: pkg.version, releasedAt: pkg.releaseDate, updateCheckEnabled: enabled, update, items }
 }

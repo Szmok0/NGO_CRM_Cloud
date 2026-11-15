@@ -25,6 +25,7 @@ import * as exportsSvc from './services/exports'
 import * as accessLogView from './services/accessLogView'
 import * as tasks from './services/tasks'
 import * as backupsSvc from './services/backups'
+import * as retentionSvc from './services/retention'
 import { getSecurityStatus } from './services/securityStatus'
 import { refreshUpdateInfo, updateCheckEnabled } from './services/updates'
 import { repoFor, type Actor } from './services/common'
@@ -143,6 +144,11 @@ const handlers: Handlers = {
     // Po włączeniu od razu pytamy o wersję (wynik pojawi się przy kolejnym odświeżeniu panelu).
     if (enabled) void refreshUpdateInfo(db, now).catch(() => undefined)
   },
+  'retention.list': (_p, { db, now }) => retentionSvc.listRetention(db, now),
+  'retention.setPeriod': async ({ months }, ctx) => {
+    if (await retentionSvc.setRetentionMonths(ctx.db, months, actor(ctx))) await logAccess(ctx.db, ctx.session.userId, 'retention_changed', ctx.now)
+  },
+  'retention.snooze': ({ contactId, version }, ctx) => retentionSvc.snoozeRetention(ctx.db, contactId, version, actor(ctx)),
   'settings.get': (_p, { db }) => getSettings(db),
   'backups.list': (_p, { db, now }) => backupsSvc.listBackups(db, now),
   'backups.create': async (_p, { db, session, auth, now }) => {

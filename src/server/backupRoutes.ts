@@ -13,6 +13,7 @@ import { logAccess } from './auth/accessLog'
 import type { AuthOptions } from './auth/options'
 import { sendError, type Session, type SessionProvider } from './rpc'
 import { backupFilePath } from './services/backups'
+import { buildSupportCopy } from './services/supportCopy'
 
 export function registerBackupRoutes(app: FastifyInstance, db: Db, sessions: SessionProvider, auth: AuthOptions) {
   app.get('/api/backups/:id', async (req: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
@@ -48,6 +49,26 @@ export function registerBackupRoutes(app: FastifyInstance, db: Db, sessions: Ses
         .send(createReadStream(path))
     } catch (e) {
       return sendError(e, reply, req.log, { route: 'backups.download', userId: session?.userId })
+    }
+  })
+
+  // Kopia do pomocy technicznej (D7): jawny plik JSON bez danych osobowych (services/supportCopy.ts), budowany na żądanie.
+  app.get('/api/support-copy', async (req: FastifyRequest, reply: FastifyReply) => {
+    let session: Session | undefined
+    try {
+      session = await requireSession(sessions, req)
+      if (session.role !== 'admin') throw new AppError('FORBIDDEN')
+      const at = auth.now?.() ?? new Date()
+      const copy = await buildSupportCopy(db, at)
+      await logAccess(db, session.userId, 'support_copy', at)
+      req.log.info({ route: 'support.copy', userId: session.userId, code: 'OK' }, 'support copy')
+      return reply
+        .header('Content-Type', 'application/json; charset=utf-8')
+        .header('Content-Disposition', `attachment; filename="ngo-crm-do-pomocy-${at.toISOString().slice(0, 10)}.json"`)
+        .header('Cache-Control', 'no-store')
+        .send(JSON.stringify(copy, null, 1))
+    } catch (e) {
+      return sendError(e, reply, req.log, { route: 'support.copy', userId: session?.userId })
     }
   })
 }

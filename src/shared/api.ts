@@ -231,6 +231,12 @@ export const apiMethods = {
   'security.status': { input: none, roles: ADMIN },
   /** Wyłącznik sprawdzania nowej wersji w serwisie GitHub (D9). Wpis `update_check_changed` w dzienniku dostępu. */
   'security.setUpdateCheck': { input: z.object({ enabled: z.boolean() }), roles: ADMIN },
+  /** Okresy przechowywania (ZADANIE_04, D10): ustawiony okres i osoby bez aktywności dłużej niż okres. Nic nie dzieje się automatycznie. */
+  'retention.list': { input: none, roles: ADMIN },
+  /** Okres w miesiącach (1–240) albo null = wyłączone. Wpis `retention_changed` w dzienniku dostępu. */
+  'retention.setPeriod': { input: z.object({ months: z.number().int().min(1).max(240).nullable() }), roles: ADMIN },
+  /** „Zostaw jeszcze na rok”: osoba znika z listy na rok od dziś (zapis z kontrolą wersji osoby). */
+  'retention.snooze': { input: z.object({ contactId: uuid, version }), roles: ADMIN },
   /** Ustawienia organizacji potrzebne interfejsowi (moduły, nazwy ról). */
   'settings.get': { input: none, roles: ALL },
 
@@ -460,6 +466,20 @@ export interface SecurityItem {
   /** Fakty do zdania w interfejsie (liczby, daty ISO, nazwy kont, flagi). Szczegóły per sprawa: services/securityStatus.ts. */
   data: Record<string, string | number | boolean | string[] | null>
 }
+/** Osoba bez aktywności dłużej niż okres przechowywania (D10). `version`: wersja osoby do „Zostaw jeszcze na rok”. */
+export interface RetentionPerson {
+  contactId: string
+  version: number
+  label: string
+  /** RRRR-MM-DD: ostatnia aktywność (albo dzień dodania do bazy, gdy innej nie było). */
+  lastActivityOn: string
+  monthsInactive: number
+}
+export interface RetentionList {
+  /** null = wyłączone. */
+  months: number | null
+  items: RetentionPerson[]
+}
 export interface SecurityStatus {
   version: string
   releasedAt: string
@@ -614,6 +634,9 @@ export interface ApiOutputs {
   'backups.markTested': { matched: boolean }
   'security.status': SecurityStatus
   'security.setUpdateCheck': void
+  'retention.list': RetentionList
+  'retention.setPeriod': void
+  'retention.snooze': void
   'settings.get': OrgSettings
   'contacts.list': T.ContactListItem[]
   'contacts.tags': string[]

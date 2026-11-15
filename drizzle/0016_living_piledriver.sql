@@ -1,0 +1,1 @@
+ALTER TABLE `contacts` ADD `retention_snooze_until` date;

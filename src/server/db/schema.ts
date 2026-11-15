@@ -221,7 +221,9 @@ export const contacts = mysqlTable('contacts', {
   kind: varchar('kind', { length: 16 }).notNull(),
   tags: json('tags').$type<string[]>().notNull(),
   /** Anonimizacja osoby (ZADANIE_03): tożsamość i dane wrażliwe usunięte, statystyka zostaje. */
-  anonymizedAt: datetime('anonymized_at', { mode: 'date', fsp: 3 })
+  anonymizedAt: datetime('anonymized_at', { mode: 'date', fsp: 3 }),
+  /** „Zostaw jeszcze na rok” (ZADANIE_04, D10): do tej daty osoba nie trafia na listę po okresie przechowywania. */
+  retentionSnoozeUntil: date('retention_snooze_until', { mode: 'string' })
 })
 
 /**
