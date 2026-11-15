@@ -11,7 +11,8 @@ import { ContactPicker } from '../../components/ContactPicker'
 import { TaskDialog } from '../../components/TaskDialog'
 import { TargetTasks } from '../../components/TaskRows'
 import { Timeline } from '../../components/Timeline'
-import { Avatar, Badge, Button, Card, Dialog, Empty, ErrorText, Field, Input, Select } from '../../components/ui'
+import { AnonymizeDialog } from '../../components/AnonymizeDialog'
+import { Alert, Avatar, Badge, Button, Card, Dialog, Empty, ErrorText, Field, Input, Select } from '../../components/ui'
 import { pl } from '../../i18n/pl'
 import { call, errorMessage, useLoad } from '../../lib/api'
 import { formatDate, todayYmd } from '../../lib/format'
@@ -31,11 +32,12 @@ function useAction(onChange: () => void) {
 }
 
 export function ContactCard({ id }: { id: string }) {
-  const { back, go, canWrite, moduleOn } = useApp()
+  const { back, go, canWrite, moduleOn, session } = useApp()
   const { data, error, reload } = useLoad('contacts.get', { id })
   const [editing, setEditing] = useState(false)
   const [entry, setEntry] = useState<NewActivityType | null>(null)
   const [addingTask, setAddingTask] = useState(false)
+  const [anonymizing, setAnonymizing] = useState(false)
   const action = useAction(reload)
 
   if (error) return <ErrorText>{error}</ErrorText>
@@ -79,6 +81,11 @@ export function ContactCard({ id }: { id: string }) {
             </div>
           )}
         </div>
+        {session.me.role === 'admin' && isPerson && !c.anonymizedAt && (
+          <Button variant="ghost" size="sm" className="self-start text-destructive" onClick={() => setAnonymizing(true)}>
+            {pl.contacts.anonymizeButton}
+          </Button>
+        )}
         {editable && (
           <div className="flex flex-col items-end gap-2">
             <div className="flex flex-wrap justify-end gap-2" role="group" aria-label={pl.contacts.quickActions}>
@@ -109,6 +116,7 @@ export function ContactCard({ id }: { id: string }) {
         )}
       </section>
       <ErrorText>{action.error}</ErrorText>
+      {c.anonymizedAt && <Alert tone="info">{pl.contacts.anonymizedInfo}</Alert>}
 
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)]">
         <div className="flex flex-col gap-4">
@@ -152,6 +160,7 @@ export function ContactCard({ id }: { id: string }) {
           <Timeline activities={data.activities} contactIds={[id]} editable={editable} onChange={reload} />
         </div>
       </div>
+      {anonymizing && <AnonymizeDialog contactId={id} label={label} onClose={() => setAnonymizing(false)} onDone={reload} />}
       {editing && <ContactForm kind={c.kind} contact={c} onClose={() => setEditing(false)} onSaved={reload} />}
       {addingTask && <TaskDialog taskId={null} defaults={{ targetType: 'contact', targetId: id, targetLabel: label }} onClose={() => setAddingTask(false)} onSaved={reload} />}
       {entry && <ActivityDialog key={entry} type={entry} contact={{ id, label }} onClose={() => setEntry(null)} onSaved={reload} />}

@@ -33,7 +33,7 @@ async function postJson<T>(url: string, body: unknown): Promise<T> {
   return r.data
 }
 
-const MUTATION = /\.(create|update|delete|add|remove|set|setStatus|move|toggle|end|withdraw|restore|applyPaste|apply|shiftTasks|invite|setRole|disable|reset)$/
+const MUTATION = /\.(create|update|delete|add|remove|set|setStatus|move|toggle|end|withdraw|restore|anonymize|applyPaste|apply|shiftTasks|invite|setRole|disable|reset)$/
 const CHANGED = 'ngo-data-changed'
 /** Ktoś inny zmienił rekord: wszystkie wczytane widoki pobierają dane od nowa. */
 const STALE = 'ngo-data-stale'

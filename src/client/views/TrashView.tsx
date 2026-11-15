@@ -3,15 +3,18 @@ import { useState } from 'react'
 import { RotateCcw, Trash2 } from 'lucide-react'
 import type { TrashItem } from '@shared/types'
 import { useApp } from '../app/context'
+import { AnonymizeDialog } from '../components/AnonymizeDialog'
 import { Badge, Button, Card, EmptyState, ErrorText, PageHeader, Table } from '../components/ui'
 import { pl } from '../i18n/pl'
 import { call, errorMessage, useLoad } from '../lib/api'
 import { formatDateTime } from '../lib/format'
 
 export function TrashView() {
-  const { canWrite } = useApp()
+  const { canWrite, session } = useApp()
+  const isAdmin = session.me.role === 'admin'
   const { data, error, reload } = useLoad('trash.list', {})
   const [actionError, setActionError] = useState('')
+  const [anonymizing, setAnonymizing] = useState<TrashItem | null>(null)
 
   const restore = async (t: TrashItem) => {
     setActionError('')
@@ -56,6 +59,11 @@ export function TrashView() {
                           <RotateCcw size={13} /> {pl.trash.restore}
                         </Button>
                       )}
+                      {isAdmin && t.entity === 'contacts' && t.kind === 'person' && t.label && (
+                        <Button size="sm" variant="ghost" className="ml-1 text-destructive" onClick={() => setAnonymizing(t)}>
+                          {pl.contacts.anonymizeButton}
+                        </Button>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -64,6 +72,7 @@ export function TrashView() {
           </div>
         )}
       </Card>
+      {anonymizing && <AnonymizeDialog contactId={anonymizing.id} label={anonymizing.label} onClose={() => setAnonymizing(null)} onDone={reload} />}
     </div>
   )
 }

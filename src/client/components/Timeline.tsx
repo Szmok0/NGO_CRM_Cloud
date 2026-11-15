@@ -114,7 +114,7 @@ export function Timeline({
                   </button>
                 )}
               </div>
-              <p className={`text-sm whitespace-pre-wrap ${a.type === 'system' ? 'text-muted-foreground' : ''}`}>{a.type === 'system' ? systemText(a.content) : a.content}</p>
+              <p className={`text-sm whitespace-pre-wrap ${a.type === 'system' ? 'text-muted-foreground' : ''}`}>{a.type === 'system' ? systemText(a.content) : a.content || `(${pl.anonymize.contentRemoved})`}</p>
               {showContacts && a.contacts.length > 0 && (
                 <div className="mt-1 flex flex-wrap gap-1">
                   {a.contacts.map((c) => (

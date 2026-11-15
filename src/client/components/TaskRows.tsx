@@ -38,7 +38,7 @@ export function TaskTable({ tasks, onOpen, showTarget = true, showAssignee = tru
                     className={cn('cursor-pointer text-left hover:text-primary', t.status === 'done' ? 'text-faint line-through' : 'font-semibold')}
                     onClick={(e) => (e.stopPropagation(), onOpen(t.id))}
                   >
-                    {t.title}
+                    {t.title || `(${pl.anonymize.contentRemoved})`}
                   </button>{' '}
                   {t.priority === 'high' && t.status !== 'done' && <Badge tone="danger">{pl.priorities.high}</Badge>}
                 </td>
