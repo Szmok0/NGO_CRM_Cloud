@@ -102,7 +102,8 @@ export const ACCESS_ACTION_LABELS: Record<string, string> = {
   anonymize: 'anonimizacja osoby',
   export: 'eksport',
   backup_create: 'kopia zapasowa (ręczna)',
-  backup_download: 'pobranie kopii zapasowej'
+  backup_download: 'pobranie kopii zapasowej',
+  backup_verify: 'sprawdzenie kopii zapasowej'
 }
 
 export const ACCESS_TARGET_LABELS: Record<string, string> = {

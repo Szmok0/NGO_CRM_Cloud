@@ -186,3 +186,8 @@ Zmiana kontraktu: `backups.list` zwraca `{ items, lastDownloadedAt, downloadDue 
 Sprawdzone w przeglądarce na zbudowanej aplikacji (lokalnie, baza testowa, konto próbne): logowanie z 2FA, ręczna kopia, lista, pobranie (znacznik „Pobrana” i wpis w logu serwera), brak naruszeń CSP w konsoli. Baner przypomnienia sprawdzony tylko testem serwera (`downloadDue`), nie przeklikany.
 Testy: 837/837, typecheck czysty.
 Następny etap: krok 2 („Sprawdź kopię” w przeglądarce).
+
+### Krok 2 (2026-11-15) — „Sprawdź kopię”
+Zrobione: moduł `src/client/crypto/backupRead.ts` (nagłówek, otwarcie klucza kopii e-mailem i hasłem, czytanie segmentów kawałkami przez `Blob.slice`, `DecompressionStream`, parser ramek; `verifyBackup` porównuje liczby wierszy i plików z zestawieniem na końcu pliku; `readBackup`/`openBackup` (z opcją wyeksportowania klucza) gotowe pod krok 3). Kody błędów: `not_backup`, `newer_format`, `no_account`, `wrong_password`, `corrupt`. RPC `backups.markTested` (admin; kopię wskazuje `createdAt` z nagłówka = `startedAt`; plik z innego serwera lub usunięta kopia → `matched: false`, bez zapisu; zapisuje tylko udane sprawdzenia; wpis `backup_verify`). Okno „Sprawdź kopię” w karcie kopii (plik, e-mail wstępnie wypełniony, hasło, wynik „Kopia z 15.11.2026: 230 osób, 41 działań, 12 dokumentów. Da się ją odtworzyć.”, komunikaty błędów po polsku).
+Testy (`backupVerify.test.ts`, prawdziwe klucze i prawdziwy plik z serwera): dobra kopia, złe hasło i e-mail, uszkodzenia (bajt, obcięcie, śmieci, nagłówek), kopia sprzed zmiany hasła, nowszy format, uprawnienia i zapis wyniku. Całość 848/848, typecheck czysty.
+Uwagi: przeklikanie w przeglądarce (CSP, `DecompressionStream`) razem z krokiem 3b. Format nie zawiera id kopii, stąd dopasowanie po dacie.

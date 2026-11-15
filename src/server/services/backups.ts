@@ -144,6 +144,14 @@ export async function listBackups(db: Db, now = new Date()): Promise<BackupList>
   return { items, lastDownloadedAt: iso(agg?.lastDownload ? new Date(agg.lastDownload) : null), downloadDue }
 }
 
+/** Zapis udanego sprawdzenia kopii. Kopię wskazuje data z nagłówka pliku; zwraca id kopii albo null, gdy to plik z innego serwera. */
+export async function markTested(db: Db, input: { createdAt: string; result: string }, now: Date): Promise<string | null> {
+  const [row] = await db.select({ id: backups.id }).from(backups).where(and(eq(backups.startedAt, new Date(input.createdAt)), eq(backups.status, 'done')))
+  if (!row) return null
+  await db.update(backups).set({ restoreTestedAt: now, restoreTestResult: input.result }).where(eq(backups.id, row.id))
+  return row.id
+}
+
 /**
  * Lista usunięć z anonimizacji także poza bazą (D5): `STORAGE_DIR/erased_contacts.json`, same identyfikatory i daty.
  * Odtworzenie kopii zrobionej przed anonimizacją łączy ją z listą z kopii. Zapis atomowy (plik tymczasowy, rename).

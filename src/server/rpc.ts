@@ -138,6 +138,12 @@ const handlers: Handlers = {
     return { id }
   },
 
+  'backups.markTested': async (p, { db, session, now }) => {
+    const id = await backupsSvc.markTested(db, p, now)
+    if (id) await logAccess(db, session.userId, 'backup_verify', now, id, 'backup')
+    return { matched: id !== null }
+  },
+
   // osoby i instytucje
   'contacts.list': (p, { db, now }) => contacts.listContacts(db, p, now),
   'contacts.tags': (_p, { db }) => contacts.listTags(db),

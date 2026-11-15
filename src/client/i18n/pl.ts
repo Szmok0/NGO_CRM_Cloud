@@ -410,7 +410,37 @@ export const pl = {
     kinds: { auto: 'automatyczna', manual: 'ręczna' },
     statuses: { running: 'w toku', done: 'gotowa', failed: 'nie udała się' },
     download: 'Pobierz',
-    never: 'jeszcze nie'
+    never: 'jeszcze nie',
+    check: 'Sprawdź kopię',
+    verify: {
+      title: 'Sprawdź kopię',
+      intro: 'Wskaż plik kopii zapisany na Twoim komputerze i wpisz swoje hasło. Program sprawdzi, czy kopię da się odtworzyć. Plik i hasło zostają w tej przeglądarce, nic nie jest wysyłane na serwer.',
+      file: 'Plik kopii (.ngb)',
+      email: 'E-mail administratora',
+      password: 'Hasło',
+      passwordHint: 'Jeśli zmieniłeś hasło po zrobieniu tej kopii, wpisz hasło, które miałeś w dniu kopii.',
+      run: 'Sprawdź',
+      running: 'Sprawdzam…',
+      close: 'Zamknij',
+      again: 'Sprawdź inną kopię',
+      noFile: 'Wybierz plik kopii.',
+      ok: (date: string, summary: string) => `Kopia z ${date}: ${summary}. Da się ją odtworzyć.`,
+      persons: (n: number) => `${n} ${plural(n, 'osoba', 'osoby', 'osób')}`,
+      institutions: (n: number) => `${n} ${plural(n, 'instytucja', 'instytucje', 'instytucji')}`,
+      actions: (n: number) => `${n} ${plural(n, 'działanie', 'działania', 'działań')}`,
+      documents: (n: number) => `${n} ${plural(n, 'dokument', 'dokumenty', 'dokumentów')}`,
+      missing: (n: number) => `Uwaga: ${n} ${plural(n, 'dokument nie miał', 'dokumenty nie miały', 'dokumentów nie miało')} pliku na serwerze w dniu kopii. Reszta jest w porządku.`,
+      saved: 'Wynik zapisany na liście kopii.',
+      notSaved: 'To plik z innego serwera albo kopia już usunięta z listy, więc wyniku nie zapisano na liście.',
+      problem: {
+        not_backup: 'To nie jest plik kopii z tego programu. Wybierz plik z rozszerzeniem .ngb, pobrany przyciskiem „Pobierz”.',
+        newer_format: 'Ta kopia pochodzi z nowszej wersji programu. Najpierw zaktualizuj program, potem sprawdź kopię jeszcze raz.',
+        no_account: 'W tej kopii nie ma administratora z takim e-mailem. Wpisz e-mail, którego używałeś w dniu kopii.',
+        wrong_password: 'Hasło nie pasuje do tej kopii. Wpisz hasło, które miałeś w dniu zrobienia kopii (po zmianie hasła starsze kopie otwiera stare hasło).',
+        corrupt: 'Ten plik jest uszkodzony albo niepełny. Nie opieraj się na nim: pobierz kopię jeszcze raz albo zrób nową.'
+      },
+      failed: 'Nie udało się sprawdzić kopii. Spróbuj jeszcze raz.'
+    }
   },
   trash: {
     title: 'Kosz',

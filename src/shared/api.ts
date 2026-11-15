@@ -225,6 +225,8 @@ export const apiMethods = {
   'backups.list': { input: none, roles: ADMIN },
   /** „Zrób kopię teraz” (D1): wraca od razu, kopia powstaje w tle (limit żądania hostingu). Wpis `backup_create` w dzienniku. */
   'backups.create': { input: none, roles: ADMIN },
+  /** Zapis wyniku „Sprawdź kopię” (D4): tylko udane sprawdzenie; kopię wskazuje data z nagłówka pliku (= start kopii na tym serwerze), plik z innego serwera nic nie zapisuje (`matched: false`); wynik po ludzku bez treści danych. Wpis `backup_verify` w dzienniku. */
+  'backups.markTested': { input: z.object({ createdAt: z.iso.datetime(), result: z.string().min(1).max(255) }), roles: ADMIN },
   /** Ustawienia organizacji potrzebne interfejsowi (moduły, nazwy ról). */
   'settings.get': { input: none, roles: ALL },
 
@@ -586,6 +588,7 @@ export interface ApiOutputs {
   'system.info': { version: string; migrations: number }
   'backups.list': BackupList
   'backups.create': { id: string }
+  'backups.markTested': { matched: boolean }
   'settings.get': OrgSettings
   'contacts.list': T.ContactListItem[]
   'contacts.tags': string[]

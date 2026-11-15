@@ -78,7 +78,7 @@ export function SettingsScreen({ me, account, onChangePassword, onSignedOut }: P
         {me.role === 'admin' && <OrgSettingsCard />}
         {me.role === 'admin' && <RotateKeyCard orgName={account.orgName} openRequest={rotateRequest} />}
         {me.role === 'admin' && <UsersPanel onRotate={() => setRotateRequest((n) => n + 1)} myId={me.userId} userKeysReady={unlocked && hasOrgAccess} onUnlock={() => setUnlocking(true)} onSignedOut={onSignedOut} />}
-        {me.role === 'admin' && <BackupsCard storageConfigured={me.storageConfigured} />}
+        {me.role === 'admin' && <BackupsCard storageConfigured={me.storageConfigured} email={account.email} />}
         {me.role === 'admin' && <AccessLogCard />}
       </div>
     </>
