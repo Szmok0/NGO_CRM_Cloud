@@ -45,7 +45,7 @@ async function storageDir(auth: AuthOptions): Promise<string> {
   return dir
 }
 
-async function requireSession(sessions: SessionProvider, req: FastifyRequest): Promise<Session> {
+export async function requireSession(sessions: SessionProvider, req: FastifyRequest): Promise<Session> {
   const session = await sessions.get(req)
   if (!session) throw new AppError('UNAUTHENTICATED')
   if (!session.totpVerified) throw new AppError('TOTP_REQUIRED')

@@ -221,6 +221,10 @@ export const apiMethods = {
   'keys.rotateFinish': { input: none, roles: ADMIN },
   /** Dane techniczne instancji (wersja, migracje). Bez danych organizacji. */
   'system.info': { input: none, roles: ['admin'] },
+  /** Lista kopii zapasowych (ZADANIE_04, D4): ostatnie, bez usuniętych przez rotację. */
+  'backups.list': { input: none, roles: ADMIN },
+  /** „Zrób kopię teraz” (D1): wraca od razu, kopia powstaje w tle (limit żądania hostingu). Wpis `backup_create` w dzienniku. */
+  'backups.create': { input: none, roles: ADMIN },
   /** Ustawienia organizacji potrzebne interfejsowi (moduły, nazwy ról). */
   'settings.get': { input: none, roles: ALL },
 
@@ -439,6 +443,18 @@ export interface InviteLink {
   expiresAt: string
 }
 
+export interface BackupItem {
+  id: string
+  startedAt: string
+  finishedAt: string | null
+  status: 'running' | 'done' | 'failed'
+  kind: 'auto' | 'manual'
+  sizeBytes: number | null
+  downloadedAt: string | null
+  restoreTestedAt: string | null
+  restoreTestResult: string | null
+}
+
 export interface KeySlotItem {
   keyVersion: number
   wrappedKey: string
@@ -561,6 +577,8 @@ export interface ApiOutputs {
   'keys.rotateBatch': { updated: number; conflicts: string[] }
   'keys.rotateFinish': void
   'system.info': { version: string; migrations: number }
+  'backups.list': BackupItem[]
+  'backups.create': { id: string }
   'settings.get': OrgSettings
   'contacts.list': T.ContactListItem[]
   'contacts.tags': string[]

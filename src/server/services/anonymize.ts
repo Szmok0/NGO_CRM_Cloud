@@ -28,6 +28,7 @@ import {
   tasks
 } from '../db/schema'
 import { repoFor, type Actor } from './common'
+import { writeErasedList } from './backups'
 
 type Tx = Parameters<Parameters<Db['transaction']>[0]>[0]
 
@@ -166,6 +167,8 @@ export async function anonymizeContact(db: Db, input: ApiParsed<'contacts.anonym
     return e
   })
   await removeFiles(storageDir, erased.storageKeys)
+  // Lista usunięć także poza bazą (D5); błąd nie cofa anonimizacji, następna kopia odtworzy plik z tabeli.
+  if (storageDir) await writeErasedList(db, storageDir).catch(() => undefined)
 }
 
 /**

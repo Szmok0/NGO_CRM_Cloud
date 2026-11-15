@@ -11,6 +11,7 @@ import { registerSecurity } from './security'
 import { noSessions, registerRpc, type SessionProvider } from './rpc'
 import { registerAuthRoutes } from './auth/routes'
 import { registerAttachmentRoutes } from './attachmentRoutes'
+import { registerBackupRoutes } from './backupRoutes'
 import type { AuthOptions } from './auth/options'
 
 const LOOPBACK = new Set(['127.0.0.1', '::1', '::ffff:127.0.0.1'])
@@ -55,6 +56,7 @@ export function buildApp(db: Db | null, missing: string[] = [], sessions: Sessio
   if (db) registerRpc(app, db, sessions, auth)
   if (db && auth) registerAuthRoutes(app, db, auth)
   if (db && auth) registerAttachmentRoutes(app, db, sessions, auth)
+  if (db && auth) registerBackupRoutes(app, db, sessions, auth)
 
   // Zbudowany klient (po `npm run build`). W trybie deweloperskim klienta serwuje Vite.
   const clientDir = resolve(appRoot, 'dist/client')

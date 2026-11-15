@@ -25,8 +25,10 @@ export type AccessAction =
   | 'download_attachment'
   | 'anonymize'
   | 'export'
+  | 'backup_create'
+  | 'backup_download'
 
-export type AccessTargetType = 'user' | 'contact' | 'attachment' | 'contacts_list' | 'actions_list' | 'participants_list' | 'access_log'
+export type AccessTargetType = 'user' | 'contact' | 'attachment' | 'contacts_list' | 'actions_list' | 'participants_list' | 'access_log' | 'backup'
 
 /**
  * `userId` = null: nieudane logowanie na nieznany e-mail. `targetId`: konto, którego dotyczy działanie administratora

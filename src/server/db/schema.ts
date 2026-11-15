@@ -176,6 +176,36 @@ export const changeLog = mysqlTable(
   (t) => [index('change_log_entity_idx').on(t.entity, t.entityId), index('change_log_at_idx').on(t.at)]
 )
 
+/**
+ * Kopie zapasowe (ZADANIE_04, krok 1): tylko metadane; sam plik leży w STORAGE_DIR/backups/. Poza kopią (D2).
+ * `runningLock` = 'running' tylko przy trwającej kopii; unikalny indeks (NULL-e się nie liczą) pilnuje jednej kopii naraz.
+ */
+export const backups = mysqlTable(
+  'backups',
+  {
+    id: char('id', { length: 36 }).primaryKey(),
+    startedAt: datetime('started_at', { mode: 'date', fsp: 3 }).notNull(),
+    finishedAt: datetime('finished_at', { mode: 'date', fsp: 3 }),
+    /** 'running' | 'done' | 'failed' | 'removed' (plik usunięty przez rotację; wiersz zostaje dla historii pobrań) */
+    status: varchar('status', { length: 16 }).notNull(),
+    /** 'auto' | 'manual' */
+    kind: varchar('kind', { length: 8 }).notNull(),
+    /** Administrator, który zrobił kopię ręcznie; null: automatyczna. */
+    startedBy: char('started_by', { length: 36 }),
+    runningLock: varchar('running_lock', { length: 8 }),
+    sizeBytes: bigint('size_bytes', { mode: 'number' }),
+    /** SHA-256 całego pliku, liczone przez serwer przy zapisie. */
+    sha256: char('sha256', { length: 64 }),
+    programVersion: varchar('program_version', { length: 32 }).notNull(),
+    migrations: int('migrations').notNull(),
+    downloadedAt: datetime('downloaded_at', { mode: 'date', fsp: 3 }),
+    restoreTestedAt: datetime('restore_tested_at', { mode: 'date', fsp: 3 }),
+    /** Wynik sprawdzenia kopii po ludzku, bez treści danych. */
+    restoreTestResult: varchar('restore_test_result', { length: 255 })
+  },
+  (t) => [uniqueIndex('backups_running_uq').on(t.runningLock), index('backups_started_idx').on(t.startedAt)]
+)
+
 // ---------- Osoby i instytucje (ZADANIE_02, krok 2; model danych 2.3) ----------
 // Klucze obce z ON DELETE RESTRICT (D3); usuwanie i tak jest oznaczeniem `deletedAt`.
 const contactFk = () => ({ onDelete: 'restrict' as const })

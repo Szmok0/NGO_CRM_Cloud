@@ -2,6 +2,7 @@ import { loadConfig } from './config'
 import { openDb, runMigrations } from './db/connection'
 import { buildApp } from './app'
 import { dbSessions } from './auth/sessions'
+import { startBackupTimer } from './services/backups'
 
 // Bez await na najwyższym poziomie: Hostinger (lsnode.js) wczytuje ten plik przez require().
 async function start() {
@@ -24,6 +25,7 @@ async function start() {
     production: config.isProduction
   })
   await app.listen({ port: config.PORT, host: config.HOST })
+  startBackupTimer(db, config.STORAGE_DIR)
 }
 
 start().catch((err) => {

@@ -162,3 +162,20 @@ Nie aktualizuj Sejfu bez zgody MOC.
 
 ## Wynik
 _(uzupełniane po każdym etapie)_
+
+### Krok 0 (2026-11-15) — decyzje MOC
+Plan kroku 1 zaakceptowany z poprawkami względem opisu D1–D10:
+- **D3:** w nagłówku kopii przy administratorze jest też `userId` (potrzebny do odwinięcia klucza prywatnego: wchodzi do jego AAD). Zamiast globalnej sumy SHA-256 w przeglądarce (WebCrypto nie liczy jej strumieniowo): tagi GCM segmentów z numerem i flagą „ostatni” w AAD; globalną sumę liczy serwer (`backups.sha256`).
+- **D6:** `APP_SECRET` (szyfruje sekrety TOTP) trzeba zachować; trafia do instrukcji jako rzecz do zapisania. Bez niego po odtworzeniu 2FA nie działa (do rozstrzygnięcia w kroku 3: sam komunikat czy reset 2FA).
+- **D7:** kopia do pomocy musi też czyścić `change_log` (zawiera wartości pól) i wolny tekst w `actions`, `topics`, `relationships.note`, `consents`, `contact_roles.note`, `action_participants.note`, `action_sessions.note`, `activities.form`.
+- **D10:** wyłączenie z listy osób z rolą `member`, `staff`, `donor` potwierdzone. `invitations` poza kopią.
+
+### Krok 1, etap a (2026-11-15) — serwer i testy kopii
+Zrobione: tabela `backups` (migracja 0013), format pliku (`src/shared/backupFormat.ts`), zapis i szyfrowanie segmentami (`services/backupExport.ts`), tworzenie w tle, blokada, rotacja 7 dób + 4 tygodnie, lista, harmonogram i timer godzinowy (`services/backups.ts`), pobieranie `GET /api/backups/:id` (`backupRoutes.ts`), RPC `backups.list` / `backups.create`, wpisy `backup_create` i `backup_download` w dzienniku, `erased_contacts.json` (D5) po kopii i po anonimizacji, nowa kopia po zmianie hasła administratora. 14 nowych testów (odszyfrowanie niezależnym kodem, wykrywanie zmiany/obcięcia/przestawienia segmentów, blokada, rotacja, harmonogram, pobieranie i role); całość 836/836, typecheck czysty.
+Odstępstwa i uwagi:
+- Zaproszenia (`invitations`) i sesje poza kopią. Klucz kopii zawijany tylko aktywnym administratorom z kompletem kluczy; bez takiego administratora kopia kończy się statusem `failed`.
+- Nowa kopia po zmianie hasła powstaje tylko po `auth.changePassword`; po przyjęciu zaproszenia administratora (pierwsze klucze) dopiero z kolejną kopią automatyczną (do rozważenia w kroku 4).
+- Wiersze rotowanych kopii zostają ze statusem `removed` (historia pobrań dla przypomnienia z kroku 2).
+- Kopia czytana w jednej transakcji z migawką; wymaga InnoDB na hostingu (do sprawdzenia przy wdrożeniu, krok 7).
+- Do przejrzenia przez MOC (najlepiej Opus): `backupExport.ts` (zawijanie klucza RSA-OAEP z etykietą, AAD segmentów) i `backupRoutes.ts` (rola `admin`, `no-store`).
+Następny etap: krok 2 (ekran kopii, „Sprawdź kopię” w przeglądarce).

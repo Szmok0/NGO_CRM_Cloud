@@ -100,7 +100,9 @@ export const ACCESS_ACTION_LABELS: Record<string, string> = {
   reveal_sensitive: 'odsłonięcie danych wrażliwych',
   download_attachment: 'pobranie załącznika',
   anonymize: 'anonimizacja osoby',
-  export: 'eksport'
+  export: 'eksport',
+  backup_create: 'kopia zapasowa (ręczna)',
+  backup_download: 'pobranie kopii zapasowej'
 }
 
 export const ACCESS_TARGET_LABELS: Record<string, string> = {
@@ -110,5 +112,6 @@ export const ACCESS_TARGET_LABELS: Record<string, string> = {
   contacts_list: 'lista osób i instytucji',
   actions_list: 'lista działań',
   participants_list: 'uczestnicy działania',
-  access_log: 'dziennik dostępu'
+  access_log: 'dziennik dostępu',
+  backup: 'kopia zapasowa'
 }

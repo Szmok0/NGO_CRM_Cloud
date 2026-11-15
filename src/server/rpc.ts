@@ -24,6 +24,7 @@ import * as anonymizeSvc from './services/anonymize'
 import * as exportsSvc from './services/exports'
 import * as accessLogView from './services/accessLogView'
 import * as tasks from './services/tasks'
+import * as backupsSvc from './services/backups'
 import type { Actor } from './services/common'
 import { SESSION_COOKIE, clearSessionCookie, createSession, revokeAllSessions, revokeSession, setSessionCookie } from './auth/sessions'
 
@@ -97,6 +98,10 @@ const handlers: Handlers = {
     // Nowe hasło: pozostałe sesje tej osoby kończą się, ta dostaje nowy token.
     await revokeAllSessions(db, session.userId)
     await issueFullSession(ctx)
+    // Stare kopie otwiera hasło z dnia kopii (D3): po zmianie hasła administratora od razu powstaje nowa.
+    if (session.role === 'admin' && ctx.auth?.storageDir) {
+      void backupsSvc.startBackup(db, { storageDir: ctx.auth.storageDir, kind: 'auto', userId: null, now }).catch(() => undefined)
+    }
   },
   'auth.logout': async (_p, { session, db, req, reply }) => {
     const token = req.cookies[SESSION_COOKIE]
@@ -126,6 +131,12 @@ const handlers: Handlers = {
   'keys.rotateFinish': (_p, ctx) => rotation.rotateFinish(ctx.db, actor(ctx)),
   'system.info': async (_p, { db }) => ({ version: pkg.version, migrations: await migrationCount(db) }),
   'settings.get': (_p, { db }) => getSettings(db),
+  'backups.list': (_p, { db }) => backupsSvc.listBackups(db),
+  'backups.create': async (_p, { db, session, auth, now }) => {
+    const { id } = await backupsSvc.startBackup(db, { storageDir: auth?.storageDir, kind: 'manual', userId: session.userId, now })
+    await logAccess(db, session.userId, 'backup_create', now, id, 'backup')
+    return { id }
+  },
 
   // osoby i instytucje
   'contacts.list': (p, { db, now }) => contacts.listContacts(db, p, now),
