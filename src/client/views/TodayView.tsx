@@ -9,13 +9,29 @@ import type { TaskListItem, TodayData } from '@shared/types'
 import { useApp } from '../app/context'
 import { MiniCalendar } from '../components/MiniCalendar'
 import { TaskDialog } from '../components/TaskDialog'
-import { Avatar, Badge, Button, Card, EmptyState, ErrorText, InfoNote } from '../components/ui'
+import { Alert, Avatar, Badge, Button, Card, EmptyState, ErrorText, InfoNote } from '../components/ui'
 import { pl } from '../i18n/pl'
 import { call, errorMessage, useDataChanged, useLoad } from '../lib/api'
 import { entryKindLabel, typeTone } from '../lib/calendarUi'
 import { cn } from '../lib/cn'
 import { feedText } from '../lib/feedText'
 import { capitalize, formatDate, longDate, relativeTime, shortDay, timeRange, todayYmd } from '../lib/format'
+
+/** Skrót dla administratora (ZADANIE_04, D8): gdy w „Stanie bezpieczeństwa” coś jest czerwone, widać to od razu na „Dziś”. */
+function SecurityShortcut() {
+  const { go } = useApp()
+  const { data } = useLoad('security.status', {})
+  const red = data?.items.filter((i) => i.tone === 'red').length ?? 0
+  if (!red) return null
+  return (
+    <Alert tone="danger">
+      {pl.security.shortcut(red)}{' '}
+      <button type="button" className="cursor-pointer font-semibold underline" onClick={() => go({ name: 'settings' })}>
+        {pl.security.shortcutGo}
+      </button>
+    </Alert>
+  )
+}
 
 export function TodayView({ notice }: { notice?: string }) {
   const { go, moduleOn, session, create, canWrite } = useApp()
@@ -40,6 +56,7 @@ export function TodayView({ notice }: { notice?: string }) {
   return (
     <div className="flex flex-col gap-6">
       <InfoNote>{notice}</InfoNote>
+      {session.me.role === 'admin' && <SecurityShortcut />}
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-[26px] font-bold tracking-tight">{pl.today.hello(session.account.name.split(' ')[0]!)}</h1>

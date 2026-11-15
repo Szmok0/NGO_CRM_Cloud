@@ -7,13 +7,15 @@ import { UnlockDialog } from '../components/UnlockDialog'
 import { createSlot, importPublicKey } from '../crypto/keys'
 import { pl } from '../i18n/pl'
 import { call, errorMessage, isApiError, useLoad } from '../lib/api'
-import { formatDateTime } from '../lib/format'
+import { formatDate, formatDateTime } from '../lib/format'
 import { openExportableOrgKeys, useKeyring } from '../lib/keyring'
 import { AccessLogCard } from './AccessLogCard'
 import { BackupsCard } from './BackupsCard'
 import { OrgSettingsCard } from './OrgSettingsCard'
 import { RecoverAccessCard } from './RecoverAccessCard'
 import { RotateKeyCard } from './RotateKeyCard'
+import { SECTION, SecurityCard } from './SecurityCard'
+import { releaseDate, version } from '../../../package.json'
 
 interface Props {
   me: ApiOutputs['auth.me']
@@ -41,6 +43,7 @@ export function SettingsScreen({ me, account, onChangePassword, onSignedOut }: P
     <>
       <h1 className="text-2xl font-semibold">{pl.settings.title}</h1>
       <div className="mt-6 space-y-6">
+        {me.role === 'admin' && <SecurityCard />}
         <Card
           title={pl.home.account}
           actions={
@@ -76,11 +79,24 @@ export function SettingsScreen({ me, account, onChangePassword, onSignedOut }: P
         {unlocking && <UnlockDialog userId={me.userId} onClose={() => setUnlocking(false)} />}
         {me.role === 'admin' && unlocked && !hasOrgAccess && <RecoverAccessCard onDone={() => undefined} />}
         {me.role === 'admin' && <OrgSettingsCard />}
-        {me.role === 'admin' && <RotateKeyCard orgName={account.orgName} openRequest={rotateRequest} />}
-        {me.role === 'admin' && <UsersPanel onRotate={() => setRotateRequest((n) => n + 1)} myId={me.userId} userKeysReady={unlocked && hasOrgAccess} onUnlock={() => setUnlocking(true)} onSignedOut={onSignedOut} />}
-        {me.role === 'admin' && <BackupsCard storageConfigured={me.storageConfigured} email={account.email} />}
+        {me.role === 'admin' && (
+          <div id={SECTION.rotate} className="scroll-mt-4">
+            <RotateKeyCard orgName={account.orgName} openRequest={rotateRequest} />
+          </div>
+        )}
+        {me.role === 'admin' && (
+          <div id={SECTION.users} className="scroll-mt-4">
+            <UsersPanel onRotate={() => setRotateRequest((n) => n + 1)} myId={me.userId} userKeysReady={unlocked && hasOrgAccess} onUnlock={() => setUnlocking(true)} onSignedOut={onSignedOut} />
+          </div>
+        )}
+        {me.role === 'admin' && (
+          <div id={SECTION.backups} className="scroll-mt-4">
+            <BackupsCard storageConfigured={me.storageConfigured} email={account.email} />
+          </div>
+        )}
         {me.role === 'admin' && <AccessLogCard />}
       </div>
+      <p className="mt-6 text-xs text-muted-foreground">{pl.security.footer(version, formatDate(releaseDate))}</p>
     </>
   )
 }
