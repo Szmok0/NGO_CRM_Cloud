@@ -1,4 +1,4 @@
-import { mysqlTable, varchar, text, char, datetime, date, int, bigint, boolean, json, index, uniqueIndex } from 'drizzle-orm/mysql-core'
+import { mysqlTable, varchar, text, mediumtext, char, datetime, date, int, bigint, boolean, json, index, uniqueIndex } from 'drizzle-orm/mysql-core'
 
 // ---------- Kolumny wspólne tabel domenowych (zasada danych 1) ----------
 
@@ -33,7 +33,8 @@ export const settings = mysqlTable('settings', {
   /** Własne nazwy ról kontaktów (np. „uczestnik” → „podopieczny”); puste = domyślne. */
   roleLabels: json('role_labels').$type<Record<string, string>>().notNull(),
   staleDays: int('stale_days').notNull().default(30),
-  sensitiveFieldsEnabled: boolean('sensitive_fields_enabled').notNull().default(true),
+  /** Pola wrażliwe na karcie osoby; domyślnie wyłączone, włącza administrator (ZADANIE_03, D2). */
+  sensitiveFieldsEnabled: boolean('sensitive_fields_enabled').notNull().default(false),
   retentionMonths: int('retention_months'),
   /** Wylogowanie po bezczynności (15–120 min). Na razie sesje używają stałych 30 min. */
   idleLogoutMinutes: int('idle_logout_minutes').notNull().default(30)
@@ -211,6 +212,29 @@ export const contactIdentity = mysqlTable(
     notes: text('notes')
   },
   (t) => [uniqueIndex('contact_identity_contact_uq').on(t.contactId)]
+)
+
+/**
+ * Dane wrażliwe osoby (ZADANIE_03, D1): jeden JSON zaszyfrowany w przeglądarce kluczem organizacji (AES-GCM,
+ * AAD = contact_id + wersja klucza). Serwer zna tylko szyfrogram. change_log: same nazwy pól (NAMES_ONLY_TABLES).
+ * Przy anonimizacji wiersz jest usuwany.
+ */
+export const contactSensitive = mysqlTable(
+  'contact_sensitive',
+  {
+    ...domainColumns(),
+    contactId: char('contact_id', { length: 36 })
+      .notNull()
+      .references(() => contacts.id, contactFk()),
+    keyVersion: int('key_version')
+      .notNull()
+      .references(() => orgKeys.version),
+    /** IV 96 bitów, base64. */
+    iv: varchar('iv', { length: 24 }).notNull(),
+    /** Szyfrogram z tagiem GCM, base64. */
+    ciphertext: mediumtext('ciphertext').notNull()
+  },
+  (t) => [uniqueIndex('contact_sensitive_contact_uq').on(t.contactId)]
 )
 
 export const contactRoles = mysqlTable(

@@ -17,6 +17,7 @@ import * as overview from './services/overview'
 import * as actions from './services/actions'
 import * as activities from './services/activities'
 import * as contacts from './services/contacts'
+import * as sensitive from './services/sensitive'
 import * as tasks from './services/tasks'
 import type { Actor } from './services/common'
 import { SESSION_COOKIE, clearSessionCookie, createSession, revokeAllSessions, revokeSession, setSessionCookie } from './auth/sessions'
@@ -121,6 +122,8 @@ const handlers: Handlers = {
   'contacts.list': (p, { db, now }) => contacts.listContacts(db, p, now),
   'contacts.tags': (_p, { db }) => contacts.listTags(db),
   'contacts.get': ({ id }, { db }) => contacts.getContact(db, id),
+  'sensitive.reveal': (p, ctx) => sensitive.revealSensitive(ctx.db, p, actor(ctx)),
+  'sensitive.save': (p, ctx) => sensitive.saveSensitive(ctx.db, p, actor(ctx)),
   'contacts.duplicates': (p, { db, now }) => contacts.findDuplicates(db, p, now),
   'contacts.create': (p, ctx) => contacts.createContact(ctx.db, p, actor(ctx)),
   'contacts.update': (p, ctx) => contacts.updateContact(ctx.db, p, actor(ctx)),

@@ -105,6 +105,10 @@ export interface ContactDetail {
   participations: ParticipationView[]
   tasks: TaskListItem[]
   activities: ActivityView[]
+  /** Czy osoba ma zapisane dane wrażliwe; sam szyfrogram daje dopiero `sensitive.reveal` (D6). */
+  hasSensitive: boolean
+  /** Wersja klucza organizacji, którą zaszyfrowano dane wrażliwe; null bez danych. */
+  sensitiveKeyVersion: number | null
 }
 
 // ---------- tematy i działania (krok 4) ----------

@@ -8,7 +8,7 @@ import { AppError } from '@shared/errors'
 import { displayName, isPossibleDuplicate, matchesQuery } from '@shared/text'
 import type { Consent, ContactDetail, ContactListItem, ContactRole, IdentityFields, SearchHit } from '@shared/types'
 import type { Db } from '../db/connection'
-import { actionParticipants, actions, consents, contactIdentity, contactRoles, contacts, relationships, topics } from '../db/schema'
+import { actionParticipants, actions, consents, contactIdentity, contactRoles, contactSensitive, contacts, relationships, topics } from '../db/schema'
 import { addSystemActivity, loadActivities } from './activities'
 import { contactRef, contactsById, meta, repoFor, today, type Actor } from './common'
 import { loadTasks } from './tasks'
@@ -119,6 +119,11 @@ export async function getContact(db: Db, id: string): Promise<ContactDetail> {
 
   const roleRows = await db.select().from(contactRoles).where(and(eq(contactRoles.contactId, id), isNull(contactRoles.deletedAt)))
   const consentRows = await db.select().from(consents).where(and(eq(consents.contactId, id), isNull(consents.deletedAt)))
+  // Bez szyfrogramu: ten daje dopiero sensitive.reveal z wpisem w dzienniku (D6).
+  const [sensitive] = await db
+    .select({ keyVersion: contactSensitive.keyVersion })
+    .from(contactSensitive)
+    .where(and(eq(contactSensitive.contactId, id), isNull(contactSensitive.deletedAt)))
 
   return {
     contact,
@@ -155,7 +160,9 @@ export async function getContact(db: Db, id: string): Promise<ContactDetail> {
       }))
       .sort((x, y) => (y.action.startDate ?? '').localeCompare(x.action.startDate ?? '')),
     tasks: await loadTasks(db, { targetType: 'contact', targetId: id }),
-    activities: await loadActivities(db, { contactId: id }, all)
+    activities: await loadActivities(db, { contactId: id }, all),
+    hasSensitive: Boolean(sensitive),
+    sensitiveKeyVersion: sensitive?.keyVersion ?? null
   }
 }
 

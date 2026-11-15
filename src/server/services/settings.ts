@@ -18,7 +18,8 @@ export async function getSettings(db: Db): Promise<OrgSettings> {
     profile: s.profile as Profile,
     enabledModules: normalizeModules(s.enabledModules),
     roleLabels: s.roleLabels as RoleLabels,
-    staleDays: s.staleDays
+    staleDays: s.staleDays,
+    sensitiveFieldsEnabled: s.sensitiveFieldsEnabled
   }
 }
 
@@ -30,6 +31,7 @@ export async function updateSettings(db: Db, i: ApiParsed<'settings.update'>, ac
     profile: i.profile,
     enabledModules: normalizeModules(i.enabledModules),
     roleLabels: Object.fromEntries(Object.entries(i.roleLabels).filter(([, v]) => v)),
-    staleDays: i.staleDays
+    staleDays: i.staleDays,
+    sensitiveFieldsEnabled: i.sensitiveFieldsEnabled
   })
 }

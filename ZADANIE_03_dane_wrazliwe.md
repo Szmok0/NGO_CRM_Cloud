@@ -247,3 +247,16 @@ _(uzupełniane po każdym etapie)_
 - Testy: `lib/keyring.test.ts` (6). Typecheck, 655 testów i build przechodzą.
 - **Odstępstwo:** przycisk „Odblokuj” jest tylko na ekranie konta; na karcie osoby pojawi się w kroku 2 (karta nie ma jeszcze danych wrażliwych).
 - **Niesprawdzone:** przeklikanie w przeglądarce na zbudowanej aplikacji pod CSP. `npm run dev:account` odmówił (lokalna baza ma inne konta), więc nie było konta do zalogowania.
+
+### Krok 2, etap a (2026-11-15): serwer i testy
+- Tabela `contact_sensitive` (`contactId` UNIQUE z FK do `contacts`, `keyVersion` z FK do `org_keys`, `iv`, `ciphertext` jako `mediumtext`), migracja `0010_thick_jackal.sql`.
+- Migracja zmienia domyślne `sensitiveFieldsEnabled` na `false` **i ustawia `false` w istniejącym wierszu ustawień** (zatwierdzone przez MOC). Na instancji próbnej trzeba po wdrożeniu włączyć pola ręcznie (D2).
+- `settings.get` zwraca `sensitiveFieldsEnabled`; `settings.update` ma opcjonalne pole o tej nazwie (brak = bez zmiany, obecny ekran ustawień działa bez zmian).
+- `contacts.get`: `hasSensitive` i `sensitiveKeyVersion`, bez szyfrogramu.
+- Nowe RPC (`src/server/services/sensitive.ts`):
+  - `sensitive.reveal` (wszystkie role): slot do wersji klucza rekordu, wersja niewycofana, inaczej `NO_KEY_ACCESS`; wpis `reveal_sensitive` (cel `contact`) w tej samej transakcji; zwraca `version`, `keyVersion`, `iv`, `ciphertext`.
+  - `sensitive.save` (`admin`/`staff`): tylko osoba (instytucja → 400; Kosz, zanonimizowana, brak → 404), wyłącznie bieżąca wersja klucza i slot do niej, `version` = null przy pierwszym zapisie, konflikt → `VERSION_CONFLICT`; IV 16 znaków base64, szyfrogram do 64 KB (`SENSITIVE_MAX_CIPHERTEXT`). Zwraca `{ version }`.
+  - Pola wyłączone → `FORBIDDEN` dla obu metod (wyłączenie ukrywa też odsłonięcie).
+- `logAccess` dostał parametr `targetType` (`user` domyślnie, `contact`).
+- Testy: `src/server/services/sensitive.test.ts` (13); test uprawnień obejmuje nowe metody automatycznie. Typecheck, 678 testów i build przechodzą.
+- **Uwaga techniczna:** MariaDB nie zna `SELECT … FOR SHARE` (składnia MySQL 8), dlatego zapis blokuje wiersze `org_keys` przez `FOR UPDATE` jak `access.grant`. Zapisy danych wrażliwych idą przez to po kolei, co przy skali NGO nie ma znaczenia.

@@ -55,6 +55,8 @@ const version = z.number().int().positive()
 const ref = z.object({ id: uuid, version })
 /** Klucz organizacji zaszyfrowany kluczem publicznym osoby (RSA-OAEP, base64), jak slot w kreatorze. */
 const wrappedKeySchema = z.string().max(1000).regex(/^[A-Za-z0-9+/]+=*$/)
+/** Największy szyfrogram danych wrażliwych osoby (base64); JSON pięciu pól (D1) jest dużo mniejszy. */
+export const SENSITIVE_MAX_CIPHERTEXT = 65_536
 
 const identityFields = {
   firstName: short(100),
@@ -173,6 +175,21 @@ export const apiMethods = {
   },
   'contacts.tags': { input: none, roles: ALL },
   'contacts.get': { input: z.object({ id: uuid }), roles: ALL },
+  /** Szyfrogram danych wrażliwych osoby; tylko ze slotem do jego wersji klucza, wpis `reveal_sensitive` (D3, D6). */
+  'sensitive.reveal': { input: z.object({ contactId: uuid }), roles: ALL },
+  /**
+   * Zapis danych wrażliwych zaszyfrowanych w przeglądarce bieżącą wersją klucza (D1, D3). `version` = null: pierwszy zapis.
+   */
+  'sensitive.save': {
+    input: z.object({
+      contactId: uuid,
+      version: version.nullable(),
+      keyVersion: version,
+      iv: z.string().length(16).regex(/^[A-Za-z0-9+/]+=*$/),
+      ciphertext: z.string().min(1).max(SENSITIVE_MAX_CIPHERTEXT).regex(/^[A-Za-z0-9+/]+=*$/)
+    }),
+    roles: WRITE
+  },
   /** Możliwe duplikaty po imieniu i nazwisku, e-mailu lub telefonie (sprawdzane przy zakładaniu osoby). */
   'contacts.duplicates': {
     input: z.object({ firstName: short(100), lastName: short(100), email: short(254), phone: short(50), excludeId: uuid.nullish() }),
@@ -304,7 +321,9 @@ export const apiMethods = {
       profile: z.enum(PROFILES),
       enabledModules: z.array(z.string().max(32)).max(20),
       roleLabels: z.partialRecord(z.enum(d.ROLES), z.string().trim().max(40)),
-      staleDays: z.number().int().min(1).max(3650)
+      staleDays: z.number().int().min(1).max(3650),
+      /** Brak = bez zmiany. Wyłączenie ukrywa pola, dane zostają (D2). */
+      sensitiveFieldsEnabled: z.boolean().optional()
     }),
     roles: ADMIN
   },
@@ -355,6 +374,17 @@ export interface OrgSettings {
   enabledModules: ModuleId[]
   roleLabels: RoleLabels
   staleDays: number
+  /** Pola wrażliwe na karcie osoby (D2). */
+  sensitiveFieldsEnabled: boolean
+}
+
+/** Szyfrogram danych wrażliwych osoby; otwiera go tylko przeglądarka kluczem organizacji w wersji `keyVersion`. */
+export interface SensitiveCipher {
+  /** Wersja rekordu (do zapisu). */
+  version: number
+  keyVersion: number
+  iv: string
+  ciphertext: string
 }
 
 export interface ApiOutputs {
@@ -383,6 +413,8 @@ export interface ApiOutputs {
   'contacts.list': T.ContactListItem[]
   'contacts.tags': string[]
   'contacts.get': T.ContactDetail
+  'sensitive.reveal': SensitiveCipher
+  'sensitive.save': { version: number }
   'contacts.duplicates': T.ContactListItem[]
   'contacts.create': { id: string }
   'contacts.update': void
