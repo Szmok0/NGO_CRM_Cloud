@@ -367,3 +367,23 @@ _(uzupełniane po każdym etapie)_
 - Typecheck, 812 testów i build przechodzą. Logi serwera w teście: same identyfikatory, kody i nazwy metod.
 - `npm audit`: 0 w zależnościach produkcyjnych (`--omit=dev`); 4 średnie tylko w `drizzle-kit` (`esbuild` ≤ 0.24.2, serwer deweloperski esbuild, którego nie uruchamiamy), jak w ZADANIACH 01 i 02.
 - **Zostaje na etap b:** wdrożenie na Hostinger po zgodzie MOC (`STORAGE_DIR` w panelu), przeklikanie kryteriów 2–13 na instancji próbnej (w tym rzeczy oznaczone wyżej jako niesprawdzone w przeglądarce: kroki 5b, 6b, puste tytuły zadań po anonimizacji), podsumowanie „Po zakończeniu”, `git push`.
+
+### Krok 7, etap b (2026-11-15): wdrożenie na Hostinger i przeklikanie (część administratora)
+- `git push` (`87688fd..bc5ea55`) → automatyczne wdrożenie Hostingera, build `01a1dee9` zakończony w 26 s. `/api/health`: `ok`, 13 migracji, HTTPS. Nagłówki bezpieczeństwa obecne, serwowany ten sam pakiet klienta co lokalny build. `STORAGE_DIR` jest w zmiennych środowiskowych (sprawdzone przez API, wartość zamaskowana).
+- Przeklikane w przeglądarce na instancji próbnej jako administrator `g@gmail.com` (tylko fikcyjne osoby „Anna Zmyślonowska”, „Jan Fikcyjny”, działanie „Warsztat testowy”; pliki testowe podawane do pola pliku z poziomu karty, pobrania przechwycone w karcie i porównane bajt po bajcie):
+  - **8:** konto `g` nie miało slotu (drugi administrator, zaproszony przed ZADANIEM_03). MOC wpisał klucz odzyskiwania → „ma dostęp”, wpis „odzyskanie dostępu do klucza”.
+  - **2:** po migracji pola wrażliwe wyłączone, włączone w Ustawieniach. Zapis PESEL i notatek; `sensitive.reveal` zwraca tylko `iv` i `ciphertext`.
+  - **3 (administrator):** maska → „Odsłoń” → dane, wpis w dzienniku.
+  - **4 (część):** po odświeżeniu „zablokowany / Odblokuj”, po haśle dane działają.
+  - **7:** dokument do osoby i do działania. Serwer oddaje 5028 B (5000 + 28) bez treści i nazwy, `Content-Disposition: attachment; filename="attachment.bin"`, `no-store`. Po odszyfrowaniu nazwa z polskimi znakami, typ i bajty identyczne. Plik 20 MB + 1 B odrzucony w przeglądarce. `STORAGE_DIR` leży poza `public_html`, więc API plików Hostingera go nie widzi (sam katalog niesprawdzony bezpośrednio).
+  - **10:** JSON pełny (`complete: true`, dane wrażliwe odszyfrowane), blok wydruku z danymi.
+  - **11 (część):** CSV listy osób (BOM, domyślnie Nazwa/Rodzaj/Role/Tagi), działań i uczestników; ostrzeżenie w oknie, bez danych wrażliwych.
+  - **9:** anonimizacja z zaznaczonym zadaniem: karta „Osoba zanonimizowana” bez nazwiska i danych, notatka i zadanie „(treść usunięta)”, plik osoby → 404, w działaniu nadal 1 uczestnik.
+  - **6:** zmiana klucza (MOC przechował nowy klucz odzyskiwania i potwierdził 4 znaki): wpisy „początek zmiany klucza” i „zmiana klucza organizacji”, oba konta mają dostęp do nowej wersji; po zmianie notatka, plik osoby i dokument działania czytają się identycznie.
+  - **12:** dziennik pokazuje odsłonięcia, pobrania, eksporty (z rodzajem listy), anonimizację, odzyskanie i zmianę klucza; eksport CSV dziennika działa.
+  - **13 (część):** konsola bez błędów CSP (tylko 401 sprzed logowania i celowy 404). API logów Hostingera pokazuje tylko pole `message` („rpc”, „request completed”, „refused”), więc pełne wiersze logu trzeba obejrzeć w panelu.
+- **Znalezione drobne błędy (bez wpływu na bezpieczeństwo, do poprawy):**
+  - kanban Zadań: karta zadania z wyczyszczonym tytułem jest pusta (lista zadań i karta osoby pokazują „(treść usunięta)”);
+  - po „Odzyskaj dostęp” lista użytkowników i dziennik w Ustawieniach nie odświeżają się same;
+  - po odświeżeniu strony administrator bez slotu widzi „Odblokuj”, a „Odzyskaj dostęp” dopiero po odblokowaniu hasłem.
+- **Nieprzeklikane (decyzja MOC: na teraz tylko zmiana klucza):** kryteria 3 i 5 dla konta bez slotu i pracownika (brak dostępu, 403, nadanie, odebranie kończy sesję), 11 dla `readonly` (brak eksportu), 4 (blokada po 15 min), 6 przerwana zmiana (pokryte testem akceptacji), wydruk na papierze. Wymagają zaproszenia kont z 2FA. Podsumowanie „Po zakończeniu” po domknięciu tych kryteriów.
