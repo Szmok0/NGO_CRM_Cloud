@@ -262,3 +262,10 @@ Sprawdzone na zbudowanej aplikacji (serwer na 127.0.0.1:3001) z lokalną pustą 
 - **Niesprawdzone w przeglądarce:** ścieżka pracownika bez slotu („brak dostępu” bez karty odzyskiwania), odświeżanie listy użytkowników po faktycznym odzyskaniu klucza, karta „(treść usunięta)”. Pokrywa je kod z etapu a, brak testów UI.
 - **Uwaga środowiskowa:** w trybie `npm run dev` proxy Vite zwraca 403 na `/api/rpc` (kontrola Origin w `security.ts`), więc aplikacja pokazuje „Brak połączenia”. Do sprawdzenia przy następnym użyciu trybu dev; tu użyto `npm run build` + `npm start`. Użytkownik bazy `ngocrm` nie ma prawa CREATE DATABASE, dlatego użyto `ngocrm_test` (testy ją czyszczą).
 - Dokumenty z `docs/` czeka na czytanie MOC (czy zrozumie osoba nietechniczna).
+
+### Krok 7, część lokalna (2026-11-15) — test akceptacji i audyt
+- `src/server/acceptance.test.ts`: nowy blok „ZADANIA_04” (6 testów przez API): „Zrób kopię teraz” → kopia `done`, pobranie z wpisem w dzienniku, w pliku brak nazwiska (kryteria 2–4); „Sprawdź kopię” (`markTested`, plik z innego serwera nie zapisuje); panel „Stan bezpieczeństwa” (10 spraw, tylko administrator); wyłączenie sprawdzania wersji; okres przechowywania (lista, „Zostaw jeszcze na rok”, osoba nie jest anonimizowana); kopia do pomocy bez imion, nazwisk, e-maili i telefonów. Każdy ma też sprawdzenie ról (pracownik, tylko odczyt, bez sesji).
+- Odtworzenie na pustej bazie (kryterium 6) zostaje w `services/backupRestore.test.ts` (pełny cykl, wymaga pustej bazy, więc nie mieści się w pliku na wspólnych danych).
+- `npm audit`: 0 luk w zależnościach produkcyjnych (`--omit=dev`); 4 średnie w deweloperskich (esbuild ≤0.24.2 przez drizzle-kit, poprawka wymaga zmiany wersji `--force`, nie robiona bez zgody MOC).
+- Testy 926/926, typecheck i build czyste.
+- **Niezrobione, wymaga zgody MOC:** wdrożenie na Hostinger, przeklikanie kryteriów 13–14 na instancji próbnej, przegląd pełnych wierszy logu (D13), `git push`.

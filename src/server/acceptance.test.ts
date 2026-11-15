@@ -617,3 +617,109 @@ describe('scenariusz akceptacji ZADANIA_03 (dane wrażliwe, przez API, szyfrowan
     expect((await logOf('export')).some((e) => e.targetType === 'access_log')).toBe(true)
   })
 })
+
+describe('scenariusz akceptacji ZADANIA_04 (kopie, sprawdzenie, przechowywanie, kopia do pomocy; przez API)', () => {
+  // Odtworzenie na pustej bazie (kryterium 6) ma własny test z pełnym cyklem: services/backupRestore.test.ts
+  // (potrzebuje pustej bazy, więc nie da się go włączyć do tego pliku, który działa na wspólnych danych).
+  let ewaId = ''
+  const logOf = (action: string) => db.select().from(accessLog).where(eq(accessLog.action, action))
+  const get = (role: Role, url: string) => app.inject({ method: 'GET', url, headers: { ...headers, cookie: cookie[role] } })
+
+  it('2–4: „Zrób kopię teraz” kończy się kopią; pobranie z wpisem w dzienniku; w pliku nie ma nazwiska; tylko administrator', async () => {
+    ewaId = (await person('Ewa', 'Kopiowa', { email: 'ewa.kopiowa@example.org', phone: '600100200' })).id
+    const { id } = await ok<{ id: string }>('admin', 'backups.create')
+    let item: any
+    for (let i = 0; i < 100 && item?.status !== 'done'; i++) {
+      await new Promise((r) => setTimeout(r, 100))
+      item = (await ok<any>('admin', 'backups.list')).items.find((b: any) => b.id === id)
+      expect(item?.status).not.toBe('failed')
+    }
+    expect(item).toMatchObject({ status: 'done', kind: 'manual' })
+    expect(item.sizeBytes).toBeGreaterThan(0)
+
+    const res = await get('admin', `/api/backups/${id}`)
+    expect(res.statusCode).toBe(200)
+    expect(res.headers['content-disposition']).toMatch(/^attachment; filename="ngo-crm-kopia-\d{4}-\d{2}-\d{2}\.ngb"/)
+    expect(res.rawPayload.length).toBe(item.sizeBytes)
+    expect(res.rawPayload.toString('latin1')).not.toMatch(/Kopiowa|Ewa/) // kryterium 3
+    expect(res.rawPayload.toString('utf8')).not.toMatch(/Kopiowa/)
+    expect((await logOf('backup_download')).some((e) => e.targetId === id)).toBe(true)
+    expect((await ok<any>('admin', 'backups.list')).items.find((b: any) => b.id === id).downloadedAt).not.toBeNull()
+
+    for (const r of ['staff', 'readonly'] as const) {
+      expect(await rpc(r, 'backups.create'), r).toMatchObject({ status: 403 })
+      expect(await rpc(r, 'backups.list'), r).toMatchObject({ status: 403 })
+      expect((await get(r, `/api/backups/${id}`)).statusCode, r).toBe(403)
+    }
+    expect((await get('staffNoKey', `/api/backups/${id}`)).statusCode).toBe(403)
+    expect((await app.inject({ method: 'GET', url: `/api/backups/${id}`, headers })).statusCode).toBe(401)
+  }, 30_000)
+
+  it('5: wynik „Sprawdź kopię” zapisuje się przy kopii z tego serwera, a plik z innego serwera nic nie zapisuje; wpis w dzienniku', async () => {
+    const [item] = (await ok<any>('admin', 'backups.list')).items
+    expect(await ok('admin', 'backups.markTested', { createdAt: item.startedAt, result: 'Kopia otwiera się, dane się zgadzają.' })).toEqual({ matched: true })
+    expect(await ok('admin', 'backups.markTested', { createdAt: '2000-01-01T00:00:00.000Z', result: 'Plik z innego serwera.' })).toEqual({ matched: false })
+    const after = (await ok<any>('admin', 'backups.list')).items.find((b: any) => b.id === item.id)
+    expect(after).toMatchObject({ restoreTestResult: 'Kopia otwiera się, dane się zgadzają.' })
+    expect(after.restoreTestedAt).not.toBeNull()
+    expect((await logOf('backup_verify')).length).toBeGreaterThan(0)
+    expect(await rpc('staff', 'backups.markTested', { createdAt: item.startedAt, result: 'x' })).toMatchObject({ status: 403 })
+  })
+
+  it('7: panel „Stan bezpieczeństwa” zawiera wszystkie sprawy z D8, tylko dla administratora', async () => {
+    const status = await ok<any>('admin', 'security.status')
+    expect(status.items.map((i: any) => i.id).sort()).toEqual(['access', 'backup', 'download', 'https', 'retention', 'rotation', 'storage', 'twofa', 'verify', 'version'])
+    for (const i of status.items) expect(['green', 'yellow', 'red', 'grey'], i.id).toContain(i.tone)
+    expect(JSON.stringify(status)).not.toMatch(/Kopiowa/)
+    for (const r of ['staff', 'readonly'] as const) expect(await rpc(r, 'security.status'), r).toMatchObject({ status: 403 })
+  })
+
+  it('8: wyłączenie sprawdzania wersji zapisuje wpis w dzienniku i jest widoczne w panelu', async () => {
+    await ok('admin', 'security.setUpdateCheck', { enabled: false })
+    expect(await ok<any>('admin', 'security.status')).toMatchObject({ updateCheckEnabled: false, update: { state: 'disabled' } })
+    expect((await logOf('update_check_disabled')).length).toBeGreaterThan(0)
+    await ok('admin', 'security.setUpdateCheck', { enabled: true })
+  })
+
+  it('9: okres przechowywania pokazuje osobę bez aktywności; „Zostaw jeszcze na rok” ją odkłada; nic nie znika samo', async () => {
+    expect((await ok<any>('admin', 'retention.list')).months).toBeNull()
+    const old = new Date(Date.now() - 800 * DAY)
+    await db.update(contacts).set({ createdAt: old }).where(eq(contacts.id, ewaId))
+    await db.update(contactRoles).set({ createdAt: old }).where(eq(contactRoles.contactId, ewaId))
+    const actIds = (await db.select({ id: activityContacts.activityId }).from(activityContacts).where(eq(activityContacts.contactId, ewaId))).map((r) => r.id)
+    for (const id of actIds) await db.update(activities).set({ occurredAt: old }).where(eq(activities.id, id))
+    await ok('admin', 'retention.setPeriod', { months: 24 })
+    const list = await ok<any>('admin', 'retention.list')
+    expect(list.months).toBe(24)
+    const entry = list.items.find((p: any) => p.contactId === ewaId)
+    expect(entry, 'osoba po okresie jest na liście').toBeTruthy()
+    expect(entry.monthsInactive).toBeGreaterThanOrEqual(24)
+
+    await ok('admin', 'retention.snooze', { contactId: ewaId, version: entry.version })
+    expect((await ok<any>('admin', 'retention.list')).items.some((p: any) => p.contactId === ewaId)).toBe(false)
+    expect((await db.select().from(contactIdentity).where(eq(contactIdentity.contactId, ewaId))).length).toBe(1) // nie zanonimizowana
+    expect((await logOf('retention_changed')).length).toBeGreaterThan(0)
+
+    for (const r of ['staff', 'readonly'] as const) {
+      expect(await rpc(r, 'retention.list'), r).toMatchObject({ status: 403 })
+      expect(await rpc(r, 'retention.setPeriod', { months: 12 }), r).toMatchObject({ status: 403 })
+    }
+    await ok('admin', 'retention.setPeriod', { months: null })
+  })
+
+  it('10: kopia do pomocy technicznej nie zawiera imion, nazwisk, e-maili, telefonów ani treści notatek; tylko administrator; wpis w dzienniku', async () => {
+    const res = await get('admin', '/api/support-copy')
+    expect(res.statusCode).toBe(200)
+    expect(res.headers['content-disposition']).toMatch(/^attachment; filename="ngo-crm-do-pomocy-/)
+    const body = res.body
+    expect(() => JSON.parse(body)).not.toThrow()
+    expect(body).not.toMatch(/Kopiowa|\bEwa\b|ewa\.kopiowa|600100200|@example\.org/)
+    const rows = await db.select().from(contactIdentity)
+    for (const r of rows) {
+      for (const v of [r.firstName, r.lastName, r.email, r.phone]) if (v && v.length > 3) expect(body, 'dane osoby w kopii do pomocy').not.toContain(v)
+    }
+    expect((await logOf('support_copy')).length).toBeGreaterThan(0)
+    for (const r of ['staff', 'readonly'] as const) expect((await get(r, '/api/support-copy')).statusCode, r).toBe(403)
+    expect((await app.inject({ method: 'GET', url: '/api/support-copy', headers })).statusCode).toBe(401)
+  })
+})
