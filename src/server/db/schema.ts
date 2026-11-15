@@ -39,7 +39,9 @@ export const settings = mysqlTable('settings', {
   /** Wylogowanie po bezczynności (15–120 min). Na razie sesje używają stałych 30 min. */
   idleLogoutMinutes: int('idle_logout_minutes').notNull().default(30),
   /** Sprawdzanie nowej wersji w serwisie GitHub (ZADANIE_04, D9); domyślnie włączone, wyłącza administrator. */
-  checkUpdates: boolean('check_updates').notNull().default(true)
+  checkUpdates: boolean('check_updates').notNull().default(true),
+  /** Wynik ostatnich sprawdzeń wersji (services/updates.ts); dane techniczne, zapis poza repozytorium. */
+  updateInfo: json('update_info').$type<{ checkedAt: string | null; release: { version: string; title: string; url: string; security: boolean } | null; attemptedAt: string | null; lastFailed: boolean } | null>()
 })
 
 // ---------- Dostęp (model danych 2.2, bezpieczeństwo rozdział 5) ----------

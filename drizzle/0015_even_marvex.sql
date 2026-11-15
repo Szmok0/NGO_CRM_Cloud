@@ -1,0 +1,1 @@
+ALTER TABLE `settings` ADD `update_info` json;

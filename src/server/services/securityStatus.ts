@@ -84,7 +84,7 @@ async function accountItems(db: Db): Promise<SecurityItem[]> {
 
 export async function getSecurityStatus(db: Db, ctx: StatusContext): Promise<SecurityStatus> {
   const enabled = await updateCheckEnabled(db)
-  const update = updateStatus(enabled)
+  const update = await updateStatus(db, enabled)
   const versionTone: SecurityTone = update.state === 'available' ? (update.security ? 'red' : 'yellow') : update.state === 'current' ? 'green' : 'grey'
   const items: SecurityItem[] = [
     { id: 'version', tone: versionTone, data: { current: pkg.version, releasedAt: pkg.releaseDate, state: update.state, latest: update.latest, security: update.security } },

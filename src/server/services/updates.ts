@@ -22,24 +22,37 @@ export interface ReleaseInfo {
   security: boolean
 }
 
-interface Cache {
-  /** Ostatnie udane sprawdzenie. */
-  checkedAt: Date | null
+/** Wynik ostatnich sprawdzeń, trzymany w bazie (`settings.update_info`): przeżywa restart i jest wspólny dla wszystkich procesów. */
+export interface StoredUpdateInfo {
+  /** Ostatnie udane sprawdzenie (ISO). */
+  checkedAt: string | null
   release: ReleaseInfo | null
-  /** Ostatnia próba (udana lub nie); po nieudanej następna jest przy najbliższym tyknięciu timera. */
-  attemptedAt: Date | null
+  /** Ostatnia próba, udana lub nie (ISO). */
+  attemptedAt: string | null
   lastFailed: boolean
 }
+const EMPTY: StoredUpdateInfo = { checkedAt: null, release: null, attemptedAt: null, lastFailed: false }
+/** Po nieudanej próbie następna najwcześniej po godzinie (też po restarcie procesu). */
+const RETRY_AFTER_FAILURE_MS = 3600_000
 
-let cache: Cache = { checkedAt: null, release: null, attemptedAt: null, lastFailed: false }
 let fetcher: typeof fetch = (input, init) => fetch(input, init)
 
-/** Tylko dla testów: podmiana zapytania sieciowego i czyszczenie pamięci podręcznej. */
+/** Tylko dla testów: podmiana zapytania sieciowego. */
 export function setUpdateFetcher(f: typeof fetch | null) {
   fetcher = f ?? ((input, init) => fetch(input, init))
 }
-export function resetUpdateCache() {
-  cache = { checkedAt: null, release: null, attemptedAt: null, lastFailed: false }
+
+async function loadInfo(db: Db): Promise<StoredUpdateInfo> {
+  const [s] = await db.select({ info: settings.updateInfo }).from(settings).where(isNull(settings.deletedAt)).limit(1)
+  return s?.info ?? EMPTY
+}
+
+/**
+ * Zapis wprost, poza repozytorium: to dane techniczne, nie dane organizacji. Przez repozytorium każda doba podbijałaby
+ * `version` ustawień (konflikt z administratorem edytującym formularz) i zapełniała `change_log`.
+ */
+async function saveInfo(db: Db, info: StoredUpdateInfo) {
+  await db.update(settings).set({ updateInfo: info }).where(isNull(settings.deletedAt))
 }
 
 const parts = (v: string) => /^(\d+)\.(\d+)\.(\d+)$/.exec(v)?.slice(1, 4).map(Number) ?? null
@@ -73,6 +86,7 @@ export async function updateCheckEnabled(db: Db): Promise<boolean> {
 /** Jedno zapytanie do GitHuba, jeśli sprawdzanie jest włączone. Nigdy nie rzuca: błąd sieci zapisuje się jako „nie udało się”. */
 export async function refreshUpdateInfo(db: Db, now: Date = new Date()): Promise<void> {
   if (!(await updateCheckEnabled(db))) return
+  const iso = now.toISOString()
   try {
     const res = await fetcher(RELEASES_API_URL, {
       headers: { accept: 'application/vnd.github+json', 'user-agent': 'ngo-crm-cloud' },
@@ -81,34 +95,37 @@ export async function refreshUpdateInfo(db: Db, now: Date = new Date()): Promise
     if (!res.ok) throw new Error('status')
     const release = parseRelease(await res.json())
     if (!release) throw new Error('shape')
-    cache = { checkedAt: now, release, attemptedAt: now, lastFailed: false }
+    await saveInfo(db, { checkedAt: iso, release, attemptedAt: iso, lastFailed: false })
   } catch {
-    cache = { ...cache, attemptedAt: now, lastFailed: true }
+    await saveInfo(db, { ...(await loadInfo(db)), attemptedAt: iso, lastFailed: true }).catch(() => undefined)
   }
 }
 
-/** Czy minęła doba od ostatniego udanego sprawdzenia (po nieudanym próbujemy znowu przy kolejnym tyknięciu). */
-export function updateCheckDue(now: Date): boolean {
-  if (cache.lastFailed || !cache.checkedAt) return true
-  return now.getTime() - cache.checkedAt.getTime() >= CHECK_EVERY_MS
+/** Czy czas pytać: doba od ostatniego udanego sprawdzenia, a po nieudanym godzina od próby. */
+export async function updateCheckDue(db: Db, now: Date): Promise<boolean> {
+  const i = await loadInfo(db)
+  if (i.lastFailed) return !i.attemptedAt || now.getTime() - new Date(i.attemptedAt).getTime() >= RETRY_AFTER_FAILURE_MS
+  return !i.checkedAt || now.getTime() - new Date(i.checkedAt).getTime() >= CHECK_EVERY_MS
 }
 
-/** Aktualny stan do panelu (z pamięci podręcznej, bez ruchu w sieci). */
-export function updateStatus(enabled: boolean): SecurityStatus['update'] {
-  const none = { latest: null, title: null, url: null, security: false, checkedAt: cache.checkedAt?.toISOString() ?? null }
+/** Aktualny stan do panelu (z bazy, bez ruchu w sieci). */
+export async function updateStatus(db: Db, enabled: boolean): Promise<SecurityStatus['update']> {
+  const i = await loadInfo(db)
+  const none = { latest: null, title: null, url: null, security: false, checkedAt: i.checkedAt }
   if (!enabled) return { state: 'disabled', ...none }
-  const r = cache.release
-  if (r && isNewerVersion(r.version, pkg.version)) return { state: 'available', latest: r.version, title: r.title, url: r.url, security: r.security, checkedAt: none.checkedAt }
-  if (cache.lastFailed) return { state: 'failed', ...none }
+  const r = i.release
+  if (r && isNewerVersion(r.version, pkg.version)) return { state: 'available', latest: r.version, title: r.title, url: r.url, security: r.security, checkedAt: i.checkedAt }
+  if (i.lastFailed) return { state: 'failed', ...none }
   if (!r) return { state: 'pending', ...none }
   return { state: 'current', ...none, latest: r.version }
 }
 
-/** Timer procesu: sprawdzenie zaraz po starcie i potem co godzinę, pytanie do GitHuba najwyżej raz na dobę. */
+/** Timer procesu: sprawdzenie zaraz po starcie i potem co godzinę; do GitHuba idzie najwyżej raz na dobę (decyduje baza). */
 export function startUpdateTimer(db: Db): void {
   const tick = () => {
-    if (!updateCheckDue(new Date())) return
-    void refreshUpdateInfo(db).catch(() => undefined)
+    void updateCheckDue(db, new Date())
+      .then((due) => (due ? refreshUpdateInfo(db) : undefined))
+      .catch(() => undefined)
   }
   tick()
   setInterval(tick, 3600_000).unref()

@@ -12,7 +12,7 @@ import type { Db } from '../db/connection'
 import { accessLog, backups, keySlots, orgKeys, settings, users } from '../db/schema'
 import { openTestDb } from '../testDb'
 import { getSecurityStatus } from './securityStatus'
-import { isNewerVersion, parseRelease, refreshUpdateInfo, resetUpdateCache, setUpdateFetcher, updateCheckDue } from './updates'
+import { isNewerVersion, parseRelease, refreshUpdateInfo, setUpdateFetcher, updateCheckDue } from './updates'
 
 let db: Db
 let close: () => Promise<void>
@@ -36,7 +36,6 @@ async function wipe() {
 }
 beforeEach(async () => {
   await wipe()
-  resetUpdateCache()
   setUpdateFetcher(async () => {
     throw new Error('Test nie powinien pytać sieci')
   })
@@ -114,6 +113,8 @@ describe('wersje i wydania', () => {
     const s = await status()
     expect(s.update).toMatchObject({ state: 'available', latest: '9.9.9', security: false, checkedAt: NOW.toISOString() })
     expect(item(s, 'version')).toMatchObject({ tone: 'yellow', data: { current: pkg.version, releasedAt: pkg.releaseDate, latest: '9.9.9' } })
+    // wynik w bazie (przeżywa restart, wspólny dla procesów), bez podbijania wersji ustawień
+    expect((await db.select().from(settings))[0]).toMatchObject({ version: 1, updateInfo: { release: { version: '9.9.9' }, lastFailed: false } })
     expect(calls).toHaveLength(1)
     expect(calls[0]!.url).toBe('https://api.github.com/repos/Szmok0/NGO_CRM_Cloud/releases/latest')
     expect(calls[0]!.init?.headers).toEqual({ accept: 'application/vnd.github+json', 'user-agent': 'ngo-crm-cloud' })
@@ -154,7 +155,8 @@ describe('wersje i wydania', () => {
     await refreshUpdateInfo(db, NOW)
     s = await status()
     expect(s.update.state).toBe('failed')
-    expect(updateCheckDue(NOW)).toBe(true) // po nieudanym próbujemy znowu przy kolejnym tyknięciu
+    expect(await updateCheckDue(db, NOW)).toBe(false) // po nieudanym próbujemy znowu najwcześniej po godzinie
+    expect(await updateCheckDue(db, new Date(NOW.getTime() + 3600_000))).toBe(true)
   })
 
   it('przed pierwszym sprawdzeniem „pending”; po udanym raz na dobę, nieudane po udanym nie kasuje znanej nowej wersji', async () => {
@@ -162,8 +164,8 @@ describe('wersje i wydania', () => {
     expect((await status()).update.state).toBe('pending')
     fakeGithub(release())
     await refreshUpdateInfo(db, NOW)
-    expect(updateCheckDue(new Date(NOW.getTime() + 3600_000))).toBe(false)
-    expect(updateCheckDue(new Date(NOW.getTime() + 25 * 3600_000))).toBe(true)
+    expect(await updateCheckDue(db, new Date(NOW.getTime() + 3600_000))).toBe(false)
+    expect(await updateCheckDue(db, new Date(NOW.getTime() + 25 * 3600_000))).toBe(true)
     setUpdateFetcher(async () => {
       throw new TypeError('fetch failed')
     })
