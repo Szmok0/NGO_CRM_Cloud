@@ -1,23 +1,28 @@
 // Ustawienia: własne konto (dla każdego), ustawienia organizacji i użytkownicy programu (tylko administrator).
 import { useState } from 'react'
-import type { ApiOutputs, InviteLink, Role, UserListItem } from '@shared/api'
+import type { AccessListItem, ApiOutputs, InviteLink, Role, UserListItem } from '@shared/api'
 import { ROLES } from '@shared/api'
-import { Badge, Button, Card, ErrorNote, InputField, SelectField } from '../components/ui'
+import { Alert, Badge, Button, Card, ErrorNote, InputField, SelectField } from '../components/ui'
+import { UnlockDialog } from '../components/UnlockDialog'
+import { createSlot, importPublicKey } from '../crypto/keys'
 import { pl } from '../i18n/pl'
 import { call, errorMessage, isApiError, useLoad } from '../lib/api'
 import { formatDateTime } from '../lib/format'
+import { openExportableOrgKeys, useKeyring } from '../lib/keyring'
 import { OrgSettingsCard } from './OrgSettingsCard'
+import { RecoverAccessCard } from './RecoverAccessCard'
 
 interface Props {
   me: ApiOutputs['auth.me']
   account: ApiOutputs['auth.account']
-  keysUnlocked: boolean
   onChangePassword: () => void
   onSignedOut: () => void
 }
 
-export function SettingsScreen({ me, account, keysUnlocked, onChangePassword, onSignedOut }: Props) {
+export function SettingsScreen({ me, account, onChangePassword, onSignedOut }: Props) {
   const [error, setError] = useState<string | null>(null)
+  const [unlocking, setUnlocking] = useState(false)
+  const { unlocked, hasOrgAccess } = useKeyring()
 
   async function logoutAll() {
     try {
@@ -54,11 +59,20 @@ export function SettingsScreen({ me, account, keysUnlocked, onChangePassword, on
             <dt className="text-muted-foreground">{pl.home.role}</dt>
             <dd>{pl.userRoles[me.role]}</dd>
             <dt className="text-muted-foreground">{pl.home.keys}</dt>
-            <dd className={keysUnlocked ? 'text-success' : 'text-warning'}>{keysUnlocked ? pl.home.keysUnlocked : pl.home.keysLocked}</dd>
+            <dd className={unlocked ? 'text-success' : 'text-warning'}>
+              {unlocked ? (hasOrgAccess ? pl.home.keysUnlocked : pl.home.keysNoAccess) : pl.home.keysLocked}
+              {!unlocked && (
+                <Button className="ml-3" variant="outline" size="sm" onClick={() => setUnlocking(true)}>
+                  {pl.unlock.open}
+                </Button>
+              )}
+            </dd>
           </dl>
         </Card>
+        {unlocking && <UnlockDialog userId={me.userId} onClose={() => setUnlocking(false)} />}
+        {me.role === 'admin' && unlocked && !hasOrgAccess && <RecoverAccessCard onDone={() => undefined} />}
         {me.role === 'admin' && <OrgSettingsCard />}
-        {me.role === 'admin' && <UsersPanel myId={me.userId} onSignedOut={onSignedOut} />}
+        {me.role === 'admin' && <UsersPanel myId={me.userId} userKeysReady={unlocked && hasOrgAccess} onUnlock={() => setUnlocking(true)} onSignedOut={onSignedOut} />}
       </div>
     </>
   )
@@ -67,8 +81,10 @@ export function SettingsScreen({ me, account, keysUnlocked, onChangePassword, on
 const STATUS_TONE = { invited: 'info', active: 'success', disabled: 'muted' } as const
 const inviteUrl = (token: string) => `${window.location.origin}/#zaproszenie=${token}`
 
-function UsersPanel({ myId, onSignedOut }: { myId: string; onSignedOut: () => void }) {
+function UsersPanel({ myId, userKeysReady, onUnlock, onSignedOut }: { myId: string; userKeysReady: boolean; onUnlock: () => void; onSignedOut: () => void }) {
   const { data, error: loadError, reload } = useLoad('users.list', {})
+  const { data: access, reload: reloadAccess } = useLoad('access.list', {})
+  const [rotateHint, setRotateHint] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [inviting, setInviting] = useState(false)
@@ -89,8 +105,18 @@ function UsersPanel({ myId, onSignedOut }: { myId: string; onSignedOut: () => vo
     } finally {
       setBusy(false)
       reload()
+      reloadAccess()
     }
   }
+  /** Nadanie dostępu (D8): sloty do wszystkich niewycofanych wersji klucza powstają w przeglądarce administratora. */
+  async function grant(userId: string, publicKey: string) {
+    const keys = await openExportableOrgKeys()
+    if (keys.size === 0) throw new Error(pl.access.noOwnAccess)
+    const target = await importPublicKey(publicKey)
+    const slots = await Promise.all([...keys].map(async ([keyVersion, key]) => ({ keyVersion, wrappedKey: await createSlot(key, target, keyVersion) })))
+    await call('access.grant', { userId, slots })
+  }
+  const accessOf = (u: UserListItem): AccessListItem | undefined => access?.find((a) => a.userId === u.id)
   const showLink = (forEmail: string, l: InviteLink) => {
     setCopied(false)
     setLink({ email: forEmail, link: l })
@@ -159,6 +185,17 @@ function UsersPanel({ myId, onSignedOut }: { myId: string; onSignedOut: () => vo
         </div>
       )}
 
+      {rotateHint && (
+        <div className="mt-4">
+          <Alert tone="warning">
+            <p className="font-semibold">{pl.access.rotateTitle}</p>
+            <p className="mt-1">{pl.access.rotateText}</p>
+            <Button className="mt-2" variant="outline" size="sm" onClick={() => setRotateHint(false)}>
+              {pl.access.rotateDismiss}
+            </Button>
+          </Alert>
+        </div>
+      )}
       <ErrorNote>{error ?? loadError}</ErrorNote>
       {!data && !loadError && <p className="mt-4 text-sm text-muted-foreground">{pl.app.loading}</p>}
       {data && (
@@ -170,6 +207,7 @@ function UsersPanel({ myId, onSignedOut }: { myId: string; onSignedOut: () => vo
               <th className="py-2 pr-3 font-medium">{pl.users.status}</th>
               <th className="py-2 pr-3 font-medium">{pl.users.twoFactor}</th>
               <th className="py-2 pr-3 font-medium">{pl.users.lastLogin}</th>
+              <th className="py-2 pr-3 font-medium">{pl.access.column}</th>
               <th className="py-2" />
             </tr>
           </thead>
@@ -206,6 +244,50 @@ function UsersPanel({ myId, onSignedOut }: { myId: string; onSignedOut: () => vo
                 </td>
                 <td className="py-2.5 pr-3">{u.totpEnabled ? pl.users.twoFactorOn : pl.users.twoFactorOff}</td>
                 <td className="py-2.5 pr-3">{u.lastLoginAt ? formatDateTime(u.lastLoginAt) : pl.users.never}</td>
+                <td className="py-2.5 pr-3">
+                  {(() => {
+                    const a = accessOf(u)
+                    if (!a) return '—'
+                    if (a.hasAccess)
+                      return (
+                        <div className="flex items-center gap-2">
+                          <Badge tone="success">{pl.access.has}</Badge>
+                          {u.id !== myId && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              disabled={busy}
+                              onClick={() =>
+                                window.confirm(pl.access.confirmRevoke(who(u))) &&
+                                void run(async () => {
+                                  if ((await call('access.revoke', { userId: u.id })).hadAccess) setRotateHint(true)
+                                })
+                              }
+                            >
+                              {pl.access.revoke}
+                            </Button>
+                          )}
+                        </div>
+                      )
+                    if (!a.publicKey) return <span className="text-xs text-muted-foreground">{u.status === 'active' ? pl.access.noKey : '—'}</span>
+                    return (
+                      <div className="flex items-center gap-2">
+                        <Badge tone="muted">{pl.access.none}</Badge>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={busy}
+                          onClick={() => {
+                            if (!userKeysReady) return onUnlock()
+                            void run(() => grant(u.id, a.publicKey!))
+                          }}
+                        >
+                          {pl.access.grant}
+                        </Button>
+                      </div>
+                    )
+                  })()}
+                </td>
                 <td className="py-2.5 text-right">
                   <div className="flex justify-end gap-2">
                     <Button
@@ -213,13 +295,20 @@ function UsersPanel({ myId, onSignedOut }: { myId: string; onSignedOut: () => vo
                       size="sm"
                       disabled={busy}
                       onClick={() => {
-                        if (u.status === 'invited' || window.confirm(pl.users.confirmReset(who(u)))) void run(async () => showLink(u.email, await call('users.reset', { id: u.id, version: u.version })))
+                        if (u.status === 'invited' || window.confirm(pl.users.confirmReset(who(u)))) void run(async () => {
+                          const r = await call('users.reset', { id: u.id, version: u.version })
+                          showLink(u.email, r)
+                          if (r.hadAccess) setRotateHint(true)
+                        })
                       }}
                     >
                       {u.status === 'invited' ? pl.users.resend : pl.users.reset}
                     </Button>
                     {u.status !== 'disabled' && (
-                      <Button variant="danger" size="sm" disabled={busy} onClick={() => window.confirm(pl.users.confirmDisable(who(u))) && void run(async () => void (await call('users.disable', { id: u.id, version: u.version })))}>
+                      <Button variant="danger" size="sm" disabled={busy} onClick={() => window.confirm(pl.users.confirmDisable(who(u))) && void run(async () => {
+                            if ((await call('users.disable', { id: u.id, version: u.version })).hadAccess) setRotateHint(true)
+                          })
+                        }>
                         {pl.users.disable}
                       </Button>
                     )}

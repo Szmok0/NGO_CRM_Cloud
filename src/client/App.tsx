@@ -19,7 +19,7 @@ import { AuthCard } from './components/ui'
 import { toBase64 } from './crypto/encoding'
 import { pl } from './i18n/pl'
 import { call, isApiError, setupApi } from './lib/api'
-import { keysUnlocked, lockKeys, unlockKeys } from './lib/keyring'
+import { lockKeys, startIdleLock, unlockKeys } from './lib/keyring'
 import { ChangePasswordScreen } from './screens/ChangePasswordScreen'
 import { InviteScreen } from './screens/InviteScreen'
 import { LoginScreen } from './screens/LoginScreen'
@@ -99,6 +99,10 @@ export function App() {
     setView((v) => (v.name === 'app' || v.name === 'changePassword' ? { ...v, session } : v))
   }, [])
 
+  // Blokada kluczy po 15 min bezczynności (D5), tylko gdy ktoś jest w aplikacji.
+  const inApp = view.name === 'app' || view.name === 'changePassword'
+  useEffect(() => (inApp ? startIdleLock() : undefined), [inApp])
+
   const session = view.name === 'app' ? view.session : null
   const ctx = useMemo<AppContextValue | null>(() => {
     if (!session) return null
@@ -158,7 +162,6 @@ export function App() {
               <SettingsScreen
                 me={view.session.me}
                 account={view.session.account}
-                keysUnlocked={keysUnlocked()}
                 onChangePassword={() => setView({ ...view, name: 'changePassword' })}
                 onSignedOut={toLogin}
               />

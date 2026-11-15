@@ -238,3 +238,12 @@ _(uzupełniane po każdym etapie)_
   - `access.revoke` u osoby bez slotu nic nie robi (`hadAccess: false`): nie kończy jej sesji i nie dopisuje wpisu;
   - `access.list` zwraca klucz publiczny tylko dla aktywnych kont.
 - W `SettingsScreen.tsx` dostosowałem jedno wywołanie `users.disable` do nowego typu wyniku. Baner z propozycją zmiany klucza powstanie w etapie b.
+
+### Krok 1, etap b (2026-11-15): ekrany
+- `lib/keyring.ts`: klucz prywatny i mapa wersja → klucz organizacji (niewyeksportowalny) tylko w pamięci karty; `useKeyring()` (stan do komponentów), `unlockKeys`, `unlockWithPassword` (złe hasło → `WrongPasswordError`), `openExportableOrgKeys()` (eksportowalne klucze tylko na czas operacji), `startIdleLock()` (blokada po 15 min, uruchamiana w `App.tsx`).
+- Nowe: `components/UnlockDialog.tsx` (okno „Odblokuj”), `screens/RecoverAccessCard.tsx` („Odzyskaj dostęp” dla administratora bez slotu).
+- `SettingsScreen.tsx`: przycisk „Odblokuj” przy kluczu, kolumna „Dane wrażliwe” z Nadaj / Odbierz, baner z propozycją zmiany klucza po odebraniu dostępu albo wyłączeniu lub resecie konta, które miało slot (sama propozycja, zmiana w kroku 4). Usunięty prop `keysUnlocked` (stan z `useKeyring`).
+- Teksty w `pl.ts` (`unlock`, `recover`, `access`).
+- Testy: `lib/keyring.test.ts` (6). Typecheck, 655 testów i build przechodzą.
+- **Odstępstwo:** przycisk „Odblokuj” jest tylko na ekranie konta; na karcie osoby pojawi się w kroku 2 (karta nie ma jeszcze danych wrażliwych).
+- **Niesprawdzone:** przeklikanie w przeglądarce na zbudowanej aplikacji pod CSP. `npm run dev:account` odmówił (lokalna baza ma inne konta), więc nie było konta do zalogowania.

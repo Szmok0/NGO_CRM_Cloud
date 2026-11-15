@@ -589,6 +589,40 @@ export const pl = {
     copied: 'Skopiowano',
     close: 'Zamknij'
   },
+  unlock: {
+    open: 'Odblokuj',
+    title: 'Odblokuj dane wrażliwe',
+    intro: 'Wpisz swoje hasło. Jest liczone w tej przeglądarce i nie trafia do serwera. Klucz zostaje w pamięci tej karty do odświeżenia strony albo 15 minut bezczynności.',
+    submit: 'Odblokuj',
+    working: 'Sprawdzam…',
+    cancel: 'Anuluj',
+    wrongPassword: 'Nieprawidłowe hasło.',
+    noKeys: 'To konto nie ma kluczy.'
+  },
+  recover: {
+    title: 'Odzyskaj dostęp',
+    intro: 'To konto administratora nie ma dostępu do danych wrażliwych. Wpisz klucz odzyskiwania z wydruku, który powstał przy zakładaniu organizacji. Klucz jest używany tylko w tej przeglądarce.',
+    key: 'Klucz odzyskiwania',
+    keyHint: 'Wielkość liter, spacje i myślniki nie mają znaczenia.',
+    submit: 'Odzyskaj dostęp',
+    working: 'Odzyskuję…',
+    wrongKey: 'Ten klucz odzyskiwania jest nieprawidłowy albo nie pasuje do bieżącego klucza organizacji.',
+    noPublicKey: 'To konto nie ma kluczy, więc nie można odzyskać dostępu.',
+    done: 'Dostęp odzyskany. Możesz nadawać dostęp innym osobom.'
+  },
+  access: {
+    column: 'Dane wrażliwe',
+    has: 'ma dostęp',
+    none: 'brak',
+    grant: 'Nadaj',
+    revoke: 'Odbierz',
+    noKey: 'brak kluczy',
+    noOwnAccess: 'Twoje konto nie ma dostępu do danych wrażliwych, więc nie możesz go nadawać.',
+    confirmRevoke: (who: string) => `Odebrać dostęp do danych wrażliwych osobie ${who}? Osoba zostanie wylogowana.`,
+    rotateTitle: 'Rozważ zmianę klucza organizacji',
+    rotateText: 'Osoba, która miała dostęp do danych wrażliwych, już go nie ma, ale mogła wcześniej zobaczyć klucz w swojej przeglądarce. Zmiana klucza zabezpiecza dane przed jej dawnym dostępem. Nie jest wymuszona; ta funkcja pojawi się w kolejnym kroku.',
+    rotateDismiss: 'Zamknij'
+  },
   invite: {
     title: 'Zaproszenie',
     intro: (org: string, email: string) => `Zakładasz konto ${email}${org ? ` w organizacji ${org}` : ''}. Ustaw hasło i weryfikację dwuetapową.`,
@@ -636,7 +670,8 @@ export const pl = {
     role: 'Rola',
     keys: 'Klucz do danych wrażliwych',
     keysUnlocked: 'odblokowany w tej karcie',
-    keysLocked: 'zablokowany (po odświeżeniu strony klucz znika z pamięci; zaloguj się ponownie, żeby go odblokować)',
+    keysNoAccess: 'odblokowany, ale to konto nie ma dostępu do danych wrażliwych',
+    keysLocked: 'zablokowany (znika z pamięci po odświeżeniu strony i po 15 minutach bezczynności)',
     changePassword: 'Zmień hasło',
     logout: 'Wyloguj',
     logoutAll: 'Wyloguj wszędzie',
