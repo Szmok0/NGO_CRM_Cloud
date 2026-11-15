@@ -61,3 +61,32 @@ export const setupCompleteInput = z.object({
   })
 })
 export type SetupCompleteInput = z.output<typeof setupCompleteInput>
+
+// ---------- odtwarzanie z kopii (ZADANIE_04, krok 3; D6) ----------
+
+/** Kawałek pliku kopii przy wysyłaniu (limit żądania hostingu): największy dozwolony. */
+export const RESTORE_CHUNK_BYTES = 4 * 1024 * 1024
+export const RESTORE_MAX_BYTES = 2 * 1024 * 1024 * 1024
+
+/** POST /api/setup/restore/begin: zakłada plik roboczy na serwerze; zwraca `uploadId`. */
+export const setupRestoreBeginInput = z.object({ token })
+export interface SetupRestoreBeginResult {
+  uploadId: string
+}
+
+/** POST /api/setup/restore/finish: klucz kopii (32 bajty, base64) odwinięty w przeglądarce hasłem administratora. */
+export const setupRestoreFinishInput = z.object({
+  token,
+  uploadId: z.string().regex(/^[a-f0-9]{32}$/),
+  key: base64.length(44)
+})
+export interface SetupRestoreResult {
+  persons: number
+  institutions: number
+  actions: number
+  documents: number
+  filesMissing: number
+  erasuresApplied: number
+  /** 2FA zresetowane (zmienił się APP_SECRET): przy logowaniu każdy ustawia je od nowa. */
+  twoFaReset: boolean
+}

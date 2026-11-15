@@ -28,6 +28,7 @@ export type AccessAction =
   | 'backup_create'
   | 'backup_download'
   | 'backup_verify'
+  | 'backup_restore'
 
 export type AccessTargetType = 'user' | 'contact' | 'attachment' | 'contacts_list' | 'actions_list' | 'participants_list' | 'access_log' | 'backup'
 

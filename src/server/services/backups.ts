@@ -19,7 +19,7 @@ export const BACKUP_INTERVAL_MS = 24 * 3600_000
 const DAILY_KEEP = 7
 const WEEKLY_KEEP = 4
 
-const storageRoot = (storageDir: string) => resolve(appRoot, storageDir)
+export const storageRoot = (storageDir: string) => resolve(appRoot, storageDir)
 export const backupsDir = (storageDir: string) => join(storageRoot(storageDir), 'backups')
 export const backupFilePath = (storageDir: string, id: string) => join(backupsDir(storageDir), `backup-${id}.ngb`)
 
