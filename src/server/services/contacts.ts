@@ -174,7 +174,7 @@ export async function deleteContact(db: Db, { id, version }: ApiParsed<'contacts
 
 /** Rekord podrzędny musi wskazywać istniejący, nieusunięty kontakt (klucz obcy pilnuje tylko istnienia). */
 async function requireLiveContact(db: Db, id: string) {
-  const [c] = await db.select({ id: contacts.id }).from(contacts).where(and(eq(contacts.id, id), isNull(contacts.deletedAt)))
+  const [c] = await db.select({ id: contacts.id }).from(contacts).where(and(eq(contacts.id, id), isNull(contacts.deletedAt), isNull(contacts.anonymizedAt)))
   if (!c) throw new AppError('NOT_FOUND')
 }
 

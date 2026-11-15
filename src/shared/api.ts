@@ -247,6 +247,22 @@ export const apiMethods = {
   /** `version` kontaktu i `identityVersion` tożsamości: obie sprawdzane (blokada optymistyczna). */
   'contacts.update': { input: z.object({ id: uuid, version, identityVersion: version, ...identityFields, tags }), roles: WRITE },
   'contacts.delete': { input: ref, roles: WRITE },
+  /** Co usunie anonimizacja osoby i co administrator ma do przejrzenia (D12). Nic nie zmienia. */
+  'contacts.anonymizePreview': { input: z.object({ id: uuid }), roles: ADMIN },
+  /**
+   * Nieodwracalna anonimizacja osoby (D12). `version` kontaktu z podglądu; `clearActivityIds` i `clearTaskIds`: wpisy wspólne i zadania,
+   * którym administrator usuwa treść (wpisy tylko tej osoby tracą treść zawsze). `confirm` = „ANONIMIZUJ”.
+   */
+  'contacts.anonymize': {
+    input: z.object({
+      id: uuid,
+      version,
+      clearActivityIds: z.array(uuid).max(1000).default([]),
+      clearTaskIds: z.array(uuid).max(1000).default([]),
+      confirm: z.literal(d.ANONYMIZE_CONFIRM)
+    }),
+    roles: ADMIN
+  },
   'roles.add': { input: z.object({ contactId: uuid, role: z.enum(d.ROLES), since: optDay, note: opt }), roles: WRITE },
   'roles.end': { input: z.object({ id: uuid, version, until: day }), roles: WRITE },
   'roles.delete': { input: ref, roles: WRITE },
@@ -424,6 +440,34 @@ export interface RotationPending {
   attachments: { id: string; version: number; keyVersion: number; targetType: d.TargetType; targetId: string; metaEnc: string }[]
 }
 
+/** Wpis na osi do przejrzenia przed anonimizacją (treść widzi tylko administrator, który o niej decyduje). */
+export interface AnonymizeActivityItem {
+  id: string
+  type: d.ActivityType
+  occurredAt: string
+  content: string
+  deleted: boolean
+}
+export interface AnonymizeTaskItem {
+  id: string
+  title: string
+  description: string | null
+  deleted: boolean
+}
+/** Podgląd anonimizacji osoby (D12). */
+export interface AnonymizePreview {
+  /** Wersja kontaktu do przekazania w `contacts.anonymize`. */
+  version: number
+  /** Wpisy powiązane tylko z tą osobą: treść zostanie usunięta zawsze (wpisów systemowych to nie dotyczy). */
+  ownActivities: AnonymizeActivityItem[]
+  /** Wpisy powiązane także z innymi osobami: usunięcie treści tylko na wniosek administratora. */
+  sharedActivities: AnonymizeActivityItem[]
+  /** Zadania przy osobie: usunięcie treści tylko na wniosek administratora. */
+  tasks: AnonymizeTaskItem[]
+  /** Załączniki osoby (wiersze i pliki), także z Kosza. */
+  attachments: number
+}
+
 export interface OrgSettings {
   id: string
   version: number
@@ -485,6 +529,8 @@ export interface ApiOutputs {
   'contacts.create': { id: string }
   'contacts.update': void
   'contacts.delete': void
+  'contacts.anonymizePreview': AnonymizePreview
+  'contacts.anonymize': void
   'roles.add': void
   'roles.end': void
   'roles.delete': void

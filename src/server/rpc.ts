@@ -20,6 +20,7 @@ import * as activities from './services/activities'
 import * as contacts from './services/contacts'
 import * as sensitive from './services/sensitive'
 import * as attachmentsSvc from './services/attachments'
+import * as anonymizeSvc from './services/anonymize'
 import * as tasks from './services/tasks'
 import type { Actor } from './services/common'
 import { SESSION_COOKIE, clearSessionCookie, createSession, revokeAllSessions, revokeSession, setSessionCookie } from './auth/sessions'
@@ -136,6 +137,8 @@ const handlers: Handlers = {
   'contacts.create': (p, ctx) => contacts.createContact(ctx.db, p, actor(ctx)),
   'contacts.update': (p, ctx) => contacts.updateContact(ctx.db, p, actor(ctx)),
   'contacts.delete': (p, ctx) => contacts.deleteContact(ctx.db, p, actor(ctx)),
+  'contacts.anonymizePreview': (p, { db }) => anonymizeSvc.anonymizePreview(db, p),
+  'contacts.anonymize': (p, ctx) => anonymizeSvc.anonymizeContact(ctx.db, p, actor(ctx), ctx.auth?.storageDir),
   'roles.add': (p, ctx) => contacts.addRole(ctx.db, p, actor(ctx)),
   'roles.end': (p, ctx) => contacts.endRole(ctx.db, p, actor(ctx)),
   'roles.delete': (p, ctx) => contacts.deleteRole(ctx.db, p, actor(ctx)),

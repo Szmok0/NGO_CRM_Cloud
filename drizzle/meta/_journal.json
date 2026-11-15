@@ -85,6 +85,13 @@
       "when": 1794734513782,
       "tag": "0011_gifted_professor_monster",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "5",
+      "when": 1794736996411,
+      "tag": "0012_panoramic_vargas",
+      "breakpoints": true
     }
   ]
 }

@@ -111,7 +111,7 @@ async function checked<T extends { assigneeUserId: string | null; targetType: Ta
   const [target] = await db
     .select({ id: table.id })
     .from(table)
-    .where(and(eq(table.id, f.targetId), isNull(table.deletedAt)))
+    .where(and(eq(table.id, f.targetId), isNull(table.deletedAt), ...(f.targetType === 'contact' ? [isNull(contacts.anonymizedAt)] : [])))
   if (!target) throw new AppError('NOT_FOUND')
   return f
 }

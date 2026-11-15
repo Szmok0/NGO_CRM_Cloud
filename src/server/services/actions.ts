@@ -224,7 +224,7 @@ async function addParticipant(tx: Tx, repo: Repo, actor: Actor, actionId: string
 }
 
 async function requireLivePerson(db: Db | Tx, id: string) {
-  const [c] = await db.select({ id: contacts.id }).from(contacts).where(and(eq(contacts.id, id), isNull(contacts.deletedAt)))
+  const [c] = await db.select({ id: contacts.id }).from(contacts).where(and(eq(contacts.id, id), isNull(contacts.deletedAt), isNull(contacts.anonymizedAt)))
   if (!c) throw new AppError('NOT_FOUND')
 }
 

@@ -23,6 +23,7 @@ export type AccessAction =
   | 'key_rotated'
   | 'reveal_sensitive'
   | 'download_attachment'
+  | 'anonymize'
 
 /**
  * `userId` = null: nieudane logowanie na nieznany e-mail. `targetId`: konto, którego dotyczy działanie administratora

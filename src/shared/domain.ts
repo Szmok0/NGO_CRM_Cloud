@@ -40,6 +40,9 @@ export type TaskStatus = (typeof TASK_STATUSES)[number]
 export const PRIORITIES = ['low', 'normal', 'high'] as const
 export type Priority = (typeof PRIORITIES)[number]
 
+/** Słowo, które administrator wpisuje, żeby potwierdzić anonimizację osoby (D12). */
+export const ANONYMIZE_CONFIRM = 'ANONIMIZUJ'
+
 export const TARGET_TYPES = ['contact', 'action'] as const
 export type TargetType = (typeof TARGET_TYPES)[number]
 

@@ -19,7 +19,7 @@ export async function addSystemActivity(repo: Repo, now: Date, event: Record<str
 export async function addActivity(db: Db, i: ApiParsed<'activities.add'>, actor: Actor): Promise<void> {
   const ids = [...new Set(i.contactIds)]
   if (ids.length) {
-    const live = await db.select({ id: contacts.id }).from(contacts).where(and(inArray(contacts.id, ids), isNull(contacts.deletedAt)))
+    const live = await db.select({ id: contacts.id }).from(contacts).where(and(inArray(contacts.id, ids), isNull(contacts.deletedAt), isNull(contacts.anonymizedAt)))
     if (live.length !== ids.length) throw new AppError('NOT_FOUND')
   }
   if (i.actionId) {

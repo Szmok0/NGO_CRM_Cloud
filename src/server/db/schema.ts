@@ -260,6 +260,19 @@ export const attachments = mysqlTable(
   (t) => [uniqueIndex('attachments_storage_key_uq').on(t.storageKey), index('attachments_target_idx').on(t.targetType, t.targetId)]
 )
 
+/**
+ * Lista zanonimizowanych osób (ZADANIE_03, D12), bez danych osobowych: same identyfikatory. Po odtworzeniu kopii
+ * `applyErasures` (services/anonymize.ts) nakłada te usunięcia ponownie. Wiersz nie jest tabelą domenową (bez `version`).
+ */
+export const erasedContacts = mysqlTable('erased_contacts', {
+  contactId: char('contact_id', { length: 36 }).primaryKey(),
+  erasedAt: datetime('erased_at', { mode: 'date', fsp: 3 }).notNull(),
+  /** Wpisy wspólne na osi, którym administrator usunął treść. */
+  clearedActivityIds: json('cleared_activity_ids').$type<string[]>().notNull(),
+  /** Zadania przy osobie, którym administrator usunął treść. */
+  clearedTaskIds: json('cleared_task_ids').$type<string[]>().notNull()
+})
+
 export const contactRoles = mysqlTable(
   'contact_roles',
   {
