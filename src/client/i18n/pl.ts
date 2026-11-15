@@ -150,7 +150,7 @@ export const pl = {
     pickContact: 'Wybierz osobę lub instytucję…',
     empty: 'Brak osób i instytucji spełniających warunki.',
     anonymized: 'Osoba zanonimizowana',
-    anonymizeButton: 'Anonimizuj…',
+    anonymizeButton: 'Usuń na stałe…',
     anonymizedInfo: 'Dane tej osoby zostały nieodwracalnie usunięte (RODO). Zostały tylko statystyki: role, powiązania, udział i obecności.',
     kind: { person: 'Osoba', institution: 'Instytucja' } as const
   },
@@ -311,7 +311,7 @@ export const pl = {
     noRecent: 'Jeszcze nic się nie wydarzyło.'
   },
   anonymize: {
-    title: (name: string) => `Anonimizacja: ${name}`,
+    title: (name: string) => `Usunięcie na stałe: ${name}`,
     warning: 'Operacja jest nieodwracalna, nie da się jej cofnąć ani przywrócić z Kosza. Zniknie tożsamość osoby, jej dane wrażliwe i załączniki, a także notatki przy rolach, zgodach, powiązaniach i udziale. Zostaną same statystyki (role, powiązania, udział, obecności).',
     always: (n: number) => `Załączniki osoby do usunięcia (także z Kosza): ${n}.`,
     ownTitle: 'Wpisy tylko tej osoby',
@@ -322,7 +322,7 @@ export const pl = {
     tasksHint: 'Zaznacz zadania, którym trzeba usunąć treść. Pozostałe zostaną bez zmian.',
     clearContent: 'Usuń treść',
     confirmLabel: (word: string) => `Aby potwierdzić, wpisz ${word}`,
-    submit: 'Anonimizuj nieodwracalnie',
+    submit: 'Usuń nieodwracalnie',
     personOnly: 'Anonimizować można tylko osoby, nie instytucje.',
     already: 'Ta osoba została już zanonimizowana.',
     contentRemoved: 'treść usunięta'

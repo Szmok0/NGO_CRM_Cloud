@@ -32,7 +32,7 @@ Ogólne zasady (praca tylko w `E:\AI_Projects`, pytanie przed zmianami, zasady k
 ## Zasady danych (obowiązują w każdym zadaniu)
 1. Każda tabela domenowa ma: `id` (UUID jako `char(36)`), `createdAt`, `updatedAt`, `updatedBy` (id użytkownika), `deletedAt`, `version` (liczba, blokada optymistyczna). **Bez** `deviceId`, zegarów HLC i tabel synchronizacji z desktopu: serwer jest jedynym źródłem prawdy.
 2. Zapis ze starą `version` jest odrzucany komunikatem „Ktoś zmienił ten rekord w międzyczasie”. Bez cichego nadpisywania.
-3. **Usuwanie = `deletedAt`**, widok Kosz pozwala przywrócić. **Jedyny wyjątek: anonimizacja osoby** (RODO), która fizycznie usuwa tożsamość i dane wrażliwe.
+3. **Usuwanie = `deletedAt`**, widok Kosz pozwala przywrócić. **Wyjątek: osoby.** „Usuń” osoby to od razu nieodwracalne usunięcie jej danych (istniejąca anonimizacja: tożsamość, dane wrażliwe, załączniki, wolny tekst; zostają statystyki), bez Kosza; dowodem jest wpis `anonymize` w dzienniku dostępu (decyzja MOC 2026-11-15). Kosz dotyczy instytucji, działań, zadań, tematów i załączników.
 4. **Jedna baza kontaktów** (`contacts`, rodzaj `person` / `institution`) i **role** (`contact_roles`). **Tożsamość osobno** (`contact_identity`: imię, nazwisko, kontakt, adres), **dane wrażliwe osobno i zaszyfrowane w przeglądarce** (`contact_sensitive`). Działania, obecności, zadania i statystyki odwołują się tylko do `contacts.id`.
 5. **Oś aktywności** (`activities`): uniwersalny wpis powiązany z osobami i opcjonalnie z działaniem.
 6. Powiązania „z czymkolwiek”: `targetType` + `targetId`.

@@ -115,9 +115,11 @@ export function ContactCard({ id }: { id: string }) {
               <Button variant="ghost" size="sm" onClick={() => setEditing(true)}>
                 <Pencil size={14} /> {pl.common.edit}
               </Button>
-              <Button variant="ghost" size="sm" className="text-destructive" onClick={remove}>
-                <Trash2 size={14} /> {pl.contacts.deleteContact}
-              </Button>
+              {!isPerson && (
+                <Button variant="ghost" size="sm" className="text-destructive" onClick={remove}>
+                  <Trash2 size={14} /> {pl.contacts.deleteContact}
+                </Button>
+              )}
             </div>
           </div>
         )}
