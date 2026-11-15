@@ -926,7 +926,30 @@ export const pl = {
         not_writable: 'nie da się w nim zapisać. Sprawdź ścieżkę i uprawnienia'
       },
       fixAndRetry: 'Popraw konfigurację w panelu hostingu i sprawdź ponownie.',
-      retry: 'Sprawdź ponownie'
+      retry: 'Sprawdź ponownie',
+      haveBackup: 'Mam kopię zapasową: odtwórz z kopii'
+    },
+    restore: {
+      title: 'Odtwarzanie z kopii',
+      intro: 'Wskaż plik kopii (.ngb) zapisany na Twoim komputerze i podaj e-mail oraz hasło administratora z dnia kopii. Po odtworzeniu wszyscy logują się tak jak wcześniej, tymi samymi hasłami.',
+      file: 'Plik kopii (.ngb)',
+      email: 'E-mail administratora',
+      password: 'Hasło administratora',
+      passwordHint: 'Hasło, które miałeś w dniu zrobienia kopii.',
+      start: 'Odtwórz',
+      noFile: 'Wybierz plik kopii.',
+      checking: 'Sprawdzam plik i hasło…',
+      uploading: (percent: number) => `Wysyłam kopię na serwer: ${percent}%. Nie zamykaj tej strony.`,
+      restoring: 'Odtwarzam dane. To może potrwać kilka minut. Nie zamykaj tej strony.',
+      newer: 'Ta kopia pochodzi z nowszej wersji programu niż ta, która działa na serwerze. Najpierw zaktualizuj program (GitHub → „Sync fork”), potem odtwórz kopię.',
+      doneTitle: 'Kopia odtworzona',
+      doneIntro: (summary: string) => `Odtworzono: ${summary}.`,
+      erasures: (n: number) => `Anonimizacje zrobione już po kopii (${n} ${plural(n, 'osoba', 'osoby', 'osób')}) zostały nałożone ponownie.`,
+      missing: (n: number) => `${n} ${plural(n, 'dokument nie miał', 'dokumenty nie miały', 'dokumentów nie miało')} pliku w dniu kopii. Reszta jest w porządku.`,
+      twoFaReset: 'Ten serwer ma inny sekret aplikacji (APP_SECRET) niż w dniu kopii, więc kody z aplikacji 2FA przestały pasować. Przy pierwszym logowaniu każda osoba ustawi 2FA od nowa (skan kodu QR). Żeby tak nie było następnym razem, zapisz APP_SECRET w bezpiecznym miejscu.',
+      noErasureFile: 'Jeśli po zrobieniu kopii anonimizowano osoby, a ten serwer nie ma starego folderu na pliki, powtórz te anonimizacje.',
+      login: 'Przejdź do logowania',
+      cancel: 'Wróć'
     },
     org: {
       title: 'Organizacja',

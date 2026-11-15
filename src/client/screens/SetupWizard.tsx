@@ -12,6 +12,7 @@ import { createRecoverySlot, formatRecoveryKey, generateRecoveryKey } from '../c
 import { pl } from '../i18n/pl'
 import { errorMessage, setupApi } from '../lib/api'
 import { passwordProblem } from '../lib/password'
+import { SetupRestore } from './SetupRestore'
 
 const t = pl.setup
 const STEPS = 5
@@ -74,7 +75,7 @@ function Actions({ busy, onBack, submit }: { busy: boolean; onBack?: () => void;
 }
 
 export function SetupWizard({ onDone }: { onDone: () => void }) {
-  const [step, setStep] = useState<'token' | 'org' | 'admin' | 'recovery' | 'totp' | 'done'>('token')
+  const [step, setStep] = useState<'token' | 'restore' | 'org' | 'admin' | 'recovery' | 'totp' | 'done'>('token')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -108,6 +109,8 @@ export function SetupWizard({ onDone }: { onDone: () => void }) {
     setStep(to)
   }
 
+  if (step === 'restore') return <SetupRestore token={token} checks={checks} onBack={() => go('token')} onDone={onDone} />
+
   if (step === 'token') {
     const ready = checks?.https && checks.storage.ok
     return (
@@ -130,6 +133,13 @@ export function SetupWizard({ onDone }: { onDone: () => void }) {
           {checks && !ready && <p className="mt-3 text-sm text-amber-800">{t.token.fixAndRetry}</p>}
           <ErrorNote>{error}</ErrorNote>
           <Actions busy={busy} submit={ready ? t.next : checks ? t.token.retry : t.token.submit} />
+          {ready && (
+            <p className="mt-4 border-t border-slate-200 pt-4">
+              <Button variant="outline" onClick={() => go('restore')} disabled={busy}>
+                {t.token.haveBackup}
+              </Button>
+            </p>
+          )}
         </form>
       </Step>
     )

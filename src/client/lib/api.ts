@@ -5,7 +5,7 @@ import type { ApiInput, ApiOutputs, Method } from '@shared/api'
 import type { LoginResult, PreloginResult } from '@shared/auth'
 import type { ErrorCode } from '@shared/errors'
 import type { InviteAcceptInput, InviteInfo, InviteTotpResult } from '@shared/invite'
-import type { SetupCheckResult, SetupCompleteInput, SetupStatus, SetupTotpResult } from '@shared/setup'
+import type { SetupCheckResult, SetupCompleteInput, SetupRestoreBeginResult, SetupRestoreResult, SetupStatus, SetupTotpResult } from '@shared/setup'
 import { pl } from '../i18n/pl'
 
 export class ApiError extends Error {
@@ -96,7 +96,21 @@ export const setupApi = {
   status: () => postJson<SetupStatus>('/api/setup/status', {}),
   check: (token: string) => postJson<SetupCheckResult>('/api/setup/check', { token }),
   totp: (token: string, email: string) => postJson<SetupTotpResult>('/api/setup/totp', { token, email }),
-  complete: (input: SetupCompleteInput) => postJson<void>('/api/setup/complete', input)
+  complete: (input: SetupCompleteInput) => postJson<void>('/api/setup/complete', input),
+  /** Odtwarzanie z kopii (D6): plik idzie kawałkami (limit żądania hostingu), klucz kopii tylko w `restoreFinish`. */
+  restoreBegin: (token: string) => postJson<SetupRestoreBeginResult>('/api/setup/restore/begin', { token }),
+  async restoreChunk(token: string, uploadId: string, offset: number, body: Uint8Array<ArrayBuffer>): Promise<void> {
+    const res = await fetch('/api/setup/restore/chunk', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/octet-stream', 'X-NGO-CRM': '1', 'x-setup-token': token, 'x-upload-id': uploadId, 'x-offset': String(offset) },
+      body
+    })
+    const r = (await res.json().catch(() => null)) as Envelope<unknown> | null
+    if (!r) throw new ApiError('UNKNOWN', `HTTP ${res.status}`)
+    if (!r.ok) throw new ApiError(r.code, r.message)
+  },
+  restoreFinish: (token: string, uploadId: string, key: string) => postJson<SetupRestoreResult>('/api/setup/restore/finish', { token, uploadId, key })
 }
 
 /** Przyjęcie zaproszenia z jednorazowego linku (trasy poza RPC, bez sesji). */
