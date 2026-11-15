@@ -219,3 +219,22 @@ Nie aktualizuj Sejfu bez zgody MOC.
 
 ## Wynik
 _(uzupełniane po każdym etapie)_
+
+### Krok 1, etap a (2026-11-15): serwer i testy
+- Nowe RPC (`src/server/auth/access.ts`):
+  - `keys.mySlots` (wszystkie role),
+  - `keys.recoverySlot` i `keys.recover` (`admin`),
+  - `access.list`, `access.grant`, `access.revoke` (`admin`).
+- `users.disable` i `users.reset` zwracają `hadAccess`.
+- Zdarzenia dziennika: `grant_access`, `revoke_access`, `key_recovered`.
+- Nowe błędy: `NO_KEY_ACCESS` (403), `ACCESS_EXISTS` i `ACCOUNT_NOT_READY` (409).
+- Testy: `src/server/auth/access.test.ts`; test uprawnień obejmuje nowe metody automatycznie. Typecheck, 649 testów i build przechodzą.
+- **Odstępstwa (zatwierdzone przez MOC):**
+  - odzyskiwanie to dwie metody, bo przeglądarka musi najpierw dostać slot odzyskiwania: `keys.recoverySlot` wydaje go tylko administratorowi bez slotu do bieżącej wersji, `keys.recover` zapisuje nowy slot;
+  - ponowne nadanie dostępu → `ACCESS_EXISTS`;
+  - administrator nie odbiera dostępu samemu sobie (400).
+- Szczegóły:
+  - `access.grant` wymaga slotów dokładnie do niewycofanych wersji klucza i blokuje te wersje na czas transakcji (pod zmianę klucza w kroku 4);
+  - `access.revoke` u osoby bez slotu nic nie robi (`hadAccess: false`): nie kończy jej sesji i nie dopisuje wpisu;
+  - `access.list` zwraca klucz publiczny tylko dla aktywnych kont.
+- W `SettingsScreen.tsx` dostosowałem jedno wywołanie `users.disable` do nowego typu wyniku. Baner z propozycją zmiany klucza powstanie w etapie b.

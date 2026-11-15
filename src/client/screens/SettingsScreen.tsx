@@ -219,7 +219,7 @@ function UsersPanel({ myId, onSignedOut }: { myId: string; onSignedOut: () => vo
                       {u.status === 'invited' ? pl.users.resend : pl.users.reset}
                     </Button>
                     {u.status !== 'disabled' && (
-                      <Button variant="danger" size="sm" disabled={busy} onClick={() => window.confirm(pl.users.confirmDisable(who(u))) && void run(() => call('users.disable', { id: u.id, version: u.version }))}>
+                      <Button variant="danger" size="sm" disabled={busy} onClick={() => window.confirm(pl.users.confirmDisable(who(u))) && void run(async () => void (await call('users.disable', { id: u.id, version: u.version })))}>
                         {pl.users.disable}
                       </Button>
                     )}

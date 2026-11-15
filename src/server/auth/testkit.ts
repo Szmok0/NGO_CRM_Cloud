@@ -15,7 +15,7 @@ export async function wipeAccounts(db: Db) {
 }
 
 /** Fikcyjne konto testowe z hasłem (authKey), 2FA i „kluczem prywatnym”. */
-export async function addTestUser(db: Db, opts: { role?: string; status?: string; now?: Date } = {}) {
+export async function addTestUser(db: Db, opts: { role?: string; status?: string; now?: Date; publicKey?: string } = {}) {
   const id = randomUUID()
   const at = opts.now ?? new Date()
   const authKey = randomBytes(32).toString('base64')
@@ -36,6 +36,7 @@ export async function addTestUser(db: Db, opts: { role?: string; status?: string
     authHash: await hashAuthKey(authKey, TEST_SCRYPT),
     totpSecretEnc: encryptTotpSecret(secret, TEST_APP_SECRET, id),
     totpEnabledAt: at,
+    publicKey: opts.publicKey ?? null,
     privateKeyEnc: `v1.${randomBytes(12).toString('base64')}.${randomBytes(64).toString('base64')}`
   })
   return { id, email, authKey, secret }

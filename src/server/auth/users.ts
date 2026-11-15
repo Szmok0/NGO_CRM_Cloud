@@ -56,11 +56,13 @@ async function createInvitation(tx: Tx, userId: string, actor: Actor): Promise<I
   return { token, expiresAt: expiresAt.toISOString() }
 }
 
-/** Koniec sesji i dostępów: używane przy wyłączeniu i resecie konta. */
-async function revokeAccess(tx: Tx, userId: string) {
+/** Koniec sesji i dostępów: wyłączenie i reset konta, odebranie dostępu. Zwraca, czy konto miało slot klucza. */
+export async function revokeAccess(tx: Tx, userId: string): Promise<boolean> {
+  const slots = await tx.select({ id: keySlots.id }).from(keySlots).where(eq(keySlots.userId, userId)).for('update')
   await tx.delete(authSessions).where(eq(authSessions.userId, userId))
   await tx.delete(keySlots).where(eq(keySlots.userId, userId))
   await tx.delete(invitations).where(and(eq(invitations.userId, userId), isNull(invitations.usedAt)))
+  return slots.length > 0
 }
 
 /** Odmowa, gdy po operacji nie zostałby żaden aktywny administrator. Blokuje wiersze administratorów na czas transakcji. */
@@ -103,14 +105,15 @@ export function setUserRole(db: Db, input: { id: string; version: number; role: 
 }
 
 /** Wyłączenie konta: koniec wszystkich sesji, usunięcie slotów klucza i niewykorzystanych zaproszeń. */
-export function disableUser(db: Db, input: { id: string; version: number }, actor: Actor): Promise<void> {
+export function disableUser(db: Db, input: { id: string; version: number }, actor: Actor): Promise<{ hadAccess: boolean }> {
   return db.transaction(async (tx) => {
     const target = await loadTarget(tx, input.id)
     if (isActiveAdmin(target)) await requireOtherActiveAdmin(tx, target.id)
     const repo = createRepo(tx, { userId: actor.userId, now: () => actor.now })
     await repo.update(users, input.id, input.version, { status: 'disabled' })
-    await revokeAccess(tx, target.id)
+    const hadAccess = await revokeAccess(tx, target.id)
     await logAccess(tx, actor.userId, 'user_disabled', actor.now, target.id)
+    return { hadAccess }
   })
 }
 
@@ -118,7 +121,7 @@ export function disableUser(db: Db, input: { id: string; version: number }, acto
  * Reset konta (zapomniane hasło, ponowne zaproszenie, przywrócenie wyłączonego konta): hasło, 2FA i klucze znikają,
  * sesje i sloty też; osoba dostaje nowy jednorazowy link. Dostęp do danych wrażliwych trzeba potem nadać ponownie.
  */
-export function resetUser(db: Db, input: { id: string; version: number }, actor: Actor): Promise<InviteLink> {
+export function resetUser(db: Db, input: { id: string; version: number }, actor: Actor): Promise<InviteLink & { hadAccess: boolean }> {
   return db.transaction(async (tx) => {
     const target = await loadTarget(tx, input.id)
     if (isActiveAdmin(target)) await requireOtherActiveAdmin(tx, target.id)
@@ -128,9 +131,9 @@ export function resetUser(db: Db, input: { id: string; version: number }, actor:
       .update(users)
       .set({ kdfSalt: null, kdfIterations: null, authHash: null, totpSecretEnc: null, totpEnabledAt: null, totpLastStep: null, publicKey: null, privateKeyEnc: null, failedAttempts: 0, lockedUntil: null })
       .where(eq(users.id, target.id))
-    await revokeAccess(tx, target.id)
+    const hadAccess = await revokeAccess(tx, target.id)
     await logAccess(tx, actor.userId, 'user_reset', actor.now, target.id)
-    return createInvitation(tx, target.id, actor)
+    return { ...(await createInvitation(tx, target.id, actor)), hadAccess }
   })
 }
 

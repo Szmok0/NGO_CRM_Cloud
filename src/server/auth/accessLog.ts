@@ -16,6 +16,9 @@ export type AccessAction =
   | 'user_reset'
   | 'role_changed'
   | 'invite_accepted'
+  | 'grant_access'
+  | 'revoke_access'
+  | 'key_recovered'
 
 /** `userId` = null: nieudane logowanie na nieznany e-mail. `targetUserId`: konto, którego dotyczy działanie administratora. `db` może być transakcją. */
 export async function logAccess(db: Pick<Db, 'insert'>, userId: string | null, action: AccessAction, at = new Date(), targetUserId?: string) {

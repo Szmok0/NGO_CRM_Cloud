@@ -9,6 +9,7 @@ import { migrationCount, type Db } from './db/connection'
 import { logAccess } from './auth/accessLog'
 import { changePassword, confirmTotpSetup, getAccount, getKeys, startTotpSetup } from './auth/account'
 import { registerSuccess } from './auth/lockout'
+import * as access from './auth/access'
 import { disableUser, inviteUser, listUsers, resetUser, setUserRole } from './auth/users'
 import type { AuthOptions } from './auth/options'
 import { getSettings, updateSettings } from './services/settings'
@@ -107,6 +108,12 @@ const handlers: Handlers = {
   'users.setRole': (input, { db, session, now }) => setUserRole(db, input, { userId: session.userId, now }),
   'users.disable': (input, { db, session, now }) => disableUser(db, input, { userId: session.userId, now }),
   'users.reset': (input, { db, session, now }) => resetUser(db, input, { userId: session.userId, now }),
+  'keys.mySlots': (_p, { db, session }) => access.mySlots(db, session.userId),
+  'keys.recoverySlot': (_p, { db, session }) => access.recoverySlot(db, session.userId),
+  'keys.recover': (p, ctx) => access.recoverAccess(ctx.db, p, actor(ctx)),
+  'access.list': (_p, { db }) => access.listAccess(db),
+  'access.grant': (p, ctx) => access.grantAccess(ctx.db, p, actor(ctx)),
+  'access.revoke': (p, ctx) => access.revokeUserAccess(ctx.db, p, actor(ctx)),
   'system.info': async (_p, { db }) => ({ version: pkg.version, migrations: await migrationCount(db) }),
   'settings.get': (_p, { db }) => getSettings(db),
 
@@ -179,6 +186,9 @@ export const HTTP_STATUS: Record<ErrorCode, number> = {
   INVITE_INVALID: 400,
   EMAIL_TAKEN: 409,
   LAST_ADMIN: 409,
+  NO_KEY_ACCESS: 403,
+  ACCESS_EXISTS: 409,
+  ACCOUNT_NOT_READY: 409,
   TOTP_REQUIRED: 403,
   FORBIDDEN: 403,
   VALIDATION: 400,

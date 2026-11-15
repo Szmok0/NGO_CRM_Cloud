@@ -53,6 +53,8 @@ const uuid = z.uuid()
 const version = z.number().int().positive()
 /** Rekord do usunięcia: id i wersja, którą widział klient. */
 const ref = z.object({ id: uuid, version })
+/** Klucz organizacji zaszyfrowany kluczem publicznym osoby (RSA-OAEP, base64), jak slot w kreatorze. */
+const wrappedKeySchema = z.string().max(1000).regex(/^[A-Za-z0-9+/]+=*$/)
 
 const identityFields = {
   firstName: short(100),
@@ -137,6 +139,21 @@ export const apiMethods = {
   'users.disable': { input: z.object(target), roles: ADMIN },
   /** Reset konta (zapomniane hasło, ponowne zaproszenie, przywrócenie wyłączonego): nowy jednorazowy token. */
   'users.reset': { input: z.object(target), roles: ADMIN },
+  /** Sloty zalogowanej osoby do niewycofanych wersji klucza organizacji (otwiera je tylko przeglądarka). */
+  'keys.mySlots': { input: none, roles: ALL },
+  /** Slot odzyskiwania bieżącej wersji klucza, tylko dla administratora bez slotu do niej (D10). */
+  'keys.recoverySlot': { input: none, roles: ADMIN },
+  /** Zapis własnego slotu po otwarciu slotu odzyskiwania w przeglądarce (D10). */
+  'keys.recover': { input: z.object({ keyVersion: version, wrappedKey: wrappedKeySchema }), roles: ADMIN },
+  /** Kto ma dostęp do danych wrażliwych; klucze publiczne aktywnych kont do nadawania dostępu. */
+  'access.list': { input: none, roles: ADMIN },
+  /** Nadanie dostępu: sloty do wszystkich niewycofanych wersji klucza, zrobione w przeglądarce administratora (D8). */
+  'access.grant': {
+    input: z.object({ userId: uuid, slots: z.array(z.object({ keyVersion: version, wrappedKey: wrappedKeySchema })).min(1).max(10) }),
+    roles: ADMIN
+  },
+  /** Odebranie dostępu: usunięcie slotów i koniec sesji tej osoby (D8). */
+  'access.revoke': { input: z.object({ userId: uuid }), roles: ADMIN },
   /** Dane techniczne instancji (wersja, migracje). Bez danych organizacji. */
   'system.info': { input: none, roles: ['admin'] },
   /** Ustawienia organizacji potrzebne interfejsowi (moduły, nazwy ról). */
@@ -318,6 +335,18 @@ export interface InviteLink {
   expiresAt: string
 }
 
+export interface KeySlotItem {
+  keyVersion: number
+  wrappedKey: string
+}
+export interface AccessListItem {
+  userId: string
+  /** Ma slot do bieżącej wersji klucza organizacji. */
+  hasAccess: boolean
+  /** Klucz publiczny (SPKI, base64) aktywnego konta; null: konto nieaktywne albo bez kluczy. */
+  publicKey: string | null
+}
+
 export interface OrgSettings {
   id: string
   version: number
@@ -340,8 +369,15 @@ export interface ApiOutputs {
   'users.list': UserListItem[]
   'users.invite': InviteLink
   'users.setRole': void
-  'users.disable': void
-  'users.reset': InviteLink
+  /** `hadAccess`: konto miało slot klucza (propozycja zmiany klucza organizacji, D8). */
+  'users.disable': { hadAccess: boolean }
+  'users.reset': InviteLink & { hadAccess: boolean }
+  'keys.mySlots': KeySlotItem[]
+  'keys.recoverySlot': { keyVersion: number; recoverySlot: string }
+  'keys.recover': void
+  'access.list': AccessListItem[]
+  'access.grant': void
+  'access.revoke': { hadAccess: boolean }
   'system.info': { version: string; migrations: number }
   'settings.get': OrgSettings
   'contacts.list': T.ContactListItem[]
