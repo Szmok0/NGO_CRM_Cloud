@@ -59,6 +59,9 @@ export function lockKeys() {
 /** Klucze organizacji do bieżącej wersji (i starszych, jeszcze niewycofanych), niewyeksportowalne. */
 export const orgKeyFor = (keyVersion: number) => orgKeys.get(keyVersion) ?? null
 
+/** Najnowsza wersja klucza ze slotów tej osoby (do nowych zapisów); null bez slotów. Serwer i tak sprawdza, czy to bieżąca wersja. */
+export const currentOrgKeyVersion = () => (orgKeys.size ? Math.max(...orgKeys.keys()) : null)
+
 /** Otwiera sloty zalogowanej osoby własnym kluczem prywatnym. */
 export async function loadOrgKeys(): Promise<void> {
   if (!privateKey) return

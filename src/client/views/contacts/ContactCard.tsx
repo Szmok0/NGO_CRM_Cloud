@@ -15,6 +15,7 @@ import { pl } from '../../i18n/pl'
 import { call, errorMessage, useLoad } from '../../lib/api'
 import { formatDate, todayYmd } from '../../lib/format'
 import { ContactForm } from './ContactForm'
+import { SensitiveCard } from './SensitiveCard'
 
 /** Akcja zapisu z karty: po sukcesie odświeżenie, po błędzie komunikat. */
 function useAction(onChange: () => void) {
@@ -120,6 +121,9 @@ export function ContactCard({ id }: { id: string }) {
               <Row label={pl.common.notes}>{c.notes && <span className="whitespace-pre-wrap">{c.notes}</span>}</Row>
             </dl>
           </Card>
+          {isPerson && c.identityVersion !== null && (
+            <SensitiveCard key={id} contactId={id} hasSensitive={data.hasSensitive} editable={editable} onChange={reload} />
+          )}
           {isPerson && <RolesCard data={data} editable={editable} onChange={reload} />}
           <RelationshipsCard data={data} editable={editable} onChange={reload} />
           {isPerson && <ConsentsCard data={data} editable={editable} onChange={reload} />}

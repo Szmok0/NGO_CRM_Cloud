@@ -331,7 +331,12 @@ export const pl = {
     roleNamesHint: 'Własne nazwy, np. „uczestnik” → „podopieczny”. Puste pole = nazwa domyślna.',
     staleDays: 'Po ilu dniach bez kontaktu uczestnik „wymaga uwagi”',
     save: 'Zapisz ustawienia',
-    saved: 'Zapisano.'
+    saved: 'Zapisano.',
+    sensitive: 'Dane wrażliwe',
+    sensitiveToggle: 'Pola wrażliwe na karcie osoby (PESEL, orzeczenie, zdrowie, sytuacja rodzinna, notatki)',
+    sensitiveWarning:
+      'Włączaj tylko wtedy, gdy organizacja naprawdę potrzebuje tych danych (RODO: minimalizacja; dane o zdrowiu to szczególna kategoria). Dane szyfruje przeglądarka i odczytają je tylko osoby z nadanym dostępem. Każde odsłonięcie trafia do dziennika dostępu.',
+    sensitiveOffHint: 'Wyłączenie ukrywa pola. Zapisane dane zostają.'
   },
   profiles: {
     kgw: 'Koło Gospodyń Wiejskich',
@@ -622,6 +627,30 @@ export const pl = {
     rotateTitle: 'Rozważ zmianę klucza organizacji',
     rotateText: 'Osoba, która miała dostęp do danych wrażliwych, już go nie ma, ale mogła wcześniej zobaczyć klucz w swojej przeglądarce. Zmiana klucza zabezpiecza dane przed jej dawnym dostępem. Nie jest wymuszona; ta funkcja pojawi się w kolejnym kroku.',
     rotateDismiss: 'Zamknij'
+  },
+  sensitive: {
+    title: 'Dane wrażliwe',
+    pesel: 'PESEL',
+    disability: 'Orzeczenie (rodzaj / stopień)',
+    disabilityValidUntil: 'Orzeczenie ważne do',
+    health: 'Zdrowie',
+    family: 'Sytuacja rodzinna',
+    notes: 'Notatki wrażliwe',
+    mask: '••••••',
+    reveal: 'Odsłoń',
+    hide: 'Ukryj',
+    add: 'Uzupełnij',
+    working: 'Odszyfrowuję…',
+    revealHint: 'Każde odsłonięcie trafia do dziennika dostępu.',
+    empty: 'Brak danych wrażliwych.',
+    locked: 'Dane wrażliwe są zablokowane. Odblokuj je swoim hasłem.',
+    noAccess: 'Nie masz dostępu do danych wrażliwych. Dostęp nadaje administrator.',
+    disabled: 'Pola wrażliwe są wyłączone w ustawieniach organizacji. Zapisane dane zostają.',
+    noKeyForVersion: 'Te dane są zaszyfrowane wersją klucza organizacji, do której nie masz dostępu.',
+    decryptFailed: 'Nie udało się odszyfrować danych. Odśwież stronę i spróbuj ponownie.',
+    editTitle: 'Dane wrażliwe',
+    peselInvalid: 'Nieprawidłowy numer PESEL. Sprawdź cyfry.',
+    encryptedHint: 'Dane szyfruje ta przeglądarka. Serwer dostaje tylko szyfrogram.'
   },
   invite: {
     title: 'Zaproszenie',

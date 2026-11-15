@@ -1,11 +1,11 @@
-// Ustawienia organizacji (tylko administrator): nazwa, dni do „wymaga uwagi”, profil i moduły, własne nazwy ról.
+// Ustawienia organizacji (tylko administrator): nazwa, dni do „wymaga uwagi”, profil i moduły, pola wrażliwe, własne nazwy ról.
 // W desktopie trzy osobne karty; tu jedna z jednym zapisem, bo zapis odsyła `version` całego wiersza ustawień.
 import { useState } from 'react'
 import { Save } from 'lucide-react'
 import { ROLES, type RoleLabels } from '@shared/domain'
 import { MODULES, PROFILE_DEFAULT_MODULES, PROFILES, type ModuleId, type Profile } from '@shared/modules'
 import { useApp } from '../app/context'
-import { Badge, Button, Card, Checkbox, ErrorText, Field, Input, Select } from '../components/ui'
+import { Alert, Badge, Button, Card, Checkbox, ErrorText, Field, Input, Select } from '../components/ui'
 import { pl } from '../i18n/pl'
 import { call, errorMessage } from '../lib/api'
 
@@ -20,6 +20,7 @@ export function OrgSettingsCard() {
   const [profile, setProfile] = useState<Profile>(s.profile)
   const [enabled, setEnabled] = useState<ModuleId[]>(s.enabledModules)
   const [labels, setLabels] = useState<RoleLabels>(s.roleLabels)
+  const [sensitiveOn, setSensitiveOn] = useState(s.sensitiveFieldsEnabled)
   const [msg, setMsg] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
@@ -29,7 +30,7 @@ export function OrgSettingsCard() {
     setError('')
     setBusy(true)
     try {
-      await call('settings.update', { version: s.version, orgName, profile, enabledModules: enabled, roleLabels: labels, staleDays: Number(staleDays) || 30 })
+      await call('settings.update', { version: s.version, orgName, profile, enabledModules: enabled, roleLabels: labels, staleDays: Number(staleDays) || 30, sensitiveFieldsEnabled: sensitiveOn })
       await refreshSession()
       setMsg(pl.orgSettings.saved)
     } catch (e) {
@@ -85,6 +86,15 @@ export function OrgSettingsCard() {
                 )
               })}
             </ul>
+          </fieldset>
+          <fieldset>
+            <legend className="text-sm font-medium text-secondary-foreground">{pl.orgSettings.sensitive}</legend>
+            <label className="mb-1.5 flex items-center gap-2 text-sm">
+              <Checkbox checked={sensitiveOn} onChange={(e) => setSensitiveOn(e.target.checked)} />
+              {pl.orgSettings.sensitiveToggle}
+            </label>
+            {sensitiveOn && !s.sensitiveFieldsEnabled && <Alert>{pl.orgSettings.sensitiveWarning}</Alert>}
+            {!sensitiveOn && s.sensitiveFieldsEnabled && <p className="text-xs text-muted-foreground">{pl.orgSettings.sensitiveOffHint}</p>}
           </fieldset>
         </div>
         <fieldset>

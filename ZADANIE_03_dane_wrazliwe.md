@@ -260,3 +260,26 @@ _(uzupełniane po każdym etapie)_
 - `logAccess` dostał parametr `targetType` (`user` domyślnie, `contact`).
 - Testy: `src/server/services/sensitive.test.ts` (13); test uprawnień obejmuje nowe metody automatycznie. Typecheck, 678 testów i build przechodzą.
 - **Uwaga techniczna:** MariaDB nie zna `SELECT … FOR SHARE` (składnia MySQL 8), dlatego zapis blokuje wiersze `org_keys` przez `FOR UPDATE` jak `access.grant`. Zapisy danych wrażliwych idą przez to po kolei, co przy skali NGO nie ma znaczenia.
+
+### Krok 2, etap b (2026-11-15): ekrany
+- `crypto/sensitive.ts`: `SensitiveFields` (PESEL, orzeczenie: rodzaj/stopień i ważne do, zdrowie, sytuacja rodzinna, notatki), `encryptSensitive` / `decryptSensitive` (AES-GCM, IV 12 bajtów, AAD `ngo-crm/sensitive/{contactId}/v{keyVersion}`; przy odczycie tylko znane pola tekstowe).
+- `lib/pesel.ts`: `isValidPesel` (11 cyfr, data z kodowaniem stulecia w miesiącu, suma kontrolna).
+- `lib/keyring.ts`: `currentOrgKeyVersion()` (najnowsza wersja ze slotów; serwer i tak sprawdza bieżącą).
+- `views/contacts/SensitiveCard.tsx` na karcie osoby (pod „Dane”, `key` = id osoby):
+  - stany: zablokowane (z przyciskiem „Odblokuj”, zamyka odstępstwo z etapu 1b), brak dostępu, brak danych („Uzupełnij”), maska z „Odsłoń”, odsłonięte z „Ukryj” i „Edytuj”;
+  - jawne dane tylko w stanie komponentu: znikają po „Ukryj”, wyjściu z karty i blokadzie kluczy;
+  - edycja w oknie: walidacja PESEL, limity długości (teksty do 4000 znaków, szyfrogram mieści się w 64 KB); konflikt wersji → ponowne odsłonięcie aktualnych danych i komunikat;
+  - wyłączone pola: karta znika, a gdy osoba ma zapisane dane, zostaje sama informacja „wyłączone, dane zostają”.
+- `OrgSettingsCard.tsx`: przełącznik „Pola wrażliwe” z ostrzeżeniem przy włączaniu i podpowiedzią przy wyłączaniu; zapis w `settings.update`.
+- Teksty w `pl.ts` (`sensitive`, `orgSettings.sensitive*`).
+- Testy: `crypto/sensitive.test.ts` (5, w tym inny `contact_id` → błąd), `lib/pesel.test.ts` (4). Typecheck, 687 testów i build przechodzą.
+- **Sprawdzone w przeglądarce** na zbudowanej aplikacji (`npm run build`, `node dist/server/index.js`) pod CSP, na osobnej lokalnej bazie `test_ngocrm_ui`. Użytkownik `ngocrm` nie może zakładać baz, ale MariaDB pozwala wszystkim na bazy `test_%`. Konto założyłem kreatorem z `SETUP_TOKEN`.
+  - Kreator: wersja 1 klucza, slot administratora. Ustawienia pokazują „odblokowany w tej karcie” i „ma dostęp”.
+  - Przełącznik w ustawieniach: ostrzeżenie przy włączaniu, podpowiedź przy wyłączaniu, zapis.
+  - Karta osoby:
+    - „Brak danych” → „Uzupełnij” (zły PESEL blokuje zapis) → zapis i dane odsłonięte → „Ukryj” (maska) → „Odsłoń”;
+    - po odświeżeniu „zablokowane” → „Odblokuj” (złe hasło → komunikat, dobre → maska) → edycja istniejącego rekordu;
+    - wyłączone pola → informacja „wyłączone, dane zostają”.
+  - W bazie: w `contact_sensitive` sam szyfrogram (IV 16 znaków, bez PESEL i tekstu), `access_log` zawiera `reveal_sensitive` (cel `contact`), `change_log` same nazwy pól. Brak błędów CSP w konsoli.
+- **Niesprawdzone (potrzebne drugie konto):** stan „brak dostępu” na karcie, Nadaj / Odbierz, baner zmiany klucza, ekran „Odzyskaj dostęp”. Do zrobienia w scenariuszu akceptacji (krok 7) albo przy kroku 3b.
+- **Drobne w wyglądzie (bez zmian):** etykieta „Orzeczenie (rodzaj / stopień)” łamie się w kolumnie 10rem; komunikat o złym PESEL jest szarą podpowiedzią, nie czerwonym błędem.
