@@ -9,3 +9,6 @@ backups/
 *.log
 *.tsbuildinfo
 .vite/
+
+# pobrane kopie zapasowe (testy lokalne)
+*.ngb
