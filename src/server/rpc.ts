@@ -25,7 +25,10 @@ import * as exportsSvc from './services/exports'
 import * as accessLogView from './services/accessLogView'
 import * as tasks from './services/tasks'
 import * as backupsSvc from './services/backups'
-import type { Actor } from './services/common'
+import { getSecurityStatus } from './services/securityStatus'
+import { refreshUpdateInfo } from './services/updates'
+import { repoFor, type Actor } from './services/common'
+import { settings } from './db/schema'
 import { SESSION_COOKIE, clearSessionCookie, createSession, revokeAllSessions, revokeSession, setSessionCookie } from './auth/sessions'
 
 /** Sesja logowania widziana przez strażnika. */
@@ -130,6 +133,15 @@ const handlers: Handlers = {
   'keys.rotateBatch': (p, ctx) => rotation.rotateBatch(ctx.db, p, actor(ctx)),
   'keys.rotateFinish': (_p, ctx) => rotation.rotateFinish(ctx.db, actor(ctx)),
   'system.info': async (_p, { db }) => ({ version: pkg.version, migrations: await migrationCount(db) }),
+  'security.status': (_p, { db, req, auth, now }) => getSecurityStatus(db, { storageConfigured: !!auth?.storageDir, secure: req.protocol === 'https', now }),
+  'security.setUpdateCheck': async ({ enabled }, ctx) => {
+    const { db, session, now } = ctx
+    const current = await getSettings(db)
+    await repoFor(db, actor(ctx)).update(settings, current.id, current.version, { checkUpdates: enabled })
+    await logAccess(db, session.userId, 'update_check_changed', now)
+    // Po włączeniu od razu pytamy o wersję (wynik pojawi się przy kolejnym odświeżeniu panelu).
+    if (enabled) void refreshUpdateInfo(db, now).catch(() => undefined)
+  },
   'settings.get': (_p, { db }) => getSettings(db),
   'backups.list': (_p, { db, now }) => backupsSvc.listBackups(db, now),
   'backups.create': async (_p, { db, session, auth, now }) => {

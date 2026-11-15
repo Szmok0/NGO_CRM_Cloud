@@ -37,7 +37,9 @@ export const settings = mysqlTable('settings', {
   sensitiveFieldsEnabled: boolean('sensitive_fields_enabled').notNull().default(false),
   retentionMonths: int('retention_months'),
   /** Wylogowanie po bezczynności (15–120 min). Na razie sesje używają stałych 30 min. */
-  idleLogoutMinutes: int('idle_logout_minutes').notNull().default(30)
+  idleLogoutMinutes: int('idle_logout_minutes').notNull().default(30),
+  /** Sprawdzanie nowej wersji w serwisie GitHub (ZADANIE_04, D9); domyślnie włączone, wyłącza administrator. */
+  checkUpdates: boolean('check_updates').notNull().default(true)
 })
 
 // ---------- Dostęp (model danych 2.2, bezpieczeństwo rozdział 5) ----------

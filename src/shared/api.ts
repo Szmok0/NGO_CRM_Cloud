@@ -227,6 +227,10 @@ export const apiMethods = {
   'backups.create': { input: none, roles: ADMIN },
   /** Zapis wyniku „Sprawdź kopię” (D4): tylko udane sprawdzenie; kopię wskazuje data z nagłówka pliku (= start kopii na tym serwerze), plik z innego serwera nic nie zapisuje (`matched: false`); wynik po ludzku bez treści danych. Wpis `backup_verify` w dzienniku. */
   'backups.markTested': { input: z.object({ createdAt: z.iso.datetime(), result: z.string().min(1).max(255) }), roles: ADMIN },
+  /** Panel „Stan bezpieczeństwa” (ZADANIE_04, D8): wszystkie sprawy w jednym wywołaniu, same fakty (teksty składa klient), bez danych osobowych poza nazwami kont. */
+  'security.status': { input: none, roles: ADMIN },
+  /** Wyłącznik sprawdzania nowej wersji w serwisie GitHub (D9). Wpis `update_check_changed` w dzienniku dostępu. */
+  'security.setUpdateCheck': { input: z.object({ enabled: z.boolean() }), roles: ADMIN },
   /** Ustawienia organizacji potrzebne interfejsowi (moduły, nazwy ról). */
   'settings.get': { input: none, roles: ALL },
 
@@ -446,6 +450,25 @@ export interface InviteLink {
 }
 
 /** `downloadDue`: od ostatniego pobrania (a gdy nie było: od pierwszej kopii) minęło więcej niż 7 dni (D4). */
+/** Kolor sprawy w panelu „Stan bezpieczeństwa”: zielony w porządku, żółty do zrobienia, czerwony pilne, szary brak danych / niewłączone. */
+export type SecurityTone = 'green' | 'yellow' | 'red' | 'grey'
+export type SecurityItemId = 'version' | 'https' | 'storage' | 'backup' | 'download' | 'verify' | 'twofa' | 'access' | 'rotation' | 'retention'
+/** `disabled` wyłączone w ustawieniach · `pending` jeszcze nie sprawdzono · `failed` brak połączenia · `current` aktualna · `available` jest nowsza. */
+export type UpdateState = 'disabled' | 'pending' | 'failed' | 'current' | 'available'
+export interface SecurityItem {
+  id: SecurityItemId
+  tone: SecurityTone
+  /** Fakty do zdania w interfejsie (liczby, daty ISO, nazwy kont, flagi). Szczegóły per sprawa: services/securityStatus.ts. */
+  data: Record<string, string | number | boolean | string[] | null>
+}
+export interface SecurityStatus {
+  version: string
+  releasedAt: string
+  updateCheckEnabled: boolean
+  update: { state: UpdateState; latest: string | null; title: string | null; url: string | null; security: boolean; checkedAt: string | null }
+  items: SecurityItem[]
+}
+
 export interface BackupList {
   items: BackupItem[]
   lastDownloadedAt: string | null
@@ -589,6 +612,8 @@ export interface ApiOutputs {
   'backups.list': BackupList
   'backups.create': { id: string }
   'backups.markTested': { matched: boolean }
+  'security.status': SecurityStatus
+  'security.setUpdateCheck': void
   'settings.get': OrgSettings
   'contacts.list': T.ContactListItem[]
   'contacts.tags': string[]

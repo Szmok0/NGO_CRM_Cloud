@@ -1,6 +1,7 @@
 {
   "name": "ngo-crm-cloud",
   "version": "0.1.0",
+  "releaseDate": "2026-11-15",
   "private": true,
   "description": "Lekki, modułowy CRM dla polskich NGO (wersja chmurowa, self-hosting)",
   "type": "module",

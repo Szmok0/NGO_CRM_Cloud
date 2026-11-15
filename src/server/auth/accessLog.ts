@@ -29,6 +29,7 @@ export type AccessAction =
   | 'backup_download'
   | 'backup_verify'
   | 'backup_restore'
+  | 'update_check_changed'
 
 export type AccessTargetType = 'user' | 'contact' | 'attachment' | 'contacts_list' | 'actions_list' | 'participants_list' | 'access_log' | 'backup'
 

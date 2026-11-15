@@ -1,0 +1,1 @@
+ALTER TABLE `settings` ADD `check_updates` boolean DEFAULT true NOT NULL;

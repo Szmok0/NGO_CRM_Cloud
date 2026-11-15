@@ -3,6 +3,7 @@ import { openDb, runMigrations } from './db/connection'
 import { buildApp } from './app'
 import { dbSessions } from './auth/sessions'
 import { startBackupTimer } from './services/backups'
+import { startUpdateTimer } from './services/updates'
 
 // Bez await na najwyższym poziomie: Hostinger (lsnode.js) wczytuje ten plik przez require().
 async function start() {
@@ -26,6 +27,7 @@ async function start() {
   })
   await app.listen({ port: config.PORT, host: config.HOST })
   startBackupTimer(db, config.STORAGE_DIR)
+  startUpdateTimer(db)
 }
 
 start().catch((err) => {

@@ -104,7 +104,8 @@ export const ACCESS_ACTION_LABELS: Record<string, string> = {
   backup_create: 'kopia zapasowa (ręczna)',
   backup_download: 'pobranie kopii zapasowej',
   backup_verify: 'sprawdzenie kopii zapasowej',
-  backup_restore: 'odtworzenie z kopii zapasowej'
+  backup_restore: 'odtworzenie z kopii zapasowej',
+  update_check_changed: 'zmiana sprawdzania nowej wersji'
 }
 
 export const ACCESS_TARGET_LABELS: Record<string, string> = {
