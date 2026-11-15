@@ -9,6 +9,7 @@ import { pl } from '../i18n/pl'
 import { call, errorMessage, isApiError, useLoad } from '../lib/api'
 import { formatDateTime } from '../lib/format'
 import { openExportableOrgKeys, useKeyring } from '../lib/keyring'
+import { AccessLogCard } from './AccessLogCard'
 import { OrgSettingsCard } from './OrgSettingsCard'
 import { RecoverAccessCard } from './RecoverAccessCard'
 import { RotateKeyCard } from './RotateKeyCard'
@@ -76,6 +77,7 @@ export function SettingsScreen({ me, account, onChangePassword, onSignedOut }: P
         {me.role === 'admin' && <OrgSettingsCard />}
         {me.role === 'admin' && <RotateKeyCard orgName={account.orgName} openRequest={rotateRequest} />}
         {me.role === 'admin' && <UsersPanel onRotate={() => setRotateRequest((n) => n + 1)} myId={me.userId} userKeysReady={unlocked && hasOrgAccess} onUnlock={() => setUnlocking(true)} onSignedOut={onSignedOut} />}
+        {me.role === 'admin' && <AccessLogCard />}
       </div>
     </>
   )

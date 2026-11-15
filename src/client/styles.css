@@ -111,7 +111,8 @@ dialog::backdrop {
 
 /* Wydruk klucza odzyskiwania z ustawień: tylko blok z kluczem (portal w body), bez reszty aplikacji. */
 @media print {
-  body.print-recovery #root {
+  body.print-recovery #root,
+  body.print-export #root {
     display: none;
   }
 }

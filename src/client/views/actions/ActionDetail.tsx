@@ -2,12 +2,13 @@
 // Zajęcia i obecność / Historia. Bez zakładek działań v2 (przygotowanie, budżet, ewaluacja, pliki — ZADANIE_05, D1).
 // Każdy zapis odsyła `version`; lista obecności drukuje się z przeglądarki.
 import { useState, type ReactNode } from 'react'
-import { BookOpen, CalendarDays, ClipboardPaste, MapPin, Pencil, Plus, Printer, Trash2, UserPlus, X } from 'lucide-react'
+import { BookOpen, CalendarDays, ClipboardPaste, Download, MapPin, Pencil, Plus, Printer, Trash2, UserPlus, X } from 'lucide-react'
 import { PARTICIPANT_STATUSES, type AttendanceStatus, type ParticipantStatus } from '@shared/domain'
 import type { ActionDetail, ContactListItem } from '@shared/types'
 import { useApp } from '../../app/context'
 import { ActionStatusChip, ActionTypeChip } from '../../components/chips'
 import { ContactPicker } from '../../components/ContactPicker'
+import { ExportCsvDialog } from '../../components/ExportCsvDialog'
 import { AttachmentsCard } from '../../components/AttachmentsCard'
 import { TargetTasks } from '../../components/TaskRows'
 import { Timeline } from '../../components/Timeline'
@@ -207,8 +208,9 @@ function Info({ label, children }: { label: string; children: ReactNode }) {
 }
 
 function ParticipantsTab({ data, editable, onChange, onMessage }: { data: ActionDetail; editable: boolean; onChange: () => void; onMessage: (m: string) => void }) {
-  const { go } = useApp()
+  const { go, canWrite } = useApp()
   const [adding, setAdding] = useState(false)
+  const [exporting, setExporting] = useState(false)
   const [pasting, setPasting] = useState(false)
   const [error, setError] = useState('')
   const actionId = data.action.id
@@ -225,18 +227,26 @@ function ParticipantsTab({ data, editable, onChange, onMessage }: { data: Action
     <Card
       title={pl.actions.tabs.participants}
       actions={
-        editable && (
-          <>
-            <Button size="sm" variant="outline" onClick={() => setAdding(!adding)}>
-              <UserPlus size={13} /> {pl.actions.addFromBase}
+        <>
+          {canWrite && data.participants.length > 0 && (
+            <Button size="sm" variant="outline" onClick={() => setExporting(true)}>
+              <Download size={13} /> {pl.common.exportCsv}
             </Button>
-            <Button size="sm" variant="outline" onClick={() => setPasting(true)}>
-              <ClipboardPaste size={13} /> {pl.actions.pasteList}
-            </Button>
-          </>
-        )
+          )}
+          {editable && (
+            <>
+              <Button size="sm" variant="outline" onClick={() => setAdding(!adding)}>
+                <UserPlus size={13} /> {pl.actions.addFromBase}
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => setPasting(true)}>
+                <ClipboardPaste size={13} /> {pl.actions.pasteList}
+              </Button>
+            </>
+          )}
+        </>
       }
     >
+      {exporting && <ExportCsvDialog source={{ list: 'participants', actionId }} onClose={() => setExporting(false)} />}
       {adding && (
         <div className="mb-3">
           <ContactPicker kind="person" exclude={data.participants.map((p) => p.contactId)} onPick={add} />

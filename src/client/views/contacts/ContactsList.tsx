@@ -1,10 +1,10 @@
-// Lista osób i instytucji (przeniesiona z desktopu). Bez eksportu CSV: eksport danych osobowych z ostrzeżeniem
-// i wpisem w dzienniku dostępu dojdzie z danymi wrażliwymi (ZADANIE_03).
+// Lista osób i instytucji (przeniesiona z desktopu). Eksport CSV z ostrzeżeniem i wpisem w dzienniku dostępu (ZADANIE_03, krok 6).
 import { useState } from 'react'
-import { Building2, Plus, Users } from 'lucide-react'
+import { Building2, Download, Plus, Users } from 'lucide-react'
 import { ROLES, type ContactKind, type Role } from '@shared/domain'
 import { useApp } from '../../app/context'
 import { RoleChip } from '../../components/chips'
+import { ExportCsvDialog } from '../../components/ExportCsvDialog'
 import { Avatar, Badge, Button, Card, EmptyState, ErrorText, Input, PageHeader, Select, Table, Tabs } from '../../components/ui'
 import { pl } from '../../i18n/pl'
 import { useLoad } from '../../lib/api'
@@ -17,6 +17,7 @@ export function ContactsList() {
   const [tag, setTag] = useState('')
   const [q, setQ] = useState('')
   const [adding, setAdding] = useState<ContactKind | null>(null)
+  const [exporting, setExporting] = useState(false)
   const { data, error } = useLoad('contacts.list', { kind, role: role || null, tag: tag || null, q: q || null })
   const tags = useLoad('contacts.tags', {})
 
@@ -32,6 +33,9 @@ export function ContactsList() {
         actions={
           canWrite && (
             <>
+              <Button variant="outline" onClick={() => setExporting(true)}>
+                <Download size={14} /> {pl.common.exportCsv}
+              </Button>
               <Button variant="outline" onClick={() => setAdding('institution')}>
                 <Building2 size={14} /> {pl.contacts.addInstitution}
               </Button>
@@ -135,6 +139,7 @@ export function ContactsList() {
           </div>
         )}
       </Card>
+      {exporting && <ExportCsvDialog source={{ list: 'contacts', filter: { kind, role: role || null, tag: tag || null, q: q || null } }} onClose={() => setExporting(false)} />}
       {adding && <ContactForm kind={adding} onClose={() => setAdding(null)} onSaved={(id) => go({ name: 'contact', id })} />}
     </div>
   )

@@ -1,10 +1,11 @@
-// Lista działań (przeniesiona z desktopu). Bez filtra „moje” i kolumny osoby odpowiedzialnej (działania v2, D1)
-// oraz bez eksportu CSV (eksporty z ostrzeżeniem i dziennikiem dostępu: ZADANIE_03).
+// Lista działań (przeniesiona z desktopu). Bez filtra „moje” i kolumny osoby odpowiedzialnej (działania v2, D1).
+// Eksport CSV z ostrzeżeniem i wpisem w dzienniku dostępu (ZADANIE_03, krok 6).
 import { useState } from 'react'
-import { ClipboardList, Plus } from 'lucide-react'
+import { ClipboardList, Download, Plus } from 'lucide-react'
 import { ACTION_STATUSES, ACTION_TYPES, FRAMEWORKS, type ActionStatus, type ActionType, type Framework } from '@shared/domain'
 import { useApp } from '../../app/context'
 import { ActionStatusChip, ActionTypeChip } from '../../components/chips'
+import { ExportCsvDialog } from '../../components/ExportCsvDialog'
 import { Badge, Button, Card, EmptyState, ErrorText, Field, Input, PageHeader, Select, Table } from '../../components/ui'
 import { pl } from '../../i18n/pl'
 import { useLoad } from '../../lib/api'
@@ -20,6 +21,7 @@ export function ActionsList() {
   const [to, setTo] = useState('')
   const [q, setQ] = useState('')
   const [adding, setAdding] = useState(false)
+  const [exporting, setExporting] = useState(false)
   const { data, error } = useLoad('actions.list', {
     type: type || null,
     status: status || null,
@@ -40,9 +42,14 @@ export function ActionsList() {
         }
         actions={
           canWrite && (
-            <Button onClick={() => setAdding(true)}>
-              <Plus size={14} /> {pl.actions.add}
-            </Button>
+            <>
+              <Button variant="outline" onClick={() => setExporting(true)}>
+                <Download size={14} /> {pl.common.exportCsv}
+              </Button>
+              <Button onClick={() => setAdding(true)}>
+                <Plus size={14} /> {pl.actions.add}
+              </Button>
+            </>
           )
         }
       >
@@ -142,6 +149,12 @@ export function ActionsList() {
           </div>
         )}
       </Card>
+      {exporting && (
+        <ExportCsvDialog
+          source={{ list: 'actions', filter: { type: type || null, status: status || null, framework: framework || null, from: from || null, to: to || null, q: q || null } }}
+          onClose={() => setExporting(false)}
+        />
+      )}
       {adding && <ActionForm onClose={() => setAdding(false)} onSaved={(id) => go({ name: 'action', id })} />}
     </div>
   )

@@ -1,6 +1,6 @@
 // Karta osoby lub instytucji (przeniesiona z desktopu). Każdy zapis odsyła `version` rekordu; błąd (np. konflikt wersji) pokazuje karta.
 import { useState, type ReactNode } from 'react'
-import { Building2, CheckSquare, HandHeart, MessageSquare, NotebookPen, Pencil, Plus, Trash2, X } from 'lucide-react'
+import { Building2, CheckSquare, Download, HandHeart, MessageSquare, NotebookPen, Pencil, Plus, Trash2, X } from 'lucide-react'
 import { CONSENT_TYPES, RELATIONSHIP_TYPES, ROLES, type ConsentType, type RelationshipType, type Role } from '@shared/domain'
 import type { ContactDetail, ContactListItem } from '@shared/types'
 import { useApp } from '../../app/context'
@@ -12,6 +12,7 @@ import { TaskDialog } from '../../components/TaskDialog'
 import { TargetTasks } from '../../components/TaskRows'
 import { Timeline } from '../../components/Timeline'
 import { AnonymizeDialog } from '../../components/AnonymizeDialog'
+import { PersonExportDialog } from '../../components/PersonExportDialog'
 import { Alert, Avatar, Badge, Button, Card, Dialog, Empty, ErrorText, Field, Input, Select } from '../../components/ui'
 import { pl } from '../../i18n/pl'
 import { call, errorMessage, useLoad } from '../../lib/api'
@@ -38,6 +39,7 @@ export function ContactCard({ id }: { id: string }) {
   const [entry, setEntry] = useState<NewActivityType | null>(null)
   const [addingTask, setAddingTask] = useState(false)
   const [anonymizing, setAnonymizing] = useState(false)
+  const [exporting, setExporting] = useState(false)
   const action = useAction(reload)
 
   if (error) return <ErrorText>{error}</ErrorText>
@@ -81,6 +83,11 @@ export function ContactCard({ id }: { id: string }) {
             </div>
           )}
         </div>
+        {canWrite && isPerson && !c.anonymizedAt && (
+          <Button variant="ghost" size="sm" className="self-start" onClick={() => setExporting(true)}>
+            <Download size={14} /> {pl.personExport.button}
+          </Button>
+        )}
         {session.me.role === 'admin' && isPerson && !c.anonymizedAt && (
           <Button variant="ghost" size="sm" className="self-start text-destructive" onClick={() => setAnonymizing(true)}>
             {pl.contacts.anonymizeButton}
@@ -160,6 +167,7 @@ export function ContactCard({ id }: { id: string }) {
           <Timeline activities={data.activities} contactIds={[id]} editable={editable} onChange={reload} />
         </div>
       </div>
+      {exporting && <PersonExportDialog contactId={id} onClose={() => setExporting(false)} />}
       {anonymizing && <AnonymizeDialog contactId={id} label={label} onClose={() => setAnonymizing(false)} onDone={reload} />}
       {editing && <ContactForm kind={c.kind} contact={c} onClose={() => setEditing(false)} onSaved={reload} />}
       {addingTask && <TaskDialog taskId={null} defaults={{ targetType: 'contact', targetId: id, targetLabel: label }} onClose={() => setAddingTask(false)} onSaved={reload} />}
