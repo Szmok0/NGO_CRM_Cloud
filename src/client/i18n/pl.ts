@@ -390,6 +390,34 @@ export const pl = {
     exportCsv: 'Eksport CSV',
     exportDone: (rows: number) => `Zapisano plik. Liczba wpisów: ${rows}.`
   },
+  retention: {
+    title: 'Okres przechowywania danych osób',
+    sub: 'Dane osób, z którymi nic się od dawna nie dzieje, nie powinny leżeć w programie bez końca. Ustaw, po ilu miesiącach bez aktywności program ma Ci o takiej osobie przypomnieć. Nic nie zostanie usunięte samo: o każdej osobie decydujesz Ty.',
+    periodLabel: 'Po ilu miesiącach bez aktywności przypominać',
+    periodHint: 'Puste = wyłączone. Podpowiedź: 24 miesiące.',
+    save: 'Zapisz',
+    saved: 'Zapisano.',
+    invalid: 'Wpisz liczbę miesięcy od 1 do 240 albo zostaw pole puste.',
+    off: 'Przypominanie jest wyłączone.',
+    rule: 'Aktywność to: wpis na osi, udział w działaniu, obecność, prowadzenie zajęć, zadanie, zgoda albo nowa rola. Nie przypominamy o członkach, pracownikach i darczyńcach z aktywną rolą ani o osobach powiązanych z kimś, kto jest nadal aktywny (np. opiekun dziecka).',
+    empty: 'Nie ma osób bez aktywności dłużej niż ustawiony okres.',
+    listTitle: (n: number) => (n === 1 ? 'Jedna osoba do przejrzenia' : `Osób do przejrzenia: ${n}`),
+    person: 'Osoba',
+    last: 'Ostatnia aktywność',
+    months: (n: number) => (n === 1 ? '1 mies. temu' : `${n} mies. temu`),
+    delete: 'Usuń na stałe…',
+    keep: 'Zostaw jeszcze na rok',
+    kept: 'Osoba zniknie z listy na rok.',
+    conflict: 'Ktoś zmienił tę osobę w międzyczasie. Lista została odświeżona.'
+  },
+  supportCopy: {
+    button: 'Kopia do pomocy…',
+    title: 'Kopia do pomocy technicznej',
+    intro: 'Plik, który możesz wysłać osobie pomagającej naprawić program. Nie zawiera imion, nazwisk, e-maili, telefonów, adresów, treści wpisów, zadań i notatek, danych wrażliwych, załączników, haseł ani kluczy. Zostają struktura danych, statusy, daty i liczby.',
+    warning: 'Uwaga: plik NIE jest zaszyfrowany i jest tylko spseudonimizowany, nie anonimowy. Z samych dat, powiązań i liczb da się czasem domyślić, kogo dotyczą. Wysyłaj go wyłącznie osobie, z którą macie umowę powierzenia, i usuń po zakończeniu pomocy. Pobranie zostanie zapisane w dzienniku dostępu.',
+    download: 'Pobierz plik',
+    close: 'Zamknij'
+  },
   backups: {
     title: 'Kopie zapasowe',
     sub: 'Program robi kopię sam, raz na dobę. Raz w tygodniu pobierz kopię na swój komputer i trzymaj ją poza serwerem. Otworzysz ją swoim e-mailem i hasłem.',
@@ -772,7 +800,7 @@ export const pl = {
     },
     ago: (days: number) => (days === 0 ? 'dzisiaj' : days === 1 ? 'wczoraj' : `${days} dni temu`),
     days: (n: number) => (n === 1 ? '1 dzień' : `${n} dni`),
-    go: { backups: 'Przejdź do kopii', users: 'Przejdź do użytkowników', rotate: 'Przejdź do zmiany klucza', changes: 'Zobacz, co się zmieniło' },
+    go: { retention: 'Przejdź do okresów przechowywania', backups: 'Przejdź do kopii', users: 'Przejdź do użytkowników', rotate: 'Przejdź do zmiany klucza', changes: 'Zobacz, co się zmieniło' },
     update: {
       toggleOff: 'Wyłącz sprawdzanie nowej wersji',
       toggleOn: 'Włącz sprawdzanie nowej wersji',
@@ -826,7 +854,10 @@ export const pl = {
       rotationNone: 'Klucz organizacji jeszcze nie istnieje.',
       rotationNo: (sensitive: number, files: number) => `Zmiana klucza nie została dokończona. Do przeszyfrowania zostało: dane wrażliwe osób (${sensitive}) i załączniki (${files}).`,
       rotationTodo: 'Dokończ zmianę klucza w karcie „Zmiana klucza organizacji”.',
-      retention: 'Okresy przechowywania danych jeszcze nie skonfigurowane.'
+      retentionOff: 'Okres przechowywania danych osób jest wyłączony. Program nie przypomni o osobach, których dane trzymacie już bez potrzeby.',
+      retentionOk: (months: number) => `Nie ma osób bez aktywności dłużej niż ${months} mies. Wszystko w porządku.`,
+      retentionDue: (n: number, months: number) => (n === 1 ? `Jedna osoba nie miała żadnej aktywności dłużej niż ${months} mies.` : `Osób bez aktywności dłużej niż ${months} mies.: ${n}.`),
+      retentionTodo: 'Przejrzyj listę i usuń dane osób, których już nie potrzebujecie, albo zostaw je jeszcze na rok.'
     }
   },
   rotate: {

@@ -124,6 +124,7 @@ function VerifyDialog({ open, email: initialEmail, onClose, onSaved }: { open: b
 
 export function BackupsCard({ storageConfigured, email }: { storageConfigured: boolean; email: string }) {
   const [verifying, setVerifying] = useState(false)
+  const [support, setSupport] = useState(false)
   const list = useLoad('backups.list', {})
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -163,6 +164,9 @@ export function BackupsCard({ storageConfigured, email }: { storageConfigured: b
       sub={pl.backups.sub}
       actions={
         <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={() => setSupport(true)}>
+            {pl.supportCopy.button}
+          </Button>
           <Button variant="outline" size="sm" onClick={() => setVerifying(true)}>
             {pl.backups.check}
           </Button>
@@ -223,6 +227,31 @@ export function BackupsCard({ storageConfigured, email }: { storageConfigured: b
           </div>
         )}
       </div>
+      <Dialog
+        open={support}
+        onClose={() => setSupport(false)}
+        title={pl.supportCopy.title}
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setSupport(false)}>
+              {pl.supportCopy.close}
+            </Button>
+            <a
+              href="/api/support-copy"
+              download
+              onClick={() => setSupport(false)}
+              className="inline-flex h-9 items-center gap-1.5 rounded-control bg-primary px-4 text-sm font-semibold text-primary-foreground hover:opacity-90"
+            >
+              <Download size={14} /> {pl.supportCopy.download}
+            </a>
+          </>
+        }
+      >
+        <div className="space-y-3">
+          <p className="text-sm text-muted-foreground">{pl.supportCopy.intro}</p>
+          <Alert tone="warning">{pl.supportCopy.warning}</Alert>
+        </div>
+      </Dialog>
       <VerifyDialog open={verifying} email={email} onClose={() => setVerifying(false)} onSaved={reload} />
     </Card>
   )

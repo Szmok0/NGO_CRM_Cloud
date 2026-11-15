@@ -9,7 +9,7 @@ import { call, errorMessage, useLoad } from '../lib/api'
 import { formatDate } from '../lib/format'
 
 /** Miejsca w Ustawieniach (id sekcji w SettingsScreen), do których prowadzą przyciski „co zrobić”. */
-export const SECTION = { backups: 'sekcja-kopie', users: 'sekcja-uzytkownicy', rotate: 'sekcja-klucz' } as const
+export const SECTION = { retention: 'sekcja-przechowywanie', backups: 'sekcja-kopie', users: 'sekcja-uzytkownicy', rotate: 'sekcja-klucz' } as const
 
 export const scrollToSection = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 
@@ -82,8 +82,11 @@ function describe(item: SecurityItem, s: SecurityStatus): Described {
     case 'rotation':
       if (item.tone === 'grey') return { text: t.rotationNone }
       return item.tone === 'green' ? { text: t.rotationOk } : { text: t.rotationNo(num(d.sensitive), num(d.attachments)), todo: t.rotationTodo, go: { label: go.rotate, section: SECTION.rotate } }
-    case 'retention':
-      return { text: t.retention }
+    case 'retention': {
+      if (d.configured === false) return { text: t.retentionOff }
+      if (item.tone === 'green') return { text: t.retentionOk(num(d.months)) }
+      return { text: t.retentionDue(num(d.due), num(d.months)), todo: t.retentionTodo, go: { label: go.retention, section: SECTION.retention } }
+    }
   }
 }
 

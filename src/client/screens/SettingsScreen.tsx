@@ -13,6 +13,7 @@ import { AccessLogCard } from './AccessLogCard'
 import { BackupsCard } from './BackupsCard'
 import { OrgSettingsCard } from './OrgSettingsCard'
 import { RecoverAccessCard } from './RecoverAccessCard'
+import { RetentionCard } from './RetentionCard'
 import { RotateKeyCard } from './RotateKeyCard'
 import { SECTION, SecurityCard } from './SecurityCard'
 import { releaseDate, version } from '../../../package.json'
@@ -87,6 +88,11 @@ export function SettingsScreen({ me, account, onChangePassword, onSignedOut }: P
         {me.role === 'admin' && (
           <div id={SECTION.users} className="scroll-mt-4">
             <UsersPanel onRotate={() => setRotateRequest((n) => n + 1)} myId={me.userId} userKeysReady={unlocked && hasOrgAccess} onUnlock={() => setUnlocking(true)} onSignedOut={onSignedOut} />
+          </div>
+        )}
+        {me.role === 'admin' && (
+          <div id={SECTION.retention} className="scroll-mt-4">
+            <RetentionCard />
           </div>
         )}
         {me.role === 'admin' && (
