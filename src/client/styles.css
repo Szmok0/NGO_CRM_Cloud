@@ -108,3 +108,10 @@ dialog::backdrop {
     background: #ffffff;
   }
 }
+
+/* Wydruk klucza odzyskiwania z ustawień: tylko blok z kluczem (portal w body), bez reszty aplikacji. */
+@media print {
+  body.print-recovery #root {
+    display: none;
+  }
+}

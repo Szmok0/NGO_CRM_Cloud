@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest'
 import { fromBase64, toBase64 } from './encoding'
 import { generateOrgKey } from './keys'
-import { decryptSensitive, emptySensitive, encryptSensitive, type SensitiveFields } from './sensitive'
+import { decryptSensitive, emptySensitive, encryptSensitive, reencryptSensitive, type SensitiveFields } from './sensitive'
 
 const PERSON = '00000000-0000-4000-8000-0000000000c3'
 const OTHER = '00000000-0000-4000-8000-0000000000d4'
@@ -54,5 +54,16 @@ describe('dane wrażliwe', () => {
     const partial = { pesel: '02270803624', extra: 'x', health: 5 } as unknown as SensitiveFields
     const enc = await encryptSensitive(partial, key, PERSON, 1)
     expect(await decryptSensitive(enc, key, PERSON, 1)).toEqual({ ...emptySensitive(), pesel: '02270803624' })
+  })
+
+  it('zmiana klucza: nowy klucz i wersja, te same dane, stary klucz już nie działa', async () => {
+    const oldKey = await generateOrgKey()
+    const newKey = await generateOrgKey()
+    const enc = await encryptSensitive(FIELDS, oldKey, PERSON, 1)
+    const next = await reencryptSensitive(enc, oldKey, 1, newKey, 2, PERSON)
+    expect(next.iv).not.toBe(enc.iv)
+    expect(await decryptSensitive(next, newKey, PERSON, 2)).toEqual(FIELDS)
+    await expect(decryptSensitive(next, oldKey, PERSON, 2)).rejects.toThrow()
+    await expect(decryptSensitive(next, newKey, PERSON, 1)).rejects.toThrow()
   })
 })

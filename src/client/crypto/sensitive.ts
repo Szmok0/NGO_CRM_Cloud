@@ -45,3 +45,8 @@ export async function decryptSensitive(data: SensitiveEncrypted, orgKey: CryptoK
   }
   return out
 }
+
+/** Zmiana klucza organizacji: szyfrogram odszyfrowany starym kluczem i zaszyfrowany nowym (nowy IV, AAD z nową wersją). */
+export async function reencryptSensitive(data: SensitiveEncrypted, oldKey: CryptoKey, oldVersion: number, newKey: CryptoKey, newVersion: number, contactId: string): Promise<SensitiveEncrypted> {
+  return encryptSensitive(await decryptSensitive(data, oldKey, contactId, oldVersion), newKey, contactId, newVersion)
+}

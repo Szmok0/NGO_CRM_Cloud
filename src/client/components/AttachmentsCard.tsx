@@ -97,7 +97,7 @@ export function AttachmentsCard({ targetType, targetId, editable }: Target & { e
     setBusy(true)
     try {
       if (!r.meta) throw new KeyMissingError()
-      const plain = await decryptFile(await attachmentApi.download(r.att.id), r.meta.fileKey, r.att.keyVersion)
+      const plain = await decryptFile(await attachmentApi.download(r.att.id), r.meta.fileKey, r.meta.fileVersion ?? r.att.keyVersion)
       downloadBlob(r.meta.name, new Blob([plain], { type: r.meta.type || 'application/octet-stream' }))
     } catch (e) {
       setError(readableError(e))

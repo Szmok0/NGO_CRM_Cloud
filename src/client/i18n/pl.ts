@@ -615,6 +615,36 @@ export const pl = {
     noPublicKey: 'To konto nie ma kluczy, więc nie można odzyskać dostępu.',
     done: 'Dostęp odzyskany. Możesz nadawać dostęp innym osobom.'
   },
+  rotate: {
+    title: 'Zmiana klucza organizacji',
+    summary: 'Nowy klucz do danych wrażliwych i dokumentów. Zabezpiecza dane przed osobami, które miały dostęp wcześniej. Zalecana po odebraniu dostępu.',
+    open: 'Zmień klucz organizacji',
+    needAccess: 'Odblokuj klucze swoim hasłem (konto musi mieć dostęp do danych wrażliwych).',
+    intro: 'Program utworzy nowy klucz organizacji i przeszyfruje nim wszystkie dane wrażliwe oraz nazwy dokumentów, w tej przeglądarce.',
+    points: [
+      'Osoby z dostępem dostaną dostęp do nowego klucza automatycznie, bez ponownego nadawania.',
+      'Powstanie nowy klucz odzyskiwania. Poprzedni wydruk przestanie działać, więc trzeba go zniszczyć.',
+      'Czas zależy od liczby rekordów. Nie zamykaj karty do końca; przerwaną zmianę można wznowić.',
+      'W trakcie zmiany inni mogą normalnie pracować, ale nie nadawaj w tym czasie dostępu nowym osobom.'
+    ],
+    next: 'Dalej',
+    cancel: 'Anuluj',
+    recoveryIntro: 'To nowy klucz odzyskiwania. Wydrukuj go i schowaj w bezpiecznym miejscu organizacji, a stary wydruk zniszcz. Pokazujemy go tylko raz.',
+    start: 'Rozpocznij zmianę',
+    running: 'Przeszyfrowuję dane…',
+    resume: 'Zmiana klucza została rozpoczęta, ale nie dokończona. Dokończ ją, żeby stary klucz przestał działać.',
+    preparing: 'Przygotowanie…',
+    progress: (done: number, total: number) => `Przeszyfrowano ${done} z ${total}`,
+    keepOpen: 'Nie zamykaj tej karty do końca zmiany.',
+    continue: 'Dokończ zmianę',
+    retry: 'Spróbuj ponownie',
+    done: 'Klucz organizacji został zmieniony. Stary klucz i jego dostępy zostały usunięte. Pamiętaj, aby zniszczyć stary wydruk klucza odzyskiwania.',
+    close: 'Zamknij',
+    holderNoKey: 'Jedna z osób z dostępem nie ma kluczy, więc nie można utworzyć dla niej dostępu do nowego klucza.',
+    keyMissing: 'Brak klucza organizacji w tej karcie. Odblokuj klucze swoim hasłem i spróbuj ponownie.',
+    decryptFailed: 'Nie udało się odszyfrować jednego z rekordów starym kluczem. Zmiana została wstrzymana, a stary klucz zostaje; dane nie zostały uszkodzone.',
+    stalled: 'Rekordy są stale zmieniane przez inne osoby, więc przeszyfrowanie nie postępuje. Spróbuj ponownie za chwilę.'
+  },
   access: {
     column: 'Dane wrażliwe',
     has: 'ma dostęp',
@@ -625,7 +655,8 @@ export const pl = {
     noOwnAccess: 'Twoje konto nie ma dostępu do danych wrażliwych, więc nie możesz go nadawać.',
     confirmRevoke: (who: string) => `Odebrać dostęp do danych wrażliwych osobie ${who}? Osoba zostanie wylogowana.`,
     rotateTitle: 'Rozważ zmianę klucza organizacji',
-    rotateText: 'Osoba, która miała dostęp do danych wrażliwych, już go nie ma, ale mogła wcześniej zobaczyć klucz w swojej przeglądarce. Zmiana klucza zabezpiecza dane przed jej dawnym dostępem. Nie jest wymuszona; ta funkcja pojawi się w kolejnym kroku.',
+    rotateText: 'Osoba, która miała dostęp do danych wrażliwych, już go nie ma, ale mogła wcześniej zobaczyć klucz w swojej przeglądarce. Zmiana klucza zabezpiecza dane przed jej dawnym dostępem. Nie jest wymuszona.',
+    rotateAction: 'Zmień klucz',
     rotateDismiss: 'Zamknij'
   },
   sensitive: {

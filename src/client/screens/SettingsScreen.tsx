@@ -11,6 +11,7 @@ import { formatDateTime } from '../lib/format'
 import { openExportableOrgKeys, useKeyring } from '../lib/keyring'
 import { OrgSettingsCard } from './OrgSettingsCard'
 import { RecoverAccessCard } from './RecoverAccessCard'
+import { RotateKeyCard } from './RotateKeyCard'
 
 interface Props {
   me: ApiOutputs['auth.me']
@@ -23,6 +24,7 @@ export function SettingsScreen({ me, account, onChangePassword, onSignedOut }: P
   const [error, setError] = useState<string | null>(null)
   const [unlocking, setUnlocking] = useState(false)
   const { unlocked, hasOrgAccess } = useKeyring()
+  const [rotateRequest, setRotateRequest] = useState(0)
 
   async function logoutAll() {
     try {
@@ -72,7 +74,8 @@ export function SettingsScreen({ me, account, onChangePassword, onSignedOut }: P
         {unlocking && <UnlockDialog userId={me.userId} onClose={() => setUnlocking(false)} />}
         {me.role === 'admin' && unlocked && !hasOrgAccess && <RecoverAccessCard onDone={() => undefined} />}
         {me.role === 'admin' && <OrgSettingsCard />}
-        {me.role === 'admin' && <UsersPanel myId={me.userId} userKeysReady={unlocked && hasOrgAccess} onUnlock={() => setUnlocking(true)} onSignedOut={onSignedOut} />}
+        {me.role === 'admin' && <RotateKeyCard orgName={account.orgName} openRequest={rotateRequest} />}
+        {me.role === 'admin' && <UsersPanel onRotate={() => setRotateRequest((n) => n + 1)} myId={me.userId} userKeysReady={unlocked && hasOrgAccess} onUnlock={() => setUnlocking(true)} onSignedOut={onSignedOut} />}
       </div>
     </>
   )
@@ -81,7 +84,7 @@ export function SettingsScreen({ me, account, onChangePassword, onSignedOut }: P
 const STATUS_TONE = { invited: 'info', active: 'success', disabled: 'muted' } as const
 const inviteUrl = (token: string) => `${window.location.origin}/#zaproszenie=${token}`
 
-function UsersPanel({ myId, userKeysReady, onUnlock, onSignedOut }: { myId: string; userKeysReady: boolean; onUnlock: () => void; onSignedOut: () => void }) {
+function UsersPanel({ myId, userKeysReady, onUnlock, onSignedOut, onRotate }: { onRotate: () => void; myId: string; userKeysReady: boolean; onUnlock: () => void; onSignedOut: () => void }) {
   const { data, error: loadError, reload } = useLoad('users.list', {})
   const { data: access, reload: reloadAccess } = useLoad('access.list', {})
   const [rotateHint, setRotateHint] = useState(false)
@@ -190,9 +193,14 @@ function UsersPanel({ myId, userKeysReady, onUnlock, onSignedOut }: { myId: stri
           <Alert tone="warning">
             <p className="font-semibold">{pl.access.rotateTitle}</p>
             <p className="mt-1">{pl.access.rotateText}</p>
-            <Button className="mt-2" variant="outline" size="sm" onClick={() => setRotateHint(false)}>
-              {pl.access.rotateDismiss}
-            </Button>
+            <div className="mt-2 flex gap-2">
+              <Button size="sm" onClick={() => (setRotateHint(false), onRotate())}>
+                {pl.access.rotateAction}
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => setRotateHint(false)}>
+                {pl.access.rotateDismiss}
+              </Button>
+            </div>
           </Alert>
         </div>
       )}

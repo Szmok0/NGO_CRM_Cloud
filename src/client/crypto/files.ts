@@ -13,6 +13,8 @@ export interface FileMeta {
   type: string
   /** Klucz pliku (surowe 32 bajty, base64). */
   fileKey: string
+  /** Wersja klucza w AAD pliku (stała po zmianie klucza organizacji: plik nie jest przeszyfrowywany). Brak = wersja klucza rekordu. */
+  fileVersion?: number
 }
 
 export interface EncryptedFile {
@@ -41,7 +43,8 @@ export async function encryptFile(data: ArrayBuffer, meta: { name: string; type:
   const payload: FileMeta = {
     name: meta.name.slice(0, FILE_NAME_MAX),
     type: meta.type.slice(0, 100),
-    fileKey: toBase64(await crypto.subtle.exportKey('raw', fileKey))
+    fileKey: toBase64(await crypto.subtle.exportKey('raw', fileKey)),
+    fileVersion: keyVersion
   }
   const metaIv = randomBytes(IV_BYTES)
   const metaCt = await crypto.subtle.encrypt({ name: 'AES-GCM', iv: metaIv, additionalData: metaAad(target, keyVersion) }, orgKey, utf8(JSON.stringify(payload)))
@@ -57,7 +60,21 @@ export async function decryptMeta(metaEnc: string, orgKey: CryptoKey, target: Ta
   const p: unknown = JSON.parse(new TextDecoder().decode(plain))
   const o = (p && typeof p === 'object' ? p : {}) as Record<string, unknown>
   if (typeof o.name !== 'string' || typeof o.fileKey !== 'string') throw new SyntaxError('Nieprawidłowe metadane załącznika')
-  return { name: o.name, type: typeof o.type === 'string' ? o.type : '', fileKey: o.fileKey }
+  return { name: o.name, type: typeof o.type === 'string' ? o.type : '', fileKey: o.fileKey, ...(typeof o.fileVersion === 'number' ? { fileVersion: o.fileVersion } : {}) }
+}
+
+/**
+ * Zmiana klucza organizacji: metadane odszyfrowane starym kluczem i zaszyfrowane nowym (nowy IV i AAD z nową wersją).
+ * Plik zostaje bez zmian; w metadanych zapamiętana jest wersja z AAD pliku.
+ */
+export async function reencryptMeta(metaEnc: string, oldKey: CryptoKey, oldVersion: number, newKey: CryptoKey, newVersion: number, target: Target): Promise<string> {
+  const meta = await decryptMeta(metaEnc, oldKey, target, oldVersion)
+  const payload: FileMeta = { ...meta, fileVersion: meta.fileVersion ?? oldVersion }
+  const iv = randomBytes(IV_BYTES)
+  const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv, additionalData: metaAad(target, newVersion) }, newKey, utf8(JSON.stringify(payload)))
+  const out = toBase64(concat(iv, ct))
+  if (out.length > ATTACHMENT_MAX_META) throw new Error('Metadane załącznika są za duże')
+  return out
 }
 
 export async function decryptFile(body: ArrayBuffer, fileKeyB64: string, keyVersion: number): Promise<ArrayBuffer> {

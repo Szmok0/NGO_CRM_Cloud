@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest'
 import { ATTACHMENT_ENCRYPTION_OVERHEAD, ATTACHMENT_MAX_META } from '@shared/api'
 import { fromBase64 } from './encoding'
-import { decryptFile, decryptMeta, encryptFile } from './files'
+import { decryptFile, decryptMeta, encryptFile, reencryptMeta } from './files'
 import { generateOrgKey } from './keys'
 
 const T = { targetType: 'contact', targetId: '00000000-0000-4000-8000-0000000000c3' }
@@ -40,5 +40,24 @@ describe('załączniki', () => {
     const key = await generateOrgKey()
     const enc = await encryptFile(new ArrayBuffer(10), { name: 'ż'.repeat(1000), type: 'x/'.repeat(200) }, key, T, 1)
     expect(enc.metaEnc.length).toBeLessThanOrEqual(ATTACHMENT_MAX_META)
+  })
+
+  it('zmiana klucza: metadane nowym kluczem i wersją, plik bez zmian dalej się odszyfrowuje', async () => {
+    const oldKey = await generateOrgKey()
+    const newKey = await generateOrgKey()
+    const plain = bytes()
+    const enc = await encryptFile(plain.buffer, { name: 'a.pdf', type: 'application/pdf' }, oldKey, T, 1)
+    const metaEnc = await reencryptMeta(enc.metaEnc, oldKey, 1, newKey, 2, T)
+    expect(metaEnc).not.toBe(enc.metaEnc)
+    await expect(decryptMeta(metaEnc, oldKey, T, 2)).rejects.toThrow()
+    await expect(decryptMeta(metaEnc, newKey, T, 1)).rejects.toThrow()
+    const meta = await decryptMeta(metaEnc, newKey, T, 2)
+    expect(meta.name).toBe('a.pdf')
+    expect(meta.fileVersion).toBe(1)
+    expect(new Uint8Array(await decryptFile(enc.body.buffer, meta.fileKey, meta.fileVersion ?? 2))).toEqual(plain)
+    // druga zmiana zachowuje wersję AAD pliku
+    const third = await generateOrgKey()
+    const meta3 = await decryptMeta(await reencryptMeta(metaEnc, newKey, 2, third, 3, T), third, T, 3)
+    expect(meta3.fileVersion).toBe(1)
   })
 })
