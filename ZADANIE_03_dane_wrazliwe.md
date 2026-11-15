@@ -302,3 +302,14 @@ _(uzupełniane po każdym etapie)_
 - Testy: `crypto/files.test.ts` (3: te same bajty i narzut 28 B, zły klucz/cel/wersja/zmieniony plik → błąd, długa nazwa). Typecheck, 715 testów i build przechodzą.
 - **Sprawdzone w przeglądarce** na zbudowanej aplikacji (CSP, osobna baza `test_ngocrm_ui`, `STORAGE_DIR` ustawiony, konto z kreatora): dodanie pliku, lista (nazwa z polskimi znakami, rozmiar), pobranie (nazwa `Orzeczenie żółć.pdf`, typ, bajty identyczne), usunięcie, po odświeżeniu „zablokowane” z „Odblokuj”. W `STORAGE_DIR` jeden plik 3028 B (3000 + 28), bez nazwy i treści jawnej. Brak błędów CSP, brak atrybutów `style`.
 - **Niesprawdzone:** szczegóły działania (ten sam komponent, nie klikane), stan „brak dostępu” i `readonly` (potrzebne drugie konto), „brak STORAGE_DIR” w przeglądarce, Kosz z załącznikiem w UI.
+
+### Krok 4, etap a (2026-11-15): serwer i testy
+- Stan rotacji bez nowej tabeli: rotacja trwa, gdy są co najmniej dwie niewycofane wersje klucza (najnowsza = bieżąca). Zapisy danych wrażliwych i plików już wcześniej przyjmowały tylko bieżącą wersję, a `access.grant` w trakcie rotacji wymaga slotów do obu wersji.
+- Nowe RPC (`src/server/auth/rotation.ts`, tylko `admin` ze slotami do wszystkich niewycofanych wersji):
+  - `keys.rotateStart`: `keyVersion` = największa + 1, sloty dokładnie dla osób ze slotem do bieżącej wersji (jak `access.list`, bez powtórzeń), nowy slot odzyskiwania; jedna transakcja z blokadą wierszy `org_keys` i slotów. Druga rotacja w trakcie → `ROTATION_IN_PROGRESS` (409).
+  - `keys.rotatePending({ limit ≤ 100, domyślnie 50 })`: bieżąca wersja, liczby pozostałych rekordów, partia `contact_sensitive` (szyfrogram) i `attachments` (`metaEnc`, cel) z `version`; **także rekordy w Koszu**.
+  - `keys.rotateBatch`: zapis przez repozytorium (`version` + 1, `change_log` z samymi nazwami pól). Rekord zmieniony lub usunięty w międzyczasie albo już w bieżącej wersji jest pomijany i wraca w `conflicts`; reszta partii się zapisuje.
+  - `keys.rotateFinish`: przy pozostałych rekordach `ROTATION_PENDING` (409); inaczej `retiredAt` starszych wersji i usunięcie ich slotów (z odzyskiwaniem).
+- Zdarzenia dziennika (decyzja MOC a): `key_rotation_started` i `key_rotated`. Bez wpisów `reveal_sensitive` przy przeszyfrowaniu (decyzja b). Nowe kody błędów z komunikatami w `pl.ts` (decyzja c).
+- `requireOwnSlots` w `access.ts` wyeksportowane do ponownego użycia.
+- Testy: `src/server/auth/rotation.test.ts` (6): start i sloty, odrzucenia startu (zły zestaw, powtórzenie, zła wersja, bez slotu, druga rotacja), przerwana rotacja wznawia się i obejmuje Kosz, zakończenie odrzucone przy pozostałych rekordach, stare sloty i slot odzyskiwania znikają, zapis w trakcie rotacji (nowa wersja tak, stara nie), konflikt wersji przy równoczesnej edycji, partia starą wersją i bez slotu odrzucona. Test uprawnień obejmuje nowe metody automatycznie. Typecheck, 741 testów i build przechodzą.

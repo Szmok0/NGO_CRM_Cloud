@@ -162,6 +162,44 @@ export const apiMethods = {
   },
   /** Odebranie dostępu: usunięcie slotów i koniec sesji tej osoby (D8). */
   'access.revoke': { input: z.object({ userId: uuid }), roles: ADMIN },
+  /**
+   * Zmiana klucza organizacji, start (D9): nowa wersja (największa + 1), sloty dokładnie dla osób z dostępem
+   * (jak `access.list`) i nowy slot odzyskiwania, zrobione w przeglądarce administratora.
+   */
+  'keys.rotateStart': {
+    input: z.object({
+      keyVersion: version,
+      slots: z.array(z.object({ userId: uuid, wrappedKey: wrappedKeySchema })).min(1).max(500),
+      recoverySlot: sealedSchema
+    }),
+    roles: ADMIN
+  },
+  /** Partia rekordów ze starszą wersją klucza do przeszyfrowania (także z Kosza) i liczby pozostałych (D9). */
+  'keys.rotatePending': { input: z.object({ limit: z.number().int().min(1).max(100).default(50) }).default({ limit: 50 }), roles: ADMIN },
+  /** Zapis przeszyfrowanych rekordów bieżącą wersją; rekord zmieniony w międzyczasie jest pomijany (`conflicts`). */
+  'keys.rotateBatch': {
+    input: z.object({
+      keyVersion: version,
+      sensitive: z
+        .array(
+          z.object({
+            id: uuid,
+            version,
+            iv: z.string().length(16).regex(/^[A-Za-z0-9+/]+=*$/),
+            ciphertext: z.string().min(1).max(SENSITIVE_MAX_CIPHERTEXT).regex(/^[A-Za-z0-9+/]+=*$/)
+          })
+        )
+        .max(100)
+        .default([]),
+      attachments: z
+        .array(z.object({ id: uuid, version, metaEnc: z.string().min(1).max(ATTACHMENT_MAX_META).regex(/^[A-Za-z0-9+/]+=*$/) }))
+        .max(100)
+        .default([])
+    }),
+    roles: ADMIN
+  },
+  /** Koniec zmiany klucza: gdy nic nie zostało, starsze wersje dostają `retiredAt`, ich sloty znikają (D9). */
+  'keys.rotateFinish': { input: none, roles: ADMIN },
   /** Dane techniczne instancji (wersja, migracje). Bez danych organizacji. */
   'system.info': { input: none, roles: ['admin'] },
   /** Ustawienia organizacji potrzebne interfejsowi (moduły, nazwy ról). */
@@ -376,6 +414,16 @@ export interface AccessListItem {
   publicKey: string | null
 }
 
+/** Rekordy ze starszą wersją klucza do przeszyfrowania w przeglądarce administratora (D9). */
+export interface RotationPending {
+  /** Bieżąca (nowa) wersja klucza. */
+  currentVersion: number
+  /** Ile rekordów ze starszą wersją zostało (razem z tą partią). */
+  remaining: { sensitive: number; attachments: number }
+  sensitive: { id: string; contactId: string; version: number; keyVersion: number; iv: string; ciphertext: string }[]
+  attachments: { id: string; version: number; keyVersion: number; targetType: d.TargetType; targetId: string; metaEnc: string }[]
+}
+
 export interface OrgSettings {
   id: string
   version: number
@@ -419,6 +467,11 @@ export interface ApiOutputs {
   'access.list': AccessListItem[]
   'access.grant': void
   'access.revoke': { hadAccess: boolean }
+  'keys.rotateStart': void
+  'keys.rotatePending': RotationPending
+  /** `conflicts`: id rekordów pominiętych, bo zmieniły się albo zniknęły w międzyczasie. */
+  'keys.rotateBatch': { updated: number; conflicts: string[] }
+  'keys.rotateFinish': void
   'system.info': { version: string; migrations: number }
   'settings.get': OrgSettings
   'contacts.list': T.ContactListItem[]

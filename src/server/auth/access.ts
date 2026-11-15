@@ -40,7 +40,7 @@ export async function listAccess(db: Db): Promise<ApiOutputs['access.list']> {
 }
 
 /** Odmowa NO_KEY_ACCESS, gdy wykonujący nie ma slotu do którejś niewycofanej wersji. */
-async function requireOwnSlots(tx: Tx, userId: string, versions: number[]) {
+export async function requireOwnSlots(tx: Tx, userId: string, versions: number[]) {
   const own = await slotVersions(tx, userId)
   if (!versions.every((v) => own.has(v))) throw new AppError('NO_KEY_ACCESS')
 }

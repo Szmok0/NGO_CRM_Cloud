@@ -19,6 +19,8 @@ export type AccessAction =
   | 'grant_access'
   | 'revoke_access'
   | 'key_recovered'
+  | 'key_rotation_started'
+  | 'key_rotated'
   | 'reveal_sensitive'
   | 'download_attachment'
 

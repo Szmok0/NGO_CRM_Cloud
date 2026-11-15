@@ -830,6 +830,8 @@ export const pl = {
     NO_KEY_ACCESS: 'Nie masz dostępu do danych wrażliwych.',
     ACCESS_EXISTS: 'Ta osoba ma już dostęp do danych wrażliwych.',
     ACCOUNT_NOT_READY: 'To konto nie jest jeszcze aktywne (osoba musi najpierw przyjąć zaproszenie).',
+    ROTATION_IN_PROGRESS: 'Zmiana klucza organizacji już trwa. Dokończ ją, zanim zaczniesz kolejną.',
+    ROTATION_PENDING: 'Nie wszystkie dane są jeszcze przeszyfrowane nowym kluczem. Dokończ przeszyfrowanie.',
     TOTP_REQUIRED: 'Najpierw potwierdź logowanie kodem z aplikacji uwierzytelniającej.',
     FORBIDDEN: 'Nie masz uprawnień do tej operacji.',
     VALIDATION: 'Nieprawidłowe dane.',
