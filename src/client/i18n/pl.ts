@@ -316,7 +316,7 @@ export const pl = {
     deletedAt: 'Usunięto',
     deletedBy: 'Kto usunął',
     what: 'Co',
-    entity: { contacts: 'Osoba / instytucja', actions: 'Działanie', tasks: 'Zadanie', topics: 'Temat szkolenia' } as const
+    entity: { contacts: 'Osoba / instytucja', actions: 'Działanie', tasks: 'Zadanie', topics: 'Temat szkolenia', attachments: 'Załącznik' } as const
   },
   orgSettings: {
     title: 'Ustawienia organizacji',

@@ -272,8 +272,18 @@ export interface TodayData {
   feed: FeedItem[]
 }
 
+/** Załącznik osoby albo działania; nazwa, typ i klucz pliku są w `metaEnc` (zaszyfrowane w przeglądarce). */
+export interface Attachment extends RecordMeta {
+  targetType: TargetType
+  targetId: string
+  purpose: string
+  keyVersion: number
+  metaEnc: string
+  sizeBytes: number
+}
+
 export interface TrashItem {
-  entity: 'contacts' | 'actions' | 'tasks' | 'topics'
+  entity: 'contacts' | 'actions' | 'tasks' | 'topics' | 'attachments'
   id: string
   version: number
   label: string

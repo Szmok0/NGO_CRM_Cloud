@@ -237,6 +237,29 @@ export const contactSensitive = mysqlTable(
   (t) => [uniqueIndex('contact_sensitive_contact_uq').on(t.contactId)]
 )
 
+/**
+ * Załącznik osoby albo działania (ZADANIE_03, D11). Plik w STORAGE_DIR to szyfrogram AES-GCM kluczem pliku z przeglądarki;
+ * nazwa, typ i klucz pliku są w `metaEnc`, zaszyfrowane kluczem organizacji. Powiązanie przez targetType + targetId (zasada danych 6).
+ */
+export const attachments = mysqlTable(
+  'attachments',
+  {
+    ...domainColumns(),
+    targetType: varchar('target_type', { length: 16 }).notNull(),
+    targetId: char('target_id', { length: 36 }).notNull(),
+    purpose: varchar('purpose', { length: 32 }).notNull(),
+    keyVersion: int('key_version')
+      .notNull()
+      .references(() => orgKeys.version),
+    /** IV + szyfrogram metadanych, base64. */
+    metaEnc: text('meta_enc').notNull(),
+    sizeBytes: int('size_bytes').notNull(),
+    /** Losowa nazwa pliku w STORAGE_DIR. */
+    storageKey: char('storage_key', { length: 32 }).notNull()
+  },
+  (t) => [uniqueIndex('attachments_storage_key_uq').on(t.storageKey), index('attachments_target_idx').on(t.targetType, t.targetId)]
+)
+
 export const contactRoles = mysqlTable(
   'contact_roles',
   {

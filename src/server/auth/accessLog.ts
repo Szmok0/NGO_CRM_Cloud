@@ -20,10 +20,11 @@ export type AccessAction =
   | 'revoke_access'
   | 'key_recovered'
   | 'reveal_sensitive'
+  | 'download_attachment'
 
 /**
  * `userId` = null: nieudane logowanie na nieznany e-mail. `targetId`: konto, którego dotyczy działanie administratora
- * (`targetType` 'user'), albo osoba (`targetType` 'contact'). `db` może być transakcją.
+ * (`targetType` 'user'), albo osoba (`targetType` 'contact'), albo załącznik (`targetType` 'attachment'). `db` może być transakcją.
  */
 export async function logAccess(
   db: Pick<Db, 'insert'>,
@@ -31,7 +32,7 @@ export async function logAccess(
   action: AccessAction,
   at = new Date(),
   targetId?: string,
-  targetType: 'user' | 'contact' = 'user'
+  targetType: 'user' | 'contact' | 'attachment' = 'user'
 ) {
   await db.insert(accessLog).values({ id: randomUUID(), userId, action, at, targetType: targetId ? targetType : null, targetId: targetId ?? null })
 }

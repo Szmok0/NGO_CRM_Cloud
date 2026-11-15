@@ -17,6 +17,7 @@ import {
   actions,
   activities,
   activityContacts,
+  attachments,
   attendance,
   changeLog,
   consents,
@@ -248,6 +249,16 @@ export async function listTrash(db: Db): Promise<TrashItem[]> {
       deletedAt: x.deletedAt!.toISOString(),
       deletedBy: by(x.updatedBy)
     })),
+    // nazwy plików są zaszyfrowane, więc w Koszu załącznik nie ma czytelnej nazwy
+    ...(await db.select().from(attachments).where(isNotNull(attachments.deletedAt))).map((x) => ({
+      entity: 'attachments' as const,
+      id: x.id,
+      version: x.version,
+      label: 'Załącznik (zaszyfrowany)',
+      kind: null,
+      deletedAt: x.deletedAt!.toISOString(),
+      deletedBy: by(x.updatedBy)
+    })),
     ...(await db.select().from(topics).where(isNotNull(topics.deletedAt))).map((x) => ({
       entity: 'topics' as const,
       id: x.id,
@@ -264,7 +275,7 @@ export async function listTrash(db: Db): Promise<TrashItem[]> {
   return items.sort((a, b) => b.deletedAt.localeCompare(a.deletedAt))
 }
 
-const TRASH_TABLES = { contacts, actions, tasks, topics }
+const TRASH_TABLES = { contacts, actions, tasks, topics, attachments }
 
 export async function restoreFromTrash(db: Db, i: ApiParsed<'trash.restore'>, actor: Actor): Promise<void> {
   await repoFor(db, actor).restore(TRASH_TABLES[i.entity], i.id, i.version)

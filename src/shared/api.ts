@@ -57,6 +57,12 @@ const ref = z.object({ id: uuid, version })
 const wrappedKeySchema = z.string().max(1000).regex(/^[A-Za-z0-9+/]+=*$/)
 /** Największy szyfrogram danych wrażliwych osoby (base64); JSON pięciu pól (D1) jest dużo mniejszy. */
 export const SENSITIVE_MAX_CIPHERTEXT = 65_536
+/** Największy plik załącznika przed zaszyfrowaniem (D11) i narzut szyfrowania (IV 12 B + tag GCM 16 B); serwer przyjmuje do sumy. */
+export const ATTACHMENT_MAX_PLAIN_BYTES = 20 * 1024 * 1024
+export const ATTACHMENT_ENCRYPTION_OVERHEAD = 28
+export const ATTACHMENT_MAX_BYTES = ATTACHMENT_MAX_PLAIN_BYTES + ATTACHMENT_ENCRYPTION_OVERHEAD
+/** Metadane załącznika (nazwa, typ, klucz pliku) zaszyfrowane kluczem organizacji: IV + szyfrogram w jednym ciągu base64. */
+export const ATTACHMENT_MAX_META = 4096
 
 const identityFields = {
   firstName: short(100),
@@ -190,6 +196,10 @@ export const apiMethods = {
     }),
     roles: WRITE
   },
+  /** Lista załączników osoby albo działania (metadane zaszyfrowane; sam plik daje `GET /api/attachments/:id`). */
+  'attachments.list': { input: z.object({ targetType: z.enum(d.TARGET_TYPES), targetId: uuid }), roles: ALL },
+  /** Usunięcie załącznika do Kosza (plik zostaje na dysku do anonimizacji, D11); tylko ze slotem do jego wersji klucza. */
+  'attachments.delete': { input: ref, roles: WRITE },
   /** Możliwe duplikaty po imieniu i nazwisku, e-mailu lub telefonie (sprawdzane przy zakładaniu osoby). */
   'contacts.duplicates': {
     input: z.object({ firstName: short(100), lastName: short(100), email: short(254), phone: short(50), excludeId: uuid.nullish() }),
@@ -312,7 +322,7 @@ export const apiMethods = {
     roles: ALL
   },
   'trash.list': { input: none, roles: ALL },
-  'trash.restore': { input: z.object({ entity: z.enum(['contacts', 'actions', 'tasks', 'topics']), id: uuid, version }), roles: WRITE },
+  'trash.restore': { input: z.object({ entity: z.enum(['contacts', 'actions', 'tasks', 'topics', 'attachments']), id: uuid, version }), roles: WRITE },
   /** Ustawienia organizacji (tylko administrator, D4). */
   'settings.update': {
     input: z.object({
@@ -415,6 +425,8 @@ export interface ApiOutputs {
   'contacts.get': T.ContactDetail
   'sensitive.reveal': SensitiveCipher
   'sensitive.save': { version: number }
+  'attachments.list': T.Attachment[]
+  'attachments.delete': void
   'contacts.duplicates': T.ContactListItem[]
   'contacts.create': { id: string }
   'contacts.update': void

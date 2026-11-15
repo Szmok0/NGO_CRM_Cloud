@@ -36,7 +36,7 @@ type Op = 'insert' | 'update' | 'delete' | 'restore'
  * Tabele, dla których change_log zapisuje tylko nazwy zmienionych pól, bez wartości (zasada danych 8).
  * Wartość każdego pola w `changedFields` to wtedy `true`.
  */
-export const NAMES_ONLY_TABLES = new Set<string>(['contact_identity', 'contact_sensitive'])
+export const NAMES_ONLY_TABLES = new Set<string>(['contact_identity', 'contact_sensitive', 'attachments'])
 
 /**
  * Jedyna warstwa zapisu do tabel domenowych. Ustawia pola techniczne, sprawdza `version`

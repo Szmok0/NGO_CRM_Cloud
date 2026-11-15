@@ -17,7 +17,7 @@ async function requireEnabled(tx: Tx) {
 }
 
 /** Czy osoba ma slot do tej wersji klucza i wersja nie jest wycofana (D3). */
-async function hasSlot(tx: Tx, userId: string, keyVersion: number) {
+export async function hasSlot(tx: Tx, userId: string, keyVersion: number) {
   const [s] = await tx
     .select({ id: keySlots.id })
     .from(keySlots)

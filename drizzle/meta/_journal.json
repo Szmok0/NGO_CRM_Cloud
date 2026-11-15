@@ -78,6 +78,13 @@
       "when": 1794733147626,
       "tag": "0010_thick_jackal",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "5",
+      "when": 1794734513782,
+      "tag": "0011_gifted_professor_monster",
+      "breakpoints": true
     }
   ]
 }

@@ -283,3 +283,13 @@ _(uzupełniane po każdym etapie)_
   - W bazie: w `contact_sensitive` sam szyfrogram (IV 16 znaków, bez PESEL i tekstu), `access_log` zawiera `reveal_sensitive` (cel `contact`), `change_log` same nazwy pól. Brak błędów CSP w konsoli.
 - **Niesprawdzone (potrzebne drugie konto):** stan „brak dostępu” na karcie, Nadaj / Odbierz, baner zmiany klucza, ekran „Odzyskaj dostęp”. Do zrobienia w scenariuszu akceptacji (krok 7) albo przy kroku 3b.
 - **Drobne w wyglądzie (bez zmian):** etykieta „Orzeczenie (rodzaj / stopień)” łamie się w kolumnie 10rem; komunikat o złym PESEL jest szarą podpowiedzią, nie czerwonym błędem.
+
+### Krok 3, etap a (2026-11-15): serwer i testy
+- Tabela `attachments` (D11: `targetType`, `targetId`, `purpose`, `keyVersion` z FK do `org_keys`, `metaEnc`, `sizeBytes`, `storageKey` UNIQUE), migracja `0011_gifted_professor_monster.sql`. `attachments` dopisane do `NAMES_ONLY_TABLES` (change_log bez metadanych).
+- Trasy poza RPC w `src/server/attachmentRoutes.ts` (sesja → 2FA → rola → walidacja → slot):
+  - `POST /api/attachments` (`admin`/`staff`): surowy strumień `application/octet-stream` (parser tylko w tym zakresie), nagłówki `x-target-type`, `x-target-id`, `x-key-version`, `x-meta-enc`, opcjonalnie `x-purpose`; limit 20 MB + 28 B narzutu (`ATTACHMENT_MAX_BYTES`), sprawdzany w `Content-Length` i w liczbie przesłanych bajtów. Dostęp (cel, bieżąca wersja klucza, slot) sprawdzany przed przyjęciem bajtów i jeszcze raz w transakcji. Plik tymczasowy → wiersz (przez repo) → `rename` w transakcji; po każdym błędzie plik znika z dysku.
+  - `GET /api/attachments/:id` (wszystkie role ze slotem do wersji klucza załącznika): `Content-Disposition: attachment`, `no-store`, wpis `download_attachment` (`targetType` `attachment`) w transakcji ze sprawdzeniem slotu.
+  - Bez `STORAGE_DIR` obie trasy → 400.
+- RPC `attachments.list` (wszystkie role), `attachments.delete` (`admin`/`staff` ze slotem; Kosz). `trash.list` i `trash.restore` obsługują `attachments` (etykieta „Załącznik (zaszyfrowany)”, nazwa pliku jest zaszyfrowana); dopisana etykieta w `pl.ts`, żeby przeszedł typecheck klienta.
+- Testy: `src/server/services/attachments.test.ts` (15). Typecheck, 712 testów i build przechodzą. Test uprawnień obejmuje nowe metody RPC automatycznie; trasy plików mają własne testy (401, brak 2FA, rola, slot, limit, CSRF).
+- Nie zrobione tu: ekrany i `crypto/files.ts` (etap b), usuwanie plików przy anonimizacji (krok 5).
