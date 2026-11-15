@@ -101,6 +101,8 @@ Ogólne zasady (praca tylko w `E:\AI_Projects`, pytanie przed zmianami, zasady k
 - `npm run typecheck`: sprawdzenie typów
 - `npm run build`: typecheck + build klienta i serwera
 - `npm start`: start zbudowanej aplikacji (tak uruchamia ją hosting)
+- `npm run dev:account`: konto próbne `admin@lokalnie.test` tylko w lokalnej bazie (hasło wypisane raz; zakłada też ustawienia organizacji)
+- `npm run dev:demo`: fikcyjne dane demonstracyjne tylko w lokalnej bazie (najpierw `dev:account`; czyści dane domenowe)
 
 ## Uwagi z iV_CRM (ten sam hosting)
 - Hostinger: każde wdrożenie podmienia folder aplikacji → załączniki i kopie w `STORAGE_DIR` poza nim.

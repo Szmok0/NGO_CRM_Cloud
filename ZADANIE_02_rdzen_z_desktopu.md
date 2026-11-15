@@ -1,6 +1,6 @@
 # ZADANIE 02 — Rdzeń z desktopu
 
-Status: w realizacji (decyzje D1–D7 zatwierdzone przez MOC 2026-11-14) · Kontekst: `CLAUDE.md` (zasady danych 1–9), `NGO_CRM_CLOUD_KONCEPCJA.md` (4.2, 4.3, 4.8, 4.9, 7.2), `NGO_CRM_CLOUD_PROCESY_I_MODEL_DANYCH.md` (2.1, 2.3, 2.4, 2.6), `NGO_CRM_CLOUD_BEZPIECZENSTWO.md` (rozdział 4), ZADANIE_01 (zrobione 2026-11-14, ostatni commit `caafc84`) · Źródło: desktop `..\NGO_CRM` po ZADANIACH 01–02 (`src/shared`, `src/main/services`, `src/renderer`)
+Status: kroki 1–7 zrobione i wdrożone (2026-11-15); do zamknięcia przeklikanie przez MOC (lista w „Wyniku”) i akceptacja (decyzje D1–D7 zatwierdzone przez MOC 2026-11-14) · Kontekst: `CLAUDE.md` (zasady danych 1–9), `NGO_CRM_CLOUD_KONCEPCJA.md` (4.2, 4.3, 4.8, 4.9, 7.2), `NGO_CRM_CLOUD_PROCESY_I_MODEL_DANYCH.md` (2.1, 2.3, 2.4, 2.6), `NGO_CRM_CLOUD_BEZPIECZENSTWO.md` (rozdział 4), ZADANIE_01 (zrobione 2026-11-14, ostatni commit `caafc84`) · Źródło: desktop `..\NGO_CRM` po ZADANIACH 01–02 (`src/shared`, `src/main/services`, `src/renderer`)
 
 ## Cel
 Organizacja zalogowana do instancji w chmurze prowadzi w niej codzienną pracę tak jak w desktopie:
@@ -290,3 +290,34 @@ Nie aktualizuj Sejfu bez zgody MOC.
 - Rola `readonly`: bez przycisków zapisu na „Dziś”, w kalendarzu (tworzenie z dnia), w Koszu.
 - Sprawdzone w przeglądarce na zbudowanej aplikacji: „Dziś” (kafelki, zaległe zadanie, mini-kalendarz ze świętem 11.11 i kropkami, „Ostatnio w organizacji” jako zdania), odhaczenie kółkiem i cofnięcie (licznik w menu 1 → 0 → 1), kalendarz miesiąc (zajęcia, zaległe zadanie na czerwono, święta), klik w pusty dzień → zadanie z podstawioną datą pojawia się w tym dniu, eksport `.ics` (treść sprawdzona: CRLF, strefa `Europe/Warsaw`, `UID` z id rekordu, bez nazwisk; samo pobranie pliku zablokowane w karcie testowej), ustawienia: własna nazwa roli „podopieczny” widoczna w liście osób, Kosz; konsola bez błędów CSP.
 - **Nie sprawdzono:** importu `.ics` do Google Calendar / Outlooka (kryterium 7 — do zrobienia przez MOC), widoków Tydzień i Lista oraz filtrów (kod jak w desktopie).
+
+### Krok 7: dane demonstracyjne, scenariusz akceptacji, wdrożenie (2026-11-15)
+- `npm run dev:demo` (`scripts/dev-demo.ts`, D6): tylko lokalna baza (te same blokady co `dev:account`, do tego odmowa, gdy w bazie są konta spoza `@lokalnie.test`); wymaga konta z `dev:account`. Czyści dane domenowe i zakłada fikcyjne dane z desktopu **przez usługi API** (tożsamość osobno, oś, `change_log`, wpisy systemowe): 25 osób, 6 instytucji, powiązania, zgody, 3 tematy, 10 działań (szkolenie z 3 zajęciami i obecnością, warsztaty, festyn, zbiórki, 2 zebrania zarządu w bieżącym i następnym miesiącu, dzień seniora), oś, 11 zadań; drugi użytkownik „Tomasz Pomocny” (bez hasła) jako autor części zmian. Bez danych działań v2 (przygotowanie, budżet, ewaluacja) i materiałów.
+- `src/server/acceptance.test.ts` (11): scenariusz z desktopu przepisany na `POST /api/rpc` z prawdziwymi sesjami (administrator, pracownik, tylko odczyt): osoby, duplikaty, powiązania, konflikt wersji (409), szkolenie z tematem, wklejona lista 6 osób (2 z bazy), obecność i frekwencja, wpis o statusie, oś z autorem, zadanie zaległe na „Dziś” i w liczniku, kanban z `change_log`, „Wymaga uwagi”, kalendarz, Kosz, odmowy dla `readonly` (403) i ustawień dla pracownika, moduł zadań wyłączony/włączony, własna nazwa roli, brak imion i nazwisk w `change_log` i tabelach bez tożsamości.
+- `typecheck`, `npm test` (603), `npm run build` bez błędów. `npm audit`: 0 w zależnościach produkcyjnych; 4 średnie tylko w `drizzle-kit` (jak w ZADANIU_01).
+- W przeglądarce na danych demo przy 1024 px: menu zwinięte do ikon z kropką licznika, „Dziś” bez przewijania w poziomie, konsola bez błędów CSP.
+
+### Kryteria akceptacji (stan na 2026-11-15)
+1. `typecheck`, `test` (603), `build`; test uprawnień obejmuje wszystkie metody — spełnione.
+2. Osoba i instytucja, role, powiązanie, zgoda, lista, wyszukiwarka, karta — spełnione (przeglądarka i scenariusz).
+3. `change_log` tożsamości tylko z nazwami pól; brak imion i nazwisk w `contacts`, `activities`*, `tasks`, `attendance` — spełnione (scenariusz). *Treść notatek wpisuje człowiek; nazwiska w treści to sprawa ZADANIA_03 (anonimizacja).
+4. Konflikt wersji przy równoczesnej edycji — spełnione (testy, scenariusz); **w dwóch przeglądarkach do przeklikania przez MOC**.
+5. Notatka, kontakt, wsparcie na osi; „Dodaj kontakt” zdejmuje osobę z „Wymaga uwagi” — spełnione (scenariusz, przeglądarka: wpisy na osi).
+6. Szkolenie z tematem, zajęcia, wklejona lista, obecność, frekwencja — spełnione; **wydruk listy obecności do obejrzenia przez MOC**.
+7. Zadanie z „+ Utwórz” na „Dziś” i w „Ostatnio w organizacji”, kanban, kółko na „Dziś” — spełnione; **przeciąganie karty myszą do przeklikania przez MOC**.
+8. Kalendarz: zajęcia, działania, zadania, święta; klik pustego dnia — spełnione (przeglądarka, miesiąc); widoki Tydzień/Lista i filtry niesprawdzone w przeglądarce.
+9. Import `.ics` do Google/Outlooka — **do zrobienia przez MOC** (treść pliku sprawdzona).
+10. Kosz z przywracaniem — spełnione.
+11. `readonly` widzi, nie zapisuje; pracownik bez ustawień organizacji — spełnione (scenariusz, test uprawnień).
+12. Na Hostingerze po HTTPS, konsola bez błędów CSP, logi bez danych osobowych — po wdrożeniu kroku 7 (poniżej).
+13. 1024 px: menu zwinięte, nic poza ekranem — spełnione; UI po polsku, obsługa z klawiatury — jak w desktopie (nieprzeklikane w całości).
+14. Commit i push — na bieżąco.
+
+### Do zrobienia przez MOC
+- Przeklikać na instancji próbnej (dane fikcyjne): osoba w dwóch kartach przeglądarki i zapis w obu (konflikt), wydruk listy obecności, przeciągnięcie karty w kanbanie, widoki Tydzień / Lista i filtry kalendarza.
+- Pobrać `.ics` z kalendarza i zaimportować do Google Calendar lub Outlooka; zaimportować drugi raz (bez dubli).
+
+### Otwarte na ZADANIE_03 i dalej
+- Eksport CSV list (osoby, działania) — z ostrzeżeniem i wpisem w dzienniku dostępu (ZADANIE_03).
+- Wyszukiwarka bez zadań (jak w desktopie).
+- Widok „Dziś” i kalendarz odświeżają się po własnych zapisach; zmiany innych osób widać po ponownym wejściu (koncepcja 4.3).
