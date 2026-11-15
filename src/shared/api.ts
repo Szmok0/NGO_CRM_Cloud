@@ -398,7 +398,8 @@ export interface SensitiveCipher {
 }
 
 export interface ApiOutputs {
-  'auth.me': { userId: string; role: Role; totpVerified: boolean }
+  /** `storageConfigured`: serwer ma STORAGE_DIR (bez niego załączniki nie działają). */
+  'auth.me': { userId: string; role: Role; totpVerified: boolean; storageConfigured: boolean }
   'auth.account': { email: string; name: string; totpEnabled: boolean; orgName: string }
   'auth.totpSetup.start': { secret: string; otpauthUrl: string; qrSvg: string }
   'auth.totpSetup.confirm': void

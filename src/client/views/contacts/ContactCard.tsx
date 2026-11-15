@@ -5,6 +5,7 @@ import { CONSENT_TYPES, RELATIONSHIP_TYPES, ROLES, type ConsentType, type Relati
 import type { ContactDetail, ContactListItem } from '@shared/types'
 import { useApp } from '../../app/context'
 import { ActionStatusChip, RoleChip } from '../../components/chips'
+import { AttachmentsCard } from '../../components/AttachmentsCard'
 import { ActivityDialog, type NewActivityType } from '../../components/ActivityForm'
 import { ContactPicker } from '../../components/ContactPicker'
 import { TaskDialog } from '../../components/TaskDialog'
@@ -124,6 +125,7 @@ export function ContactCard({ id }: { id: string }) {
           {isPerson && c.identityVersion !== null && (
             <SensitiveCard key={id} contactId={id} hasSensitive={data.hasSensitive} editable={editable} onChange={reload} />
           )}
+          <AttachmentsCard key={`att-${id}`} targetType="contact" targetId={id} editable={editable} />
           {isPerson && <RolesCard data={data} editable={editable} onChange={reload} />}
           <RelationshipsCard data={data} editable={editable} onChange={reload} />
           {isPerson && <ConsentsCard data={data} editable={editable} onChange={reload} />}

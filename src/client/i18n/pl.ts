@@ -652,6 +652,24 @@ export const pl = {
     peselInvalid: 'Nieprawidłowy numer PESEL. Sprawdź cyfry.',
     encryptedHint: 'Dane szyfruje ta przeglądarka. Serwer dostaje tylko szyfrogram.'
   },
+  attachments: {
+    title: 'Dokumenty',
+    add: 'Dodaj plik',
+    working: 'Szyfruję i wysyłam…',
+    empty: 'Brak dokumentów.',
+    locked: 'Dokumenty są zablokowane. Odblokuj je swoim hasłem.',
+    noAccess: 'Nie masz dostępu do dokumentów. Dostęp nadaje administrator.',
+    noStorage: 'Dokumenty są niedostępne: serwer nie ma ustawionego folderu STORAGE_DIR.',
+    tooBig: (mb: number) => `Plik jest za duży. Największy dozwolony rozmiar to ${mb} MB.`,
+    emptyFile: 'Plik jest pusty.',
+    noKeyForVersion: 'Ten dokument jest zaszyfrowany wersją klucza organizacji, do której nie masz dostępu.',
+    unreadable: 'Nie udało się odszyfrować nazwy',
+    decryptFailed: 'Nie udało się odszyfrować pliku. Odśwież stronę i spróbuj ponownie.',
+    download: 'Pobierz',
+    remove: 'Usuń',
+    confirmRemove: (name: string) => `Przenieść dokument „${name}” do Kosza?`,
+    encryptedHint: 'Pliki szyfruje ta przeglądarka. Serwer dostaje tylko szyfrogram, każdy plik ma osobny klucz.'
+  },
   invite: {
     title: 'Zaproszenie',
     intro: (org: string, email: string) => `Zakładasz konto ${email}${org ? ` w organizacji ${org}` : ''}. Ustaw hasło i weryfikację dwuetapową.`,

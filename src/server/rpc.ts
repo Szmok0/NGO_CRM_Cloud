@@ -65,7 +65,7 @@ const actor = ({ session, now }: RpcContext): Actor => ({ userId: session.userId
 type Handlers = { [M in Method]: (params: ApiParsed<M>, ctx: RpcContext) => ApiOutputs[M] | Promise<ApiOutputs[M]> }
 
 const handlers: Handlers = {
-  'auth.me': (_p, { session }) => ({ userId: session.userId, role: session.role, totpVerified: session.totpVerified }),
+  'auth.me': (_p, { session, auth }) => ({ userId: session.userId, role: session.role, totpVerified: session.totpVerified, storageConfigured: !!auth?.storageDir }),
   'auth.account': (_p, { session, db }) => getAccount(db, session.userId),
   'auth.totpSetup.start': (_p, ctx) => startTotpSetup(ctx.db, ctx.session.userId, requireAuth(ctx).appSecret),
   'auth.totpSetup.confirm': async ({ code }, ctx) => {

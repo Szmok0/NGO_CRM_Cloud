@@ -8,6 +8,7 @@ import type { ActionDetail, ContactListItem } from '@shared/types'
 import { useApp } from '../../app/context'
 import { ActionStatusChip, ActionTypeChip } from '../../components/chips'
 import { ContactPicker } from '../../components/ContactPicker'
+import { AttachmentsCard } from '../../components/AttachmentsCard'
 import { TargetTasks } from '../../components/TaskRows'
 import { Timeline } from '../../components/Timeline'
 import { Alert, Avatar, Badge, Button, Card, Dialog, Empty, ErrorText, Field, Input, Select, Table, Tabs } from '../../components/ui'
@@ -181,6 +182,7 @@ export function ActionDetailView({ id }: { id: string }) {
               <Info label={pl.actions.description}>{a.description && <span className="whitespace-pre-wrap">{a.description}</span>}</Info>
               </dl>
             </Card>
+            <AttachmentsCard targetType="action" targetId={id} editable={editable} />
             {moduleOn('tasks') && <TargetTasks tasks={data.tasks} target={{ targetType: 'action', targetId: id, targetLabel: a.title }} editable={editable} onChange={reload} />}
           </div>
         )}

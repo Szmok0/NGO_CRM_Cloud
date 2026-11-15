@@ -59,6 +59,38 @@ export const authApi = {
   totp: (code: string) => postJson<void>('/api/auth/totp', { code })
 }
 
+/** Załączniki (trasy poza RPC): ciało to wyłącznie szyfrogram, nagłówki jak przy RPC (Origin ustawia przeglądarka). */
+export const attachmentApi = {
+  async upload(target: { targetType: string; targetId: string }, keyVersion: number, metaEnc: string, body: Uint8Array<ArrayBuffer>): Promise<void> {
+    const res = await fetch('/api/attachments', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: {
+        'Content-Type': 'application/octet-stream',
+        'X-NGO-CRM': '1',
+        'x-target-type': target.targetType,
+        'x-target-id': target.targetId,
+        'x-key-version': String(keyVersion),
+        'x-meta-enc': metaEnc
+      },
+      body
+    })
+    const r = (await res.json().catch(() => null)) as Envelope<unknown> | null
+    if (!r) throw new ApiError('UNKNOWN', `HTTP ${res.status}`)
+    if (!r.ok) throw new ApiError(r.code, r.message)
+    window.dispatchEvent(new Event(CHANGED))
+  },
+  async download(id: string): Promise<ArrayBuffer> {
+    const res = await fetch(`/api/attachments/${id}`, { credentials: 'same-origin', headers: { 'X-NGO-CRM': '1' } })
+    if (!res.ok) {
+      const r = (await res.json().catch(() => null)) as Envelope<unknown> | null
+      if (r && !r.ok) throw new ApiError(r.code, r.message)
+      throw new ApiError('UNKNOWN', `HTTP ${res.status}`)
+    }
+    return res.arrayBuffer()
+  }
+}
+
 /** Kreator pierwszego uruchomienia (trasy poza RPC, bez sesji). */
 export const setupApi = {
   status: () => postJson<SetupStatus>('/api/setup/status', {}),
