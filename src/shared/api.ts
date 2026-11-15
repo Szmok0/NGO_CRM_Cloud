@@ -449,7 +449,6 @@ export interface InviteLink {
   expiresAt: string
 }
 
-/** `downloadDue`: od ostatniego pobrania (a gdy nie było: od pierwszej kopii) minęło więcej niż 7 dni (D4). */
 /** Kolor sprawy w panelu „Stan bezpieczeństwa”: zielony w porządku, żółty do zrobienia, czerwony pilne, szary brak danych / niewłączone. */
 export type SecurityTone = 'green' | 'yellow' | 'red' | 'grey'
 export type SecurityItemId = 'version' | 'https' | 'storage' | 'backup' | 'download' | 'verify' | 'twofa' | 'access' | 'rotation' | 'retention'
@@ -469,6 +468,7 @@ export interface SecurityStatus {
   items: SecurityItem[]
 }
 
+/** `downloadDue`: od ostatniego pobrania (a gdy nie było: od pierwszej kopii) minęło więcej niż 7 dni (D4). */
 export interface BackupList {
   items: BackupItem[]
   lastDownloadedAt: string | null

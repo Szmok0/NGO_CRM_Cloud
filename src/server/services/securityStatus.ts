@@ -40,20 +40,20 @@ async function backupItems(db: Db, ctx: StatusContext): Promise<SecurityItem[]> 
   let backupTone: SecurityTone
   if (!ctx.storageConfigured) backupTone = 'red'
   else if (!lastDone) backupTone = 'yellow'
-  else if (days(lastDone.startedAt, now) > BACKUP_RED_DAYS) backupTone = 'red'
+  else if (now.getTime() - lastDone.startedAt.getTime() > BACKUP_RED_DAYS * DAY) backupTone = 'red'
   else backupTone = lastFailed ? 'yellow' : 'green'
 
   // Pobranie i sprawdzenie: licznik od ostatniego zdarzenia, a gdy go nie było, od pierwszej kopii (jak przypomnienie z kroku 1).
-  const age = (last: Date | null) => {
-    const ref = last ?? first
-    return ref ? days(ref, now) : null
-  }
-  const dlAge = age(lastDownload)
-  const vAge = age(lastTested)
+  // Progi porównujemy w milisekundach (jak `downloadDue` w kopiach); pełne dni służą tylko do wyświetlania.
+  const refDownload = lastDownload ?? first
+  const refTested = lastTested ?? first
+  const dlAge = refDownload ? days(refDownload, now) : null
+  const vAge = refTested ? days(refTested, now) : null
+  const over = (ref: Date | null, limitDays: number) => !!ref && now.getTime() - ref.getTime() > limitDays * DAY
   return [
-    { id: 'backup', tone: backupTone, data: { lastAt: lastDone?.startedAt.toISOString() ?? null, ageDays: lastDone ? days(lastDone.startedAt, now) : null, lastFailed } },
-    { id: 'download', tone: dlAge === null ? 'grey' : dlAge > DOWNLOAD_REMINDER_DAYS ? 'yellow' : lastDownload ? 'green' : 'grey', data: { lastAt: lastDownload?.toISOString() ?? null, ageDays: dlAge } },
-    { id: 'verify', tone: vAge === null ? 'grey' : vAge > VERIFY_YELLOW_DAYS ? 'yellow' : lastTested ? 'green' : 'grey', data: { lastAt: lastTested?.toISOString() ?? null, ageDays: vAge } }
+    { id: 'backup', tone: backupTone, data: { lastAt: lastDone?.startedAt.toISOString() ?? null, ageDays: lastDone ? days(lastDone.startedAt, now) : null, lastFailed, noStorage: !ctx.storageConfigured } },
+    { id: 'download', tone: dlAge === null ? 'grey' : over(refDownload, DOWNLOAD_REMINDER_DAYS) ? 'yellow' : lastDownload ? 'green' : 'grey', data: { lastAt: lastDownload?.toISOString() ?? null, ageDays: dlAge } },
+    { id: 'verify', tone: vAge === null ? 'grey' : over(refTested, VERIFY_YELLOW_DAYS) ? 'yellow' : lastTested ? 'green' : 'grey', data: { lastAt: lastTested?.toISOString() ?? null, ageDays: vAge } }
   ]
 }
 

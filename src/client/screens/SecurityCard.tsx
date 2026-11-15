@@ -50,8 +50,9 @@ function describe(item: SecurityItem, s: SecurityStatus): Described {
       const agoDays = d.ageDays === null ? null : num(d.ageDays)
       const ago = agoDays === null ? null : pl.security.ago(agoDays)
       const goBackups = { label: go.backups, section: SECTION.backups }
-      if (d.lastAt === null) return item.tone === 'red' ? { text: t.backupNoStorage, todo: t.storageTodo } : { text: t.backupNone, go: goBackups }
+      if (d.noStorage) return { text: t.backupNoStorage, todo: t.storageTodo }
       if (d.lastFailed) return { text: t.backupFailed(ago), todo: t.backupTodo, go: goBackups }
+      if (d.lastAt === null) return { text: t.backupNone, go: goBackups }
       if (item.tone === 'red') return { text: t.backupOld(days(agoDays ?? 0)), todo: t.backupTodo, go: goBackups }
       return { text: t.backupOk(ago ?? '') }
     }

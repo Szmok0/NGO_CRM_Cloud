@@ -26,7 +26,7 @@ import * as accessLogView from './services/accessLogView'
 import * as tasks from './services/tasks'
 import * as backupsSvc from './services/backups'
 import { getSecurityStatus } from './services/securityStatus'
-import { refreshUpdateInfo } from './services/updates'
+import { refreshUpdateInfo, updateCheckEnabled } from './services/updates'
 import { repoFor, type Actor } from './services/common'
 import { settings } from './db/schema'
 import { SESSION_COOKIE, clearSessionCookie, createSession, revokeAllSessions, revokeSession, setSessionCookie } from './auth/sessions'
@@ -136,9 +136,10 @@ const handlers: Handlers = {
   'security.status': (_p, { db, req, auth, now }) => getSecurityStatus(db, { storageConfigured: !!auth?.storageDir, secure: req.protocol === 'https', now }),
   'security.setUpdateCheck': async ({ enabled }, ctx) => {
     const { db, session, now } = ctx
+    if ((await updateCheckEnabled(db)) === enabled) return // bez zmiany: bez zapisu i bez wpisu
     const current = await getSettings(db)
     await repoFor(db, actor(ctx)).update(settings, current.id, current.version, { checkUpdates: enabled })
-    await logAccess(db, session.userId, 'update_check_changed', now)
+    await logAccess(db, session.userId, enabled ? 'update_check_enabled' : 'update_check_disabled', now)
     // Po włączeniu od razu pytamy o wersję (wynik pojawi się przy kolejnym odświeżeniu panelu).
     if (enabled) void refreshUpdateInfo(db, now).catch(() => undefined)
   },

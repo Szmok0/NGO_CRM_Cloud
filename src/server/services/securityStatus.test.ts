@@ -95,8 +95,10 @@ describe('wersje i wydania', () => {
 
   it('odpowiedź GitHuba: tytuł, słowo „bezpieczeństwo” oznacza poprawkę, obcy adres zastąpiony, szkice i zły kształt odrzucone', () => {
     expect(parseRelease(release())).toMatchObject({ version: '9.9.9', security: false, url: expect.stringContaining('github.com/Szmok0/NGO_CRM_Cloud/') })
-    expect(parseRelease(release({ name: 'Poprawka bezpieczeństwa 0.1.1' }))?.security).toBe(true)
-    expect(parseRelease(release({ name: 'Security fix' }))?.security).toBe(true)
+    expect(parseRelease(release({ name: '[bezpieczeństwo] Wersja 0.1.1' }))?.security).toBe(true)
+    expect(parseRelease(release({ name: '[Security] fix' }))?.security).toBe(true)
+    expect(parseRelease(release({ name: 'Panel Stan bezpieczeństwa' }))?.security).toBe(false) // samo słowo nie wystarcza
+    expect(parseRelease(release({ tag_name: 'v1.2.3-rc1' }))).toBeNull()
     expect(parseRelease(release({ html_url: 'https://zlosliwa.example/x' }))?.url).toBe('https://github.com/Szmok0/NGO_CRM_Cloud/releases')
     expect(parseRelease(release({ html_url: 'javascript:alert(1)' }))?.url).toBe('https://github.com/Szmok0/NGO_CRM_Cloud/releases')
     expect(parseRelease(release({ draft: true }))).toBeNull()
@@ -120,7 +122,7 @@ describe('wersje i wydania', () => {
 
   it('wydanie z „bezpieczeństwo” w tytule → czerwone', async () => {
     await org()
-    fakeGithub(release({ name: 'Ważna poprawka bezpieczeństwa' }))
+    fakeGithub(release({ name: '[bezpieczeństwo] Ważna poprawka' }))
     await refreshUpdateInfo(db, NOW)
     const s = await status()
     expect(item(s, 'version').tone).toBe('red')
@@ -203,6 +205,10 @@ describe('sprawy panelu', () => {
     await addBackup({ startedAt: ago(2) })
     expect(item(await status(), 'backup').tone).toBe('green') // równo 2 dni jeszcze nie „> 2”
     await db.delete(backups)
+    await addBackup({ startedAt: ago(2.5) })
+    expect(item(await status(), 'backup').tone).toBe('red') // próg liczony w godzinach, nie w pełnych dniach
+    expect(item(await status({ storageConfigured: false }), 'backup')).toMatchObject({ tone: 'red', data: { noStorage: true } })
+    await db.delete(backups)
     await addBackup({ startedAt: ago(3) })
     expect(item(await status(), 'backup')).toMatchObject({ tone: 'red', data: { ageDays: 3 } })
   })
@@ -218,6 +224,12 @@ describe('sprawy panelu', () => {
     expect(item(await status(), 'verify').tone).toBe('grey')
     await addBackup({ startedAt: ago(1), status: 'removed', downloadedAt: ago(2) })
     expect(item(await status(), 'download')).toMatchObject({ tone: 'green', data: { ageDays: 2 } })
+    await db.delete(backups)
+    await addBackup({ startedAt: ago(7.5) })
+    expect(item(await status(), 'download').tone).toBe('yellow') // zgodnie z downloadDue (ms)
+    await db.delete(backups)
+    await addBackup({ startedAt: ago(30.5) })
+    expect(item(await status(), 'verify').tone).toBe('yellow')
     await db.delete(backups)
     await addBackup({ startedAt: ago(40) })
     expect(item(await status(), 'verify')).toMatchObject({ tone: 'yellow', data: { ageDays: 40 } })
@@ -333,8 +345,11 @@ describe('RPC security.*', () => {
     expect((await db.select().from(settings))[0]).toMatchObject({ checkUpdates: false, version: 2, updatedBy: admin.id })
     expect((await call(app, cookie, 'security.setUpdateCheck', { enabled: true })).body.ok).toBe(true)
     expect((await call(app, cookie, 'security.status')).body.data.updateCheckEnabled).toBe(true)
-    const log = await db.select().from(accessLog).where(eq(accessLog.action, 'update_check_changed'))
-    expect(log).toHaveLength(2)
+    // ta sama wartość drugi raz: bez zapisu i bez wpisu
+    expect((await call(app, cookie, 'security.setUpdateCheck', { enabled: true })).body.ok).toBe(true)
+    expect((await db.select().from(settings))[0]).toMatchObject({ version: 3 })
+    const log = (await db.select().from(accessLog)).filter((l) => l.action.startsWith('update_check_')).sort((a, b) => a.at.getTime() - b.at.getTime())
+    expect(log.map((l) => l.action)).toEqual(['update_check_disabled', 'update_check_enabled'])
     expect(log[0]).toMatchObject({ userId: admin.id })
     // po włączeniu serwer od razu pyta o wersję (w tle)
     for (let i = 0; i < 50 && calls.length === 0; i++) await new Promise((r) => setTimeout(r, 20))

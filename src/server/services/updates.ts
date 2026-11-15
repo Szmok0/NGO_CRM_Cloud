@@ -12,8 +12,8 @@ export const RELEASES_API_URL = 'https://api.github.com/repos/Szmok0/NGO_CRM_Clo
 const RELEASE_URL_PREFIX = 'https://github.com/Szmok0/NGO_CRM_Cloud/'
 const CHECK_EVERY_MS = 24 * 3600_000
 const FETCH_TIMEOUT_MS = 10_000
-/** Wydanie z tym słowem w tytule jest poprawką bezpieczeństwa (czerwone w panelu). */
-const SECURITY_WORD = /bezpiecze[nń]stw|security/i
+/** Wydanie ze znacznikiem w tytule, np. „[bezpieczeństwo] Wersja 0.1.1”, jest poprawką bezpieczeństwa (czerwone w panelu). Samo słowo w tytule nie wystarcza. */
+const SECURITY_WORD = /\[(bezpiecze[nń]stwo|security)\]/i
 
 export interface ReleaseInfo {
   version: string
@@ -42,7 +42,7 @@ export function resetUpdateCache() {
   cache = { checkedAt: null, release: null, attemptedAt: null, lastFailed: false }
 }
 
-const parts = (v: string) => /^(\d+)\.(\d+)\.(\d+)/.exec(v)?.slice(1, 4).map(Number) ?? null
+const parts = (v: string) => /^(\d+)\.(\d+)\.(\d+)$/.exec(v)?.slice(1, 4).map(Number) ?? null
 
 /** Czy wersja `a` jest nowsza od `b` (numery x.y.z; coś innego → false). */
 export function isNewerVersion(a: string, b: string): boolean {
