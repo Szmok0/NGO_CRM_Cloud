@@ -244,3 +244,12 @@ Zrobione: karta „Okres przechowywania danych osób” (`RetentionCard.tsx`, po
 Sprawdzone w przeglądarce na zbudowanej aplikacji (lokalna baza, konto próbne, port 3011): zapis okresu, lista dwóch osób, „Zostaw jeszcze na rok” (osoba znika), okno „Usuń na stałe…” (bez potwierdzania), okno kopii do pomocy, pobranie pliku (200, `attachment`, `no-store`, w pliku żadnego z nazwisk, e-maili ani nazw z danych demonstracyjnych), sprawa w panelu żółta z poprawnym zdaniem, brak naruszeń CSP w konsoli.
 Nie sprawdzone: samo kliknięcie „Pobierz plik” w oknie (plik pobrany zapytaniem z przeglądarki), potwierdzenie „Usuń na stałe…” z listy, zielony stan sprawy. Uwagi: okno anonimizacji nadal prosi o wpisanie słowa „ANONIMIZUJ” (tekst do ujednolicenia z „Usuń na stałe”); w repozytorium jest plik `ngo-crm-kopia-2026-11-15.ngb` (testowa kopia dodana w kroku 1b), do usunięcia z repozytorium przed pushem.
 Testy 920/920, typecheck i build czyste. Następny krok: krok 6 (poprawki z ZADANIA_03 i dokumenty).
+
+### Krok 6, etap a (2026-11-15) — poprawki z D12 i dokumenty D11
+- Kanban: karta bez tytułu pokazuje „(treść usunięta)” (też etykiety przycisków przesuwania).
+- „Odzyskaj dostęp”: po odzyskaniu lista użytkowników i dziennik odświeżają się same (remount po zmianie).
+- Konto bez slotu: stan z serwera (`keys.mySlots`), nie z odblokowania; pracownik widzi „brak dostępu”, administrator kartę „Odzyskaj dostęp”, nikt nie widzi „Odblokuj”.
+- Wyszukiwarka: serwer szukał po nazwisku poprawnie (testy). Przyczyna po stronie klienta: „Nic nie znaleziono” pokazywało się przed odpowiedzią, a spóźniona odpowiedź mogła nadpisać nowszą. Poprawione; hipoteza do potwierdzenia w przeglądarce (etap b). Testu regresji UI brak: projekt nie ma testów komponentów, a nowe zależności wymagają zgody MOC.
+- Dokumenty w `docs/`: `INSTRUKCJA_WDROZENIA.md`, `LISTA_KONTROLNA.md`, `SRODKI_TECHNICZNE.md` (pisał podagent Sonnet, 16 miejsc niezweryfikowanych na żywo, głównie panel Hostingera).
+- Do rozstrzygnięcia: repozytorium prywatne (ZADANIE_01) a „open source” w README i instrukcji (adres forka); nieaktualny tekst ekranu „Gotowe” o kopiach w panelu hostingu.
+Testy 920/920, typecheck czysty. Następny: krok 6, etap b (sprawdzenie w przeglądarce, MOC czyta dokumenty).
