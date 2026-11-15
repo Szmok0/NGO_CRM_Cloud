@@ -1,12 +1,12 @@
 // Okresy przechowywania (ZADANIE_04, krok 5; D10). Lista osób bez aktywności dłużej niż okres ustawiony przez administratora.
 // Nic nie dzieje się automatycznie: osoba trafia na listę, a administrator wybiera „Anonimizuj” (okno z ZADANIA_03)
 // albo „Zostaw jeszcze na rok”. Wyłączone: osoby z aktywną rolą członek / pracownik / darczyńca (potwierdzone przez MOC).
-import { and, eq, inArray, isNull } from 'drizzle-orm'
+import { and, eq, inArray, isNull, or } from 'drizzle-orm'
 import type { RetentionList, RetentionPerson } from '@shared/api'
 import { AppError } from '@shared/errors'
 import { displayName } from '@shared/text'
 import type { Db } from '../db/connection'
-import { actionParticipants, actionSessions, actions, activities, activityContacts, attendance, contactRoles, contacts, settings, tasks } from '../db/schema'
+import { actionParticipants, actionSessions, actions, activities, activityContacts, attendance, consents, contactRoles, contacts, relationships, settings, tasks } from '../db/schema'
 import { contactsById, repoFor, today, type Actor } from './common'
 
 /** Role, które wyłączają osobę z listy (D10): ktoś, kogo organizacja trzyma z natury rzeczy. */
@@ -73,6 +73,35 @@ async function lastActivityByContact(db: Db, ids: string[], now: Date): Promise<
     .where(and(inArray(attendance.contactId, ids), isNull(attendance.deletedAt), isNull(actionSessions.deletedAt)))
   for (const r of att) later(last, r.contactId, r.date)
 
+  // Prowadzący zajęcia (bez obecności i bez wpisu na osi) też jest aktywny.
+  const led = await db
+    .select({ contactId: actionSessions.leaderContactId, date: actionSessions.date })
+    .from(actionSessions)
+    .innerJoin(actions, eq(actions.id, actionSessions.actionId))
+    .where(and(inArray(actionSessions.leaderContactId, ids), isNull(actionSessions.deletedAt), isNull(actions.deletedAt)))
+  for (const r of led) later(last, r.contactId!, r.date)
+
+  // Zgody: dzień udzielenia i wycofania.
+  const cons = await db
+    .select({ contactId: consents.contactId, given: consents.givenAt, withdrawn: consents.withdrawnAt })
+    .from(consents)
+    .where(and(inArray(consents.contactId, ids), isNull(consents.deletedAt)))
+  for (const r of cons) {
+    later(last, r.contactId, r.given)
+    later(last, r.contactId, r.withdrawn)
+  }
+
+  // Role: nadanie, zakończenie (gdy już minęło) i dodanie wiersza liczą się jako aktywność.
+  const rs = await db
+    .select({ contactId: contactRoles.contactId, since: contactRoles.since, until: contactRoles.until, createdAt: contactRoles.createdAt })
+    .from(contactRoles)
+    .where(and(inArray(contactRoles.contactId, ids), isNull(contactRoles.deletedAt)))
+  for (const r of rs) {
+    if (r.since && r.since <= todayStr) later(last, r.contactId, r.since)
+    if (r.until && r.until <= todayStr) later(last, r.contactId, r.until)
+    later(last, r.contactId, today(r.createdAt))
+  }
+
   const tks = await db
     .select({ contactId: tasks.targetId, status: tasks.status, due: tasks.dueDate, updatedAt: tasks.updatedAt })
     .from(tasks)
@@ -83,6 +112,9 @@ async function lastActivityByContact(db: Db, ids: string[], now: Date): Promise<
   }
   return last
 }
+
+/** Powiązania, przez które osoba „żyje” razem z drugą stroną (opiekun dziecka, osoba kontaktowa instytucji). */
+const PROTECTING_RELATIONSHIPS = ['guardian', 'contact_person', 'works_at']
 
 export async function listRetention(db: Db, now: Date): Promise<RetentionList> {
   const months = await getRetentionMonths(db)
@@ -97,28 +129,49 @@ export async function listRetention(db: Db, now: Date): Promise<RetentionList> {
   const candidates = rows.filter((r) => !r.snooze || r.snooze < todayStr).map((r) => r.id)
   if (candidates.length === 0) return { months, items: [] }
 
+  // Druga strona powiązań: ktoś, kto jest nadal „żywy”, chroni swojego opiekuna / osobę kontaktową.
+  const rels = await db
+    .select({ a: relationships.contactAId, b: relationships.contactBId })
+    .from(relationships)
+    .where(and(isNull(relationships.deletedAt), inArray(relationships.type, PROTECTING_RELATIONSHIPS), or(inArray(relationships.contactAId, candidates), inArray(relationships.contactBId, candidates))))
+  const partners = new Map<string, Set<string>>()
+  const link = (x: string, y: string) => partners.set(x, (partners.get(x) ?? new Set()).add(y))
+  for (const r of rels) {
+    link(r.a, r.b)
+    link(r.b, r.a)
+  }
+  const allIds = [...new Set([...candidates, ...[...partners.values()].flatMap((x) => [...x])])]
+
   const exempt = new Set(
     (
       await db
         .select({ contactId: contactRoles.contactId, until: contactRoles.until })
         .from(contactRoles)
-        .where(and(inArray(contactRoles.contactId, candidates), inArray(contactRoles.role, [...RETENTION_EXEMPT_ROLES]), isNull(contactRoles.deletedAt)))
+        .where(and(inArray(contactRoles.contactId, allIds), inArray(contactRoles.role, [...RETENTION_EXEMPT_ROLES]), isNull(contactRoles.deletedAt)))
     )
       .filter((r) => !r.until || r.until >= todayStr)
       .map((r) => r.contactId)
   )
-  const ids = candidates.filter((id) => !exempt.has(id))
-  const [all, last] = await Promise.all([contactsById(db), lastActivityByContact(db, ids, now)])
+  const [all, last] = await Promise.all([contactsById(db), lastActivityByContact(db, allIds, now)])
+  const lastOn = (id: string) => {
+    const c = all.get(id)
+    return [last.get(id), c ? today(new Date(c.createdAt)) : null].filter((x): x is string => !!x).sort().at(-1) ?? null
+  }
+  const alive = (id: string) => {
+    const c = all.get(id)
+    if (!c || c.deletedAt || c.anonymizedAt) return false
+    return exempt.has(id) || (lastOn(id) ?? '') >= cutoff
+  }
 
   const items: RetentionPerson[] = []
-  for (const id of ids) {
+  for (const id of candidates) {
     const c = all.get(id)
-    if (!c) continue
-    const lastOn = [last.get(id), today(new Date(c.createdAt))].filter((x): x is string => !!x).sort().at(-1)!
-    if (lastOn >= cutoff) continue
-    items.push({ contactId: id, version: c.version, label: displayName(c), lastActivityOn: lastOn, monthsInactive: wholeMonthsBetween(lastOn, todayStr) })
+    const on = lastOn(id)
+    if (!c || !on || exempt.has(id) || on >= cutoff) continue
+    if ([...(partners.get(id) ?? [])].some(alive)) continue
+    items.push({ contactId: id, version: c.version, label: displayName(c), lastActivityOn: on, monthsInactive: wholeMonthsBetween(on, todayStr) })
   }
-  return { months, items: items.sort((a, b) => a.lastActivityOn.localeCompare(b.lastActivityOn) || a.label.localeCompare(b.label, 'pl')) }
+  return { months, items: items.sort((x, y) => x.lastActivityOn.localeCompare(y.lastActivityOn) || x.label.localeCompare(y.label, 'pl')) }
 }
 
 /** Zapis okresu; `false`, gdy bez zmiany (wtedy bez wpisu w dzienniku). */

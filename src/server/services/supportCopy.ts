@@ -4,8 +4,10 @@
 // brak reguły tabeli to błąd (test pilnuje kompletu), a nowa kolumna jest po prostu pomijana.
 // Tożsamość zamieniona na „Osoba 17” / „Instytucja 3”, użytkownicy na „Użytkownik 2”; treść osi, zadań, notatek, opisów,
 // tytułów i miejsc wyczyszczona (może zawierać nazwiska); zostają identyfikatory, typy, statusy, daty i liczby.
+import { randomUUID } from 'node:crypto'
 import { getTableConfig, MySqlTable } from 'drizzle-orm/mysql-core'
-import { is } from 'drizzle-orm'
+import { gte, is } from 'drizzle-orm'
+import { MODULES } from '@shared/modules'
 import pkg from '../../../package.json'
 import { migrationCount, type Db } from '../db/connection'
 import * as schema from '../db/schema'
@@ -30,7 +32,7 @@ export const SUPPORT_SKIPPED_TABLES = ['app_meta', 'auth_sessions', 'invitations
 
 const RULES: Record<string, Rule> = {
   // Nazwa organizacji i własne nazwy ról pomijamy; zostają ustawienia techniczne.
-  settings: { keep: ['profile', 'enabledModules', 'staleDays', 'sensitiveFieldsEnabled', 'retentionMonths', 'idleLogoutMinutes', 'checkUpdates'] },
+  settings: { derive: (r) => ({ enabledModules: (Array.isArray(r.enabledModules) ? r.enabledModules : []).filter((m) => MODULES.some((x) => x.id === m)) }), keep: ['profile', 'staleDays', 'sensitiveFieldsEnabled', 'retentionMonths', 'idleLogoutMinutes', 'checkUpdates'] },
   users: { keep: ['role', 'status', 'lastLoginAt'], derive: (r, n) => ({ label: `Użytkownik ${n}`, totpEnabled: !!r.totpEnabledAt, hasKeys: !!r.publicKey }) },
   contacts: { group: (r) => String(r.kind), keep: ['kind', 'anonymizedAt', 'retentionSnoozeUntil'], derive: (r, n) => ({ label: `${r.kind === 'institution' ? 'Instytucja' : 'Osoba'} ${n}`, tagCount: count(r.tags) }) },
   contact_roles: { keep: ['contactId', 'role', 'since', 'until'] },
@@ -59,13 +61,35 @@ export function schemaTableNames(): string[] {
 
 export const supportRuleTables = () => Object.keys(RULES)
 
+const sortKey = (r: Row): string => {
+  const v = r.createdAt ?? r.at ?? r.erasedAt ?? ''
+  return v instanceof Date ? v.toISOString() : String(v)
+}
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+/** Prawdziwe identyfikatory zastępujemy losowymi, spójnymi w obrębie jednego pliku: nie da się ich dopasować do adresów ani zrzutów ekranu. */
+function pseudonymizeIds(tables: Record<string, Row[]>): void {
+  const map = new Map<string, string>()
+  const swap = (v: unknown) => {
+    if (typeof v !== 'string' || !UUID.test(v)) return v
+    let n = map.get(v)
+    if (!n) map.set(v, (n = randomUUID()))
+    return n
+  }
+  for (const rows of Object.values(tables)) for (const row of rows) for (const k of Object.keys(row)) row[k] = swap(row[k])
+}
+
+/** `change_log` rośnie z każdym zapisem; do pomocy wystarczy ostatnie 90 dni. */
+export const SUPPORT_CHANGELOG_DAYS = 90
+
 export function sanitizeRows(table: string, rows: Row[]): Row[] {
   const rule = RULES[table]
   if (!rule) throw new Error(`Kopia do pomocy: brak reguły dla tabeli ${table}`)
   const keys = [...BASE, ...(rule.keep ?? [])]
   const seen = new Map<string, number>()
   return [...rows]
-    .sort((a, b) => String(a.createdAt ?? a.at ?? a.erasedAt ?? '').localeCompare(String(b.createdAt ?? b.at ?? b.erasedAt ?? '')) || String(a.id ?? '').localeCompare(String(b.id ?? '')))
+    .sort((a, b) => sortKey(a).localeCompare(sortKey(b)) || String(a.id ?? '').localeCompare(String(b.id ?? '')))
     .map((row) => {
       const out: Row = {}
       for (const k of keys) if (k in row) out[k] = row[k]
@@ -94,16 +118,19 @@ export async function buildSupportCopy(db: Db, now: Date): Promise<SupportCopy> 
     for (const t of Object.values(schema as Record<string, unknown>).filter((x): x is MySqlTable => is(x, MySqlTable))) {
       const name = getTableConfig(t).name
       if (SUPPORT_SKIPPED_TABLES.includes(name)) continue
-      tables[name] = sanitizeRows(name, (await tx.select().from(t)) as Row[])
+      const q = tx.select().from(t)
+      const rows = name === 'change_log' ? await q.where(gte(schema.changeLog.at, new Date(now.getTime() - SUPPORT_CHANGELOG_DAYS * 86_400_000))) : await q
+      tables[name] = sanitizeRows(name, rows as Row[])
     }
   })
+  pseudonymizeIds(tables)
   return {
     format: 'ngo-crm-support-copy',
     formatVersion: 1,
     createdAt: now.toISOString(),
     programVersion: pkg.version,
     migrations: await migrationCount(db),
-    note: 'Bez imion, nazwisk, danych kontaktowych, treści wpisów, zadań i notatek, danych wrażliwych, załączników, kluczy, haseł i dziennika dostępu.',
+    note: `Dane spseudonimizowane, nie anonimowe: bez imion, nazwisk, danych kontaktowych, treści wpisów, zadań i notatek, danych wrażliwych, załączników, kluczy, haseł i dziennika dostępu; identyfikatory są losowe (ważne tylko w tym pliku); zmiany z ostatnich ${SUPPORT_CHANGELOG_DAYS} dni. Powiązania i daty zostają, więc przekazuj plik tylko osobie, z którą masz umowę powierzenia.`,
     counts: Object.fromEntries(Object.entries(tables).map(([k, v]) => [k, v.length])),
     tables
   }

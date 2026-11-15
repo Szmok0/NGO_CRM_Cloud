@@ -116,7 +116,7 @@ async function seed() {
 
   await db.insert(orgKeys).values({ version: 1, createdAt: NOW, createdBy: adminId })
   await db.insert(contactSensitive).values({ ...tech(), contactId: p1.id, keyVersion: 1, iv: 'AAAAAAAAAAAAAAAA', ciphertext: 'Qwertyuszkiewicz' })
-  await db.insert(changeLog).values({ id: randomUUID(), entity: 'actions', entityId: act.id, op: 'update', changedFields: { title: 'Warsztaty u Trzcinowskich' }, userId: adminId, at: at('2026-03-03') })
+  await db.insert(changeLog).values({ id: randomUUID(), entity: 'actions', entityId: act.id, op: 'update', changedFields: { title: 'Warsztaty u Trzcinowskich' }, userId: adminId, at: at('2026-10-20') })
   await db.insert(erasedContacts).values({ contactId: randomUUID(), erasedAt: at('2026-05-05'), clearedActivityIds: [randomUUID()], clearedTaskIds: [] })
   await db.insert(settings).values({ ...tech(), orgName: 'Fundacja Qwerty', profile: 'projects', enabledModules: ['contacts'], roleLabels: { participant: 'Podopieczny Qwerty' }, retentionMonths: 24 })
   return { p1: p1.id, p2: p2.id, inst: inst.id, act: act.id }
@@ -184,16 +184,37 @@ describe('Kopia do pomocy', () => {
     for (const skipped of SUPPORT_SKIPPED_TABLES) expect(copy.tables[skipped]).toBeUndefined()
 
     expect(copy.tables.contacts!.map((c) => c.label).sort()).toEqual(['Instytucja 1', 'Osoba 1', 'Osoba 2'])
-    expect(copy.tables.contacts!.find((c) => c.id === ids.p1)).toMatchObject({ kind: 'person', tagCount: 1 })
+    // identyfikatory są losowe w obrębie pliku (żadnego prawdziwego), ale spójne między tabelami
+    for (const id of Object.values(ids)) expect(text.includes(id), `prawdziwy identyfikator ${id} w pliku`).toBe(false)
+    const person1 = copy.tables.contacts!.find((c) => c.tagCount === 1 && c.kind === 'person')!
+    expect(person1).toMatchObject({ kind: 'person' })
     expect(copy.tables.users!.map((u) => u.label)).toEqual(['Użytkownik 1', 'Użytkownik 2'])
-    expect(copy.tables.actions![0]).toMatchObject({ id: ids.act, label: 'Działanie 1', type: 'training', startDate: '2026-03-01', expectedParticipants: 12 })
+    expect(copy.tables.actions![0]).toMatchObject({ label: 'Działanie 1', type: 'training', startDate: '2026-03-01', expectedParticipants: 12 })
     expect(copy.tables.activities![0]).toMatchObject({ type: 'support', durationMinutes: 30 })
-    expect(copy.tables.tasks![0]).toMatchObject({ label: 'Zadanie 1', status: 'todo', priority: 'high', targetId: ids.p1 })
+    expect(copy.tables.tasks![0]).toMatchObject({ label: 'Zadanie 1', status: 'todo', priority: 'high', targetId: person1.id })
     expect(copy.tables.attendance![0]).toMatchObject({ status: 'present' })
     expect(copy.tables.change_log![0]).toMatchObject({ entity: 'actions', op: 'update', changedFieldCount: 1 })
     expect(copy.counts.contacts).toBe(3)
     expect(copy.counts.users).toBe(2)
     expect(copy.tables.settings![0]).toMatchObject({ retentionMonths: 24, profile: 'projects' })
+  })
+
+  it('numeracja idzie w kolejności utworzenia (obiekty Date), a enabledModules przepuszcza tylko znane moduły', () => {
+    const rows = sanitizeRows('topics', [
+      { id: 'b', createdAt: new Date('2026-02-01T10:00:00Z'), name: 'Drugi' },
+      { id: 'a', createdAt: new Date('2025-12-01T10:00:00Z'), name: 'Pierwszy' }
+    ])
+    expect(rows.map((r) => [r.id, r.label])).toEqual([['a', 'Temat 1'], ['b', 'Temat 2']])
+    const [st] = sanitizeRows('settings', [{ id: 's', enabledModules: ['contacts', 'Zdzisława Qwertyuszkiewicz'], profile: 'custom' }])
+    expect(st!.enabledModules).toEqual(['contacts'])
+  })
+
+  it('change_log: tylko ostatnie 90 dni, same liczby pól', async () => {
+    await seed()
+    await db.insert(changeLog).values({ id: randomUUID(), entity: 'contacts', entityId: randomUUID(), op: 'update', changedFields: { tags: ['x'] }, userId: adminId, at: new Date(NOW.getTime() - 120 * 86_400_000) })
+    const copy = await buildSupportCopy(db, NOW)
+    expect(copy.tables.change_log).toHaveLength(1)
+    expect(copy.tables.change_log![0]).toMatchObject({ entity: 'actions' })
   })
 
   it('użytkownik: bez e-maila, hasła, skrótu, sekretu 2FA i kluczy', async () => {

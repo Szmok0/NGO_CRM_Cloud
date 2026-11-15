@@ -16,8 +16,10 @@ import {
   activityContacts,
   attendance,
   contactIdentity,
+  consents,
   contactRoles,
   contacts,
+  relationships,
   settings,
   taskItems,
   tasks
@@ -69,7 +71,7 @@ async function person(last: string, o: Partial<P> = {}) {
   await db.insert(contactIdentity).values({ ...tech(), contactId: base.id, firstName: 'Jan', lastName: last, name: o.kind === 'institution' ? last : null })
   return base.id
 }
-const role = (contactId: string, r: string, until: string | null = null) => db.insert(contactRoles).values({ ...tech(), contactId, role: r, since: '2019-01-10', until })
+const role = (contactId: string, r: string, until: string | null = null) => db.insert(contactRoles).values({ ...tech('2019-01-10'), contactId, role: r, since: '2019-01-10', until })
 
 async function actionOn(startDate: string, endDate: string | null = null) {
   const a = tech()
@@ -78,7 +80,7 @@ async function actionOn(startDate: string, endDate: string | null = null) {
 }
 
 async function cleanup() {
-  for (const t of [attendance, actionSessions, actionParticipants, taskItems, tasks, activityContacts, activities, actions, contactRoles, contactIdentity, contacts]) await db.delete(t)
+  for (const t of [attendance, actionSessions, actionParticipants, taskItems, tasks, activityContacts, activities, actions, relationships, consents, contactRoles, contactIdentity, contacts]) await db.delete(t)
   await wipeAccounts(db)
 }
 async function org(retentionMonths: number | null) {
@@ -192,7 +194,7 @@ describe('lista osób po okresie', () => {
     await role(donor, 'donor')
     await role(formerMember, 'member', '2021-12-31')
     await role(participant, 'participant')
-    await db.insert(contactRoles).values({ ...tech(), deletedAt: at('2025-01-01'), contactId: deletedRole, role: 'member', since: '2019-01-10', until: null })
+    await db.insert(contactRoles).values({ ...tech('2019-01-10'), deletedAt: at('2025-01-01'), contactId: deletedRole, role: 'member', since: '2019-01-10', until: null })
     expect((await labels()).sort()).toEqual(['Jan Byly', 'Jan RolaUsunieta', 'Jan Uczestnik'])
   })
 
@@ -204,6 +206,49 @@ describe('lista osób po okresie', () => {
     await person('Odlozony', { snooze: '2027-05-01' })
     await person('OdlozonyDawno', { snooze: '2026-11-14' })
     expect(await labels()).toEqual(['Jan OdlozonyDawno'])
+  })
+})
+
+describe('lista osób po okresie: osoby, które nadal żyją w organizacji', () => {
+  it('prowadzący zajęcia, świeża zgoda, rola zakończona wczoraj i nadana niedawno chronią przed listą', async () => {
+    await org(24)
+    const trainer = await person('Prowadzacy')
+    const consent = await person('Zgoda')
+    const endedRole = await person('RolaWczoraj')
+    const newRole = await person('RolaNowa')
+    const control = await person('Kontrola')
+    const act = await actionOn('2020-01-01')
+    await db.insert(actionSessions).values({ ...tech(), actionId: act, date: '2026-05-05', leaderContactId: trainer })
+    await db.insert(consents).values({ ...tech(), contactId: consent, type: 'processing', givenAt: '2026-09-01' })
+    await role(endedRole, 'member', '2026-11-14')
+    await db.insert(contactRoles).values({ ...tech('2026-10-20'), contactId: newRole, role: 'participant', since: '2019-01-10', until: null })
+    expect(await labels()).toEqual(['Jan Kontrola'])
+    expect(control).toBeTruthy()
+  })
+
+  it('opiekun / osoba kontaktowa żywego podopiecznego nie trafia na listę; ten sam typ bez żywej strony tak', async () => {
+    await org(24)
+    const child = await person('Dziecko', { created: '2026-09-01' })
+    const guardian = await person('Opiekun')
+    const lonelyChild = await person('DzieckoStare')
+    const lonelyGuardian = await person('OpiekunStary')
+    const other = await person('Znajomy')
+    const friend = await person('Znajoma', { created: '2026-09-01' })
+    await db.insert(relationships).values([
+      { ...tech(), contactAId: guardian, contactBId: child, type: 'guardian' },
+      { ...tech(), contactAId: lonelyGuardian, contactBId: lonelyChild, type: 'guardian' },
+      { ...tech(), contactAId: other, contactBId: friend, type: 'other' }
+    ])
+    expect((await labels()).sort()).toEqual(['Jan DzieckoStare', 'Jan OpiekunStary', 'Jan Znajomy'])
+  })
+
+  it('strefa czasu: wpis o 23:30 UTC liczy się jako następny dzień w Polsce', async () => {
+    await org(24)
+    const id = await person('Granica')
+    const a = { ...tech(), type: 'note', occurredAt: new Date('2024-11-14T23:30:00.000Z'), content: '' }
+    await db.insert(activities).values(a)
+    await db.insert(activityContacts).values({ ...tech(), activityId: a.id, contactId: id })
+    expect(await labels()).toEqual([]) // 15.11.2024 w Polsce = dokładnie okres: jeszcze nie po okresie
   })
 })
 
