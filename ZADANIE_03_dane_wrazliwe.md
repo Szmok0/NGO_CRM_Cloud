@@ -387,3 +387,22 @@ _(uzupełniane po każdym etapie)_
   - po „Odzyskaj dostęp” lista użytkowników i dziennik w Ustawieniach nie odświeżają się same;
   - po odświeżeniu strony administrator bez slotu widzi „Odblokuj”, a „Odzyskaj dostęp” dopiero po odblokowaniu hasłem.
 - **Nieprzeklikane (decyzja MOC: na teraz tylko zmiana klucza):** kryteria 3 i 5 dla konta bez slotu i pracownika (brak dostępu, 403, nadanie, odebranie kończy sesję), 11 dla `readonly` (brak eksportu), 4 (blokada po 15 min), 6 przerwana zmiana (pokryte testem akceptacji), wydruk na papierze. Wymagają zaproszenia kont z 2FA. Podsumowanie „Po zakończeniu” po domknięciu tych kryteriów.
+
+### Krok 7, etap c (2026-11-15): konta pracownika i tylko do odczytu
+- Zaproszone `pracownik@lokalnie.test` (`staff`) i `odczyt@lokalnie.test` (`readonly`), fikcyjne adresy. MOC ustawił hasła i TOTP; oba konta aktywne, 2FA włączone, bez slotu. Dziennik: zaproszenie, przyjęcie zaproszenia, włączenie 2FA, logowanie.
+- Przeklikane jako pracownik w panelu przeglądarki:
+  - **3 (konto bez slotu):** `sensitive.reveal` → 403 `NO_KEY_ACCESS`, pobranie załącznika działania → 403 `NO_KEY_ACCESS`, lista załączników → 200 (same metadane). Karta osoby po odblokowaniu hasłem: „Nie masz dostępu do danych wrażliwych. Dostęp nadaje administrator.” (tak samo dokumenty). **Przed odblokowaniem karta pokazuje „Odblokuj”, nie „brak dostępu”** (ta sama przyczyna co trzecia drobna poprawka z etapu b).
+  - **5 (część):** po „Nadaj” u administratora `sensitive.reveal` pracownika → 200 (szyfrogram).
+- **Pominięte (decyzja MOC, brak czasu; pokryte testami):** 5 odebranie dostępu kończy sesję (`acceptance.test.ts` „5: …”, `access.test.ts`), 11 `readonly` nie eksportuje (`exports.test.ts`), 4 blokada po 15 min (`keyring.test.ts`), 6 przerwana zmiana klucza (test akceptacji), wydruk na papierze, pełne wiersze logu w panelu Hostingera (13).
+- Zauważone przy okazji: wyszukiwarka w górnym pasku dla „Fikcyjny” zwróciła „Nic nie znaleziono”, choć osoba jest na liście (przyczyna niesprawdzona).
+- Konta `pracownik@` i `odczyt@` zostają na instancji próbnej (pracownik ma dostęp do klucza).
+
+### Po zakończeniu: podsumowanie ZADANIA_03
+- **Co zrobiono:** klucze w przeglądarce (WebCrypto, sloty użytkowników i slot odzyskiwania, blokada po 15 min bezczynności), nadawanie i odbieranie dostępu, pola wrażliwe zaszyfrowane w przeglądarce (domyślnie wyłączone), zaszyfrowane załączniki do osób i działań w `STORAGE_DIR`, zmiana klucza organizacji z kreatorem i dokończeniem przerwanej zmiany, anonimizacja osoby (z `erased_contacts` pod odtwarzanie kopii), eksport danych osoby (JSON i wydruk), eksporty CSV list, dziennik dostępu z eksportem. Wdrożone na Hostinger; kryteria 2, 3, 6–10, 12 przeklikane, 4, 5, 11, 13 częściowo, reszta pokryta testami (wyżej).
+- **Odstępstwa od opisu (zatwierdzone przez MOC w trakcie):** odzyskiwanie dostępu jako dwie metody (`keys.recoverySlot`, `keys.recover`); ponowne nadanie → `ACCESS_EXISTS`; administrator nie odbiera dostępu sobie; `fileVersion` w metadanych załącznika, żeby plik nie wymagał przeszyfrowania po zmianie klucza (krok 4b); przerwana zmiana klucza i część kryteriów 4, 5, 11 sprawdzone testami zamiast przeklikania.
+- **Do przeniesienia do desktopu (bezpieczeństwo, rozdział 9):** model z oddzielną tożsamością i danymi wrażliwymi, sloty kluczy dla każdego użytkownika i slot odzyskiwania, zmiana klucza po odebraniu dostępu (z `fileVersion` dla plików), anonimizacja czyszcząca rekord, `change_log` i pliki (z listą `erased_contacts` do ponownego nałożenia), szyfrowany magazyn załączników, dziennik dostępu.
+- **Otwarte sprawy na ZADANIE_04:**
+  - poprawki interfejsu: pusta karta zadania w kanbanie po anonimizacji; brak odświeżenia listy użytkowników i dziennika po „Odzyskaj dostęp”; po odświeżeniu strony konto bez slotu widzi „Odblokuj” zamiast „brak dostępu” / „Odzyskaj dostęp”;
+  - wyszukiwarka w górnym pasku nie znalazła osoby po nazwisku (do sprawdzenia);
+  - zaplanowane wcześniej: kopie i wywołanie `applyErasures` po odtworzeniu, panel „Stan bezpieczeństwa”, zanonimizowana kopia do pomocy technicznej, okresy przechowywania;
+  - przegląd pełnych wierszy logu serwera w panelu Hostingera (kryterium 13).
