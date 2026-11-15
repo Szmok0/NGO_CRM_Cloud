@@ -3,8 +3,8 @@
 import { randomUUID } from 'node:crypto'
 import { mkdir, rename, rm, writeFile } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
-import { and, desc, eq, inArray, isNotNull, lt, ne } from 'drizzle-orm'
-import type { BackupItem } from '@shared/api'
+import { and, desc, eq, inArray, isNotNull, lt, max, min, ne } from 'drizzle-orm'
+import type { BackupItem, BackupList } from '@shared/api'
 import { AppError } from '@shared/errors'
 import pkg from '../../../package.json'
 import { appRoot } from '../config'
@@ -120,10 +120,17 @@ export async function rotateBackups(db: Db, storageDir: string): Promise<number>
   return drop.length
 }
 
-export async function listBackups(db: Db): Promise<BackupItem[]> {
+/** Po ilu dniach od ostatniego pobrania przypominamy o pobraniu kopii na komputer (D4). */
+export const DOWNLOAD_REMINDER_DAYS = 7
+
+export async function listBackups(db: Db, now = new Date()): Promise<BackupList> {
   const rows = await db.select().from(backups).where(ne(backups.status, 'removed')).orderBy(desc(backups.startedAt)).limit(60)
   const iso = (d: Date | null) => (d ? d.toISOString() : null)
-  return rows.map((r) => ({
+  // Pobranie liczymy po wszystkich wierszach, także po usuniętych rotacją (inaczej przypomnienie by się „cofało”).
+  const [agg] = await db.select({ lastDownload: max(backups.downloadedAt), first: min(backups.startedAt) }).from(backups).where(ne(backups.status, 'failed'))
+  const reference = agg?.lastDownload ?? agg?.first ?? null
+  const downloadDue = !!reference && now.getTime() - new Date(reference).getTime() > DOWNLOAD_REMINDER_DAYS * 86_400_000
+  const items = rows.map((r) => ({
     id: r.id,
     startedAt: r.startedAt.toISOString(),
     finishedAt: iso(r.finishedAt),
@@ -134,6 +141,7 @@ export async function listBackups(db: Db): Promise<BackupItem[]> {
     restoreTestedAt: iso(r.restoreTestedAt),
     restoreTestResult: r.restoreTestResult
   }))
+  return { items, lastDownloadedAt: iso(agg?.lastDownload ? new Date(agg.lastDownload) : null), downloadDue }
 }
 
 /**

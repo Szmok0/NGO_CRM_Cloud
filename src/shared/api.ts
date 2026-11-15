@@ -443,6 +443,13 @@ export interface InviteLink {
   expiresAt: string
 }
 
+/** `downloadDue`: od ostatniego pobrania (a gdy nie było: od pierwszej kopii) minęło więcej niż 7 dni (D4). */
+export interface BackupList {
+  items: BackupItem[]
+  lastDownloadedAt: string | null
+  downloadDue: boolean
+}
+
 export interface BackupItem {
   id: string
   startedAt: string
@@ -577,7 +584,7 @@ export interface ApiOutputs {
   'keys.rotateBatch': { updated: number; conflicts: string[] }
   'keys.rotateFinish': void
   'system.info': { version: string; migrations: number }
-  'backups.list': BackupItem[]
+  'backups.list': BackupList
   'backups.create': { id: string }
   'settings.get': OrgSettings
   'contacts.list': T.ContactListItem[]

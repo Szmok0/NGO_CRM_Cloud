@@ -131,7 +131,7 @@ const handlers: Handlers = {
   'keys.rotateFinish': (_p, ctx) => rotation.rotateFinish(ctx.db, actor(ctx)),
   'system.info': async (_p, { db }) => ({ version: pkg.version, migrations: await migrationCount(db) }),
   'settings.get': (_p, { db }) => getSettings(db),
-  'backups.list': (_p, { db }) => backupsSvc.listBackups(db),
+  'backups.list': (_p, { db, now }) => backupsSvc.listBackups(db, now),
   'backups.create': async (_p, { db, session, auth, now }) => {
     const { id } = await backupsSvc.startBackup(db, { storageDir: auth?.storageDir, kind: 'manual', userId: session.userId, now })
     await logAccess(db, session.userId, 'backup_create', now, id, 'backup')

@@ -26,7 +26,7 @@ import {
 } from 'lucide-react'
 import type { ModuleId } from '@shared/modules'
 import type { SearchHit } from '@shared/types'
-import { Avatar, Button } from '../components/ui'
+import { Alert, Avatar, Button } from '../components/ui'
 import { pl } from '../i18n/pl'
 import { call, useDataChanged } from '../lib/api'
 import { cn } from '../lib/cn'
@@ -280,6 +280,28 @@ function CreateMenu() {
   )
 }
 
+/** Przypomnienie administratora o pobraniu kopii na komputer (D4): znika po pobraniu, nie pokazuje się w samych ustawieniach. */
+function BackupBanner() {
+  const { session, route, go } = useApp()
+  const admin = session.me.role === 'admin' && session.me.storageConfigured
+  const [due, setDue] = useState(false)
+  const load = useCallback(() => {
+    if (admin) void call('backups.list', {}).then((l) => setDue(l.downloadDue)).catch(() => setDue(false))
+  }, [admin])
+  useEffect(load, [load, route.name])
+  if (!due || route.name === 'settings') return null
+  return (
+    <div className="px-8 pt-4 print:hidden">
+      <Alert tone="warning">
+        {pl.backups.reminder}{' '}
+        <button type="button" className="cursor-pointer font-semibold underline" onClick={() => go({ name: 'settings' })}>
+          {pl.backups.bannerGo}
+        </button>
+      </Alert>
+    </div>
+  )
+}
+
 export function Layout({ children }: { children: ReactNode }) {
   const { session, back, canGoBack, canWrite } = useApp()
   const name = session.account.name
@@ -301,6 +323,7 @@ export function Layout({ children }: { children: ReactNode }) {
             </span>
           </div>
         </header>
+        <BackupBanner />
         <main className="flex-1 overflow-y-auto">
           <div className="mx-auto w-full max-w-[1440px] px-8 pt-7 pb-10">{children}</div>
         </main>

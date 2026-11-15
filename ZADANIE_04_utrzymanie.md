@@ -179,3 +179,10 @@ Odstępstwa i uwagi:
 - Kopia czytana w jednej transakcji z migawką; wymaga InnoDB na hostingu (do sprawdzenia przy wdrożeniu, krok 7).
 - Do przejrzenia przez MOC (najlepiej Opus): `backupExport.ts` (zawijanie klucza RSA-OAEP z etykietą, AAD segmentów) i `backupRoutes.ts` (rola `admin`, `no-store`).
 Następny etap: krok 2 (ekran kopii, „Sprawdź kopię” w przeglądarce).
+
+### Krok 1, etap b (2026-11-15) — ekrany kopii
+Zrobione: karta „Kopie zapasowe” w Ustawieniach (administrator): lista (kiedy, rodzaj, rozmiar, stan, pobrana, sprawdzona), „Zrób kopię teraz” (odświeżanie co 2 s, póki kopia trwa), pobranie zwykłym linkiem do strumienia (bez ładowania pliku do pamięci przeglądarki), komunikat na czerwono bez `STORAGE_DIR`, komunikat po nieudanej kopii. Baner przypomnienia „Pobierz kopię na swój komputer” w układzie aplikacji (poza samymi Ustawieniami), liczony po stronie serwera (`downloadDue`: ponad 7 dni od ostatniego pobrania albo od pierwszej kopii; pobranie liczone także po kopiach usuniętych rotacją).
+Zmiana kontraktu: `backups.list` zwraca `{ items, lastDownloadedAt, downloadDue }`.
+Sprawdzone w przeglądarce na zbudowanej aplikacji (lokalnie, baza testowa, konto próbne): logowanie z 2FA, ręczna kopia, lista, pobranie (znacznik „Pobrana” i wpis w logu serwera), brak naruszeń CSP w konsoli. Baner przypomnienia sprawdzony tylko testem serwera (`downloadDue`), nie przeklikany.
+Testy: 837/837, typecheck czysty.
+Następny etap: krok 2 („Sprawdź kopię” w przeglądarce).

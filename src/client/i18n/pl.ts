@@ -390,6 +390,28 @@ export const pl = {
     exportCsv: 'Eksport CSV',
     exportDone: (rows: number) => `Zapisano plik. Liczba wpisów: ${rows}.`
   },
+  backups: {
+    title: 'Kopie zapasowe',
+    sub: 'Program robi kopię sam, raz na dobę. Raz w tygodniu pobierz kopię na swój komputer i trzymaj ją poza serwerem. Otworzysz ją swoim e-mailem i hasłem.',
+    now: 'Zrób kopię teraz',
+    started: 'Kopia się robi. Lista odświeży się sama.',
+    noStorage:
+      'Kopie nie mogą powstawać: na serwerze nie ustawiono folderu na pliki (zmienna STORAGE_DIR). Ustaw go według instrukcji wdrożenia i uruchom program ponownie.',
+    empty: 'Nie ma jeszcze żadnej kopii. Pierwsza powstanie sama w ciągu godziny albo kliknij „Zrób kopię teraz”.',
+    reminder: 'Pobierz kopię na swój komputer. Ostatnie pobranie było ponad tydzień temu albo jeszcze się nie odbyło.',
+    lastFailed: 'Ostatnia kopia się nie udała. Spróbuj jeszcze raz. Jeśli to się powtarza, napisz do osoby, która wdrożyła program.',
+    bannerGo: 'Przejdź do kopii',
+    when: 'Kiedy',
+    kind: 'Rodzaj',
+    size: 'Rozmiar',
+    status: 'Stan',
+    downloaded: 'Pobrana',
+    tested: 'Sprawdzona',
+    kinds: { auto: 'automatyczna', manual: 'ręczna' },
+    statuses: { running: 'w toku', done: 'gotowa', failed: 'nie udała się' },
+    download: 'Pobierz',
+    never: 'jeszcze nie'
+  },
   trash: {
     title: 'Kosz',
     hint: 'Usunięte rekordy. Przywrócenie przywraca je wszędzie, także w historii działań.',

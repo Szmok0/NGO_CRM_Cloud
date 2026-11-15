@@ -139,6 +139,9 @@ describe('zawartość i szyfrowanie', () => {
     expect(header.admins).toHaveLength(1)
     expect(header.admins[0]).toMatchObject({ userId: admin.id, kdfIterations: 600_000 })
     expect(JSON.stringify(header)).not.toContain(admin.email) // jawnego e-maila w nagłówku nie ma
+    // Dane osobowe są w pliku tylko zaszyfrowane: ani e-mail, ani nazwa konta nie występują jawnie.
+    expect(file.includes(Buffer.from(admin.email))).toBe(false)
+    expect(file.includes(Buffer.from('Konto testowe'))).toBe(false)
 
     const manifest = json(frames.at(-1)!.data) as BackupManifest
     expect(frames.at(-1)!.kind).toBe(FRAME_MANIFEST)
@@ -231,7 +234,7 @@ describe('blokada, rotacja, harmonogram', () => {
     await db.insert(backups).values({ id: randomUUID(), startedAt: new Date(now.getTime() - 31 * 60_000), status: 'running', kind: 'auto', runningLock: 'running', programVersion: '0', migrations: 0 })
     const third = await startBackup(db, { storageDir: dir, kind: 'auto', userId: null, now })
     await third.done
-    expect((await listBackups(db)).filter((b) => b.status === 'running')).toHaveLength(0)
+    expect((await listBackups(db)).items.filter((b) => b.status === 'running')).toHaveLength(0)
   })
 
   it('rotacja: 7 ostatnich dób + 4 tygodnie, reszta traci plik, wiersz dostaje „removed”', async () => {
@@ -246,7 +249,7 @@ describe('blokada, rotacja, harmonogram', () => {
       await db.insert(backups).values({ id, startedAt: new Date(base - d * 86_400_000), finishedAt: new Date(base - d * 86_400_000), status: 'done', kind: 'auto', programVersion: '0', migrations: 0 })
     }
     const removed = await rotateBackups(db, dir)
-    const kept = (await listBackups(db)).length
+    const kept = (await listBackups(db)).items.length
     expect(kept).toBe(7 + 4)
     expect(removed).toBe(60 - 11)
     // najnowsze 7 zostało
@@ -268,8 +271,25 @@ describe('blokada, rotacja, harmonogram', () => {
     const next = await runBackupCheck(db, { storageDir: dir, now: new Date(now.getTime() + BACKUP_INTERVAL_MS + 60_000) })
     expect(next).not.toBeNull()
     await next!.done
-    const list = await listBackups(db)
+    const list = (await listBackups(db)).items
     expect(list.filter((b) => b.status === 'done' && b.kind === 'auto')).toHaveLength(2)
+  })
+
+  it('przypomnienie o pobraniu: po 7 dniach od ostatniego pobrania (albo od pierwszej kopii); rotacja go nie cofa', async () => {
+    const now = new Date(Date.UTC(2026, 10, 15, 12))
+    const day = 86_400_000
+    const add = (startedAt: Date, extra: Partial<typeof backups.$inferInsert> = {}) =>
+      db.insert(backups).values({ id: randomUUID(), startedAt, finishedAt: startedAt, status: 'done', kind: 'auto', programVersion: '0', migrations: 0, ...extra })
+    expect((await listBackups(db, now)).downloadDue).toBe(false) // brak kopii
+    await add(new Date(now.getTime() - 3 * day))
+    expect((await listBackups(db, now)).downloadDue).toBe(false) // świeża kopia, nic nie trzeba
+    await add(new Date(now.getTime() - 9 * day))
+    expect((await listBackups(db, now)).downloadDue).toBe(true) // od pierwszej kopii minęło 9 dni, nigdy nie pobrano
+    await add(new Date(now.getTime() - 20 * day), { status: 'removed', downloadedAt: new Date(now.getTime() - 2 * day) })
+    const l = await listBackups(db, now)
+    expect(l.downloadDue).toBe(false) // pobranie sprzed 2 dni, choć ta kopia została usunięta rotacją
+    expect(l.lastDownloadedAt).toBe(new Date(now.getTime() - 2 * day).toISOString())
+    expect(l.items).toHaveLength(2) // usunięta nie jest na liście
   })
 
   it('lista usunięć z anonimizacji trafia do pliku poza bazą (D5)', async () => {
@@ -338,12 +358,13 @@ describe('pobieranie i RPC', () => {
     // czekamy aż kopia się skończy (działa w tle)
     for (let i = 0; i < 100; i++) {
       const l = await rpc('backups.list')
-      if (l.data[0]?.status !== 'running') break
+      if (l.data.items[0]?.status !== 'running') break
       await new Promise((r) => setTimeout(r, 100))
     }
     const list = await rpc('backups.list')
-    expect(list.data[0]).toMatchObject({ id: created.data.id, status: 'done', kind: 'manual', downloadedAt: null })
-    expect(list.data[0].sizeBytes).toBeGreaterThan(0)
+    expect(list.data.items[0]).toMatchObject({ id: created.data.id, status: 'done', kind: 'manual', downloadedAt: null })
+    expect(list.data.downloadDue).toBe(false)
+    expect(list.data.items[0].sizeBytes).toBeGreaterThan(0)
     const log = await db.select().from(accessLog).where(eq(accessLog.action, 'backup_create'))
     expect(log[0]).toMatchObject({ userId: admin.id, targetType: 'backup', targetId: created.data.id })
     await app.close()
