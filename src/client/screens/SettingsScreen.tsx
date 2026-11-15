@@ -1,4 +1,4 @@
-// Ustawienia: własne konto (dla każdego) i użytkownicy programu (tylko administrator).
+// Ustawienia: własne konto (dla każdego), ustawienia organizacji i użytkownicy programu (tylko administrator).
 import { useState } from 'react'
 import type { ApiOutputs, InviteLink, Role, UserListItem } from '@shared/api'
 import { ROLES } from '@shared/api'
@@ -6,6 +6,7 @@ import { Badge, Button, Card, ErrorNote, InputField, SelectField } from '../comp
 import { pl } from '../i18n/pl'
 import { call, errorMessage, isApiError, useLoad } from '../lib/api'
 import { formatDateTime } from '../lib/format'
+import { OrgSettingsCard } from './OrgSettingsCard'
 
 interface Props {
   me: ApiOutputs['auth.me']
@@ -56,6 +57,7 @@ export function SettingsScreen({ me, account, keysUnlocked, onChangePassword, on
             <dd className={keysUnlocked ? 'text-success' : 'text-warning'}>{keysUnlocked ? pl.home.keysUnlocked : pl.home.keysLocked}</dd>
           </dl>
         </Card>
+        {me.role === 'admin' && <OrgSettingsCard />}
         {me.role === 'admin' && <UsersPanel myId={me.userId} onSignedOut={onSignedOut} />}
       </div>
     </>

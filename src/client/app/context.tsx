@@ -1,9 +1,10 @@
 // Kontekst aplikacji po zalogowaniu (wzór: desktopowe src/renderer/app/context.tsx).
-// Trasy i rodzaje „+ Utwórz” dochodzą razem z modułami w kolejnych krokach ZADANIA_02.
 import { createContext, useContext } from 'react'
 import type { ApiOutputs, OrgSettings } from '@shared/api'
 import type { Role } from '@shared/domain'
 import type { ModuleId } from '@shared/modules'
+
+export type CalendarMode = 'month' | 'week' | 'list'
 
 export type Route =
   | { name: 'today' }
@@ -14,10 +15,17 @@ export type Route =
   | { name: 'topics' }
   | { name: 'topic'; id: string }
   | { name: 'tasks' }
+  | { name: 'calendar'; date?: string; mode?: CalendarMode }
+  | { name: 'trash' }
   | { name: 'settings' }
 
 /** Co można utworzyć z „+ Utwórz”. */
 export type CreateKind = 'person' | 'institution' | 'note' | 'contactEntry' | 'task' | 'action'
+/** Podstawione wartości: data (z kalendarza), osoba (np. „Dodaj kontakt” na „Dziś”). */
+export interface CreatePreset {
+  date?: string
+  contact?: { id: string; label: string }
+}
 
 /** Zalogowana osoba i ustawienia organizacji. */
 export interface SessionInfo {
@@ -39,7 +47,7 @@ export interface AppContextValue {
   moduleOn: (m: ModuleId) => boolean
   /** Czy rola pozwala zapisywać dane (nie „tylko odczyt”). Serwer i tak odmówi zapisu bez uprawnień. */
   canWrite: boolean
-  create: (kind: CreateKind) => void
+  create: (kind: CreateKind, preset?: CreatePreset) => void
   logout: () => void
 }
 

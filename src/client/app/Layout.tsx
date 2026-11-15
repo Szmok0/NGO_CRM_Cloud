@@ -1,6 +1,6 @@
 // Układ aplikacji jak w wersji desktopowej: menu boczne (zwijane poniżej 1280 px), pasek górny (wyszukiwarka, „+ Utwórz”), treść.
 // Moduły, które jeszcze nie przeszły z desktopu, są w menu wyszarzone („wkrótce”).
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import {
   ArrowLeft,
   BookOpen,
@@ -28,19 +28,19 @@ import type { ModuleId } from '@shared/modules'
 import type { SearchHit } from '@shared/types'
 import { Avatar, Button } from '../components/ui'
 import { pl } from '../i18n/pl'
-import { call } from '../lib/api'
+import { call, useDataChanged } from '../lib/api'
 import { cn } from '../lib/cn'
 import { useApp, type CreateKind, type Route } from './context'
 
-const NAV: { route?: Route['name']; label: string; icon: ReactNode; also?: Route['name'][]; module?: ModuleId }[] = [
+const NAV: { route?: Route['name']; label: string; icon: ReactNode; also?: Route['name'][]; module?: ModuleId; counter?: boolean }[] = [
   { route: 'today', label: pl.nav.today, icon: <Sun size={18} /> },
   { route: 'contacts', label: pl.nav.contacts, icon: <Users size={18} />, also: ['contact'] },
   { route: 'actions', label: pl.nav.actions, icon: <ClipboardList size={18} />, also: ['action'], module: 'actions' },
-  { label: pl.nav.calendar, icon: <CalendarDays size={18} /> },
-  { route: 'tasks', label: pl.nav.tasks, icon: <CheckSquare size={18} />, module: 'tasks' },
+  { route: 'calendar', label: pl.nav.calendar, icon: <CalendarDays size={18} />, module: 'calendar' },
+  { route: 'tasks', label: pl.nav.tasks, icon: <CheckSquare size={18} />, module: 'tasks', counter: true },
   { label: pl.nav.materials, icon: <FolderOpen size={18} /> },
   { route: 'topics', label: pl.nav.topics, icon: <BookOpen size={18} />, also: ['topic'], module: 'actions' },
-  { label: pl.nav.trash, icon: <Trash2 size={18} /> },
+  { route: 'trash', label: pl.nav.trash, icon: <Trash2 size={18} /> },
   { route: 'settings', label: pl.nav.settings, icon: <Settings size={18} /> }
 ]
 
@@ -66,6 +66,12 @@ function Sidebar() {
   const [pref, setPref] = useState<boolean | null>(null)
   useEffect(() => setPref(null), [narrow])
   const collapsed = pref ?? narrow
+
+  // licznik przy „Zadaniach”: moje zaległe i na dziś (odświeżany po zmianie widoku i po każdym zapisie)
+  const [counter, setCounter] = useState(0)
+  const loadCounter = useCallback(() => void call('today.counter', {}).then(setCounter).catch(() => setCounter(0)), [])
+  useEffect(loadCounter, [loadCounter, route])
+  useDataChanged(loadCounter)
 
   return (
     <nav aria-label={pl.nav.mainMenu} className={cn('flex shrink-0 flex-col gap-0.5 bg-nav py-5 text-nav-foreground transition-[width] print:hidden', collapsed ? 'w-16 px-2' : 'w-60 px-3')}>
@@ -96,6 +102,7 @@ function Sidebar() {
       {NAV.filter((n) => !n.module || moduleOn(n.module)).map((n) => {
         const active = n.route === route || !!n.also?.includes(route)
         const target = n.route
+        const count = n.counter ? counter : 0
         return (
           <button
             key={n.label}
@@ -103,7 +110,7 @@ function Sidebar() {
             disabled={!target}
             onClick={target ? () => onNavigate(target) : undefined}
             title={collapsed || !target ? `${n.label}${target ? '' : ` (${pl.nav.soon})`}` : undefined}
-            aria-label={collapsed ? n.label : undefined}
+            aria-label={collapsed ? n.label + (count ? `, ${pl.nav.tasksCounter(count)}` : '') : undefined}
             aria-current={active ? 'page' : undefined}
             className={cn(
               'relative flex items-center gap-3 rounded-control py-[9px] text-left text-sm',
@@ -114,6 +121,14 @@ function Sidebar() {
             {n.icon}
             {!collapsed && <span className="flex-1">{n.label}</span>}
             {!collapsed && !target && <span className="text-[11px] text-nav-muted">{pl.nav.soon}</span>}
+            {count > 0 &&
+              (collapsed ? (
+                <span aria-hidden="true" className="absolute top-1 right-1.5 h-2.5 w-2.5 rounded-full bg-counter" />
+              ) : (
+                <span aria-label={pl.nav.tasksCounter(count)} className="flex h-5 min-w-5 items-center justify-center rounded-full bg-counter px-1.5 text-xs font-bold text-nav">
+                  {count}
+                </span>
+              ))}
           </button>
         )
       })}

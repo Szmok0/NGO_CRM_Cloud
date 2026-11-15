@@ -17,6 +17,7 @@ import type {
 } from '@shared/domain'
 import type { ErrorCode } from '@shared/errors'
 import type { HolidayId } from '@shared/holidays'
+import type { ModuleId, Profile } from '@shared/modules'
 
 /** Polska odmiana liczebników: 1 zadanie, 2 zadania, 5 zadań (12–14 jak 5). */
 export function plural(n: number, one: string, few: string, many: string): string {
@@ -262,6 +263,95 @@ export const pl = {
     dragHint: 'Przeciągnij kartę do innej kolumny albo użyj strzałek na karcie.',
     removeItem: 'Usuń pozycję'
   },
+  today: {
+    hello: (name: string) => `Dzień dobry, ${name}`,
+    summaryOverdue: (n: number) => `${n} ${plural(n, 'zaległe zadanie', 'zaległe zadania', 'zaległych zadań')}`,
+    summaryNoOverdue: 'bez zaległych zadań',
+    summaryNext: (when: string) => `najbliższe zajęcia: ${when}`,
+    quick: { person: 'Osoba', note: 'Notatka', task: 'Zadanie', action: 'Działanie' },
+    tiles: {
+      overdue: 'Zaległe zadania',
+      overdueSub: (days: number) => `najstarsze: ${days} ${plural(days, 'dzień', 'dni', 'dni')} po terminie`,
+      overdueNone: 'nic po terminie',
+      today: 'Zadania na dziś',
+      todaySub: (n: number) => `w tym ${n} z checklistą`,
+      todayNone: 'nic więcej na dziś',
+      week: 'Zajęcia w tym tygodniu',
+      weekSub: (when: string) => `najbliższe: ${when}`,
+      weekNone: 'brak kolejnych zajęć',
+      attention: 'Wymaga uwagi',
+      attentionSub: 'uczestnicy bez kontaktu'
+    },
+    myDay: 'Mój dzień',
+    myDayHint: 'Kliknij kółko, aby oznaczyć zadanie jako zrobione',
+    overdue: 'Zaległe',
+    dueToday: 'Na dziś',
+    markDone: (t: string) => `Oznacz jako zrobione: ${t}`,
+    markUndone: (t: string) => `Oznacz jako niezrobione: ${t}`,
+    checklist: (d: number, t: number) => `checklista ${d}/${t}`,
+    highPriority: 'wysoki priorytet',
+    dueOn: (d: string) => `termin ${d}`,
+    dueTodayChip: 'dziś',
+    noTasks: 'Brak zadań na dziś.',
+    addTask: 'Dodaj zadanie',
+    upcoming: 'Najbliższe dni',
+    noUpcoming: 'Brak działań i zajęć w najbliższych 30 dniach.',
+    addAction: 'Dodaj działanie',
+    sessionOf: (title: string, n: number, m: number) => (m > 1 ? `${title} — zajęcia ${n} z ${m}` : title),
+    participants: (n: number) => `${n} ${plural(n, 'uczestnik', 'uczestników', 'uczestników')}`,
+    openCalendar: 'Otwórz kalendarz',
+    attention: 'Wymaga uwagi',
+    staleHint: (days: number) => `Uczestnicy bez kontaktu, wsparcia ani obecności od ponad ${days} dni`,
+    noStale: 'Wszyscy uczestnicy mają niedawny kontakt.',
+    staleDays: (n: number) => `${n} dni bez kontaktu`,
+    addContact: 'Dodaj kontakt',
+    recent: 'Ostatnio w organizacji',
+    noRecent: 'Jeszcze nic się nie wydarzyło.'
+  },
+  trash: {
+    title: 'Kosz',
+    hint: 'Usunięte rekordy. Przywrócenie przywraca je wszędzie, także w historii działań.',
+    restore: 'Przywróć',
+    empty: 'Kosz jest pusty.',
+    deletedAt: 'Usunięto',
+    deletedBy: 'Kto usunął',
+    what: 'Co',
+    entity: { contacts: 'Osoba / instytucja', actions: 'Działanie', tasks: 'Zadanie', topics: 'Temat szkolenia' } as const
+  },
+  orgSettings: {
+    title: 'Ustawienia organizacji',
+    orgName: 'Nazwa organizacji',
+    profile: 'Profil',
+    modules: 'Moduły',
+    modulesHint: 'Wyłączenie modułu ukrywa go w menu. Dane zostają.',
+    soon: 'wkrótce',
+    alwaysOn: 'zawsze włączony',
+    applyProfile: 'Ustaw moduły jak w profilu',
+    roleNames: 'Nazwy ról',
+    roleNamesHint: 'Własne nazwy, np. „uczestnik” → „podopieczny”. Puste pole = nazwa domyślna.',
+    staleDays: 'Po ilu dniach bez kontaktu uczestnik „wymaga uwagi”',
+    save: 'Zapisz ustawienia',
+    saved: 'Zapisano.'
+  },
+  profiles: {
+    kgw: 'Koło Gospodyń Wiejskich',
+    donors: 'Organizacja z darczyńcami i zbiórkami',
+    projects: 'Organizacja projektowa',
+    custom: 'Własny (tylko osoby, resztę włączysz sam)'
+  } satisfies Record<Profile, string>,
+  modules: {
+    contacts: 'Osoby i instytucje',
+    actions: 'Działania i szkolenia',
+    tasks: 'Zadania',
+    projects: 'Projekty',
+    volunteers: 'Wolontariat',
+    members: 'Członkowie i składki',
+    donors: 'Darczyńcy i zbiórki',
+    media: 'Media i kampanie',
+    resources: 'Zasoby i rezerwacje',
+    calendar: 'Kalendarz',
+    knowledge: 'Materiały i wiedza'
+  } satisfies Record<ModuleId, string>,
   timeline: {
     title: 'Oś aktywności',
     addNote: 'Notatka',
@@ -326,6 +416,8 @@ export const pl = {
     exportHint:
       'Plik .ics zaimportujesz w Google Calendar (Ustawienia → Importuj i eksportuj) albo w Outlooku (Dodaj kalendarz → Przekaż z pliku). Ponowny import aktualizuje wpisy zamiast je dublować. W pliku są tylko tytuły, miejsca i liczba uczestników, bez danych osobowych.',
     exportName: (from: string) => `kalendarz_${from}.ics`,
+    exportSave: 'Pobierz plik .ics',
+    exportDone: 'Plik pobrany.',
     exportCount: (n: number) => `Wpisów w pliku: ${n}`,
     icsParticipants: (n: number) => `Uczestnicy: ${n}`,
     icsSession: (title: string, n: number, m: number) => (m > 1 ? `${title} — zajęcia ${n} z ${m}` : title),

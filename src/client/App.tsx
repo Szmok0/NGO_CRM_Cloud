@@ -1,9 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { Health } from '@shared/health'
-import { AppContext, type AppContextValue, type CreateKind, type Route, type SessionInfo } from './app/context'
+import { AppContext, type AppContextValue, type CreateKind, type CreatePreset, type Route, type SessionInfo } from './app/context'
 import { ActivityDialog } from './components/ActivityForm'
 import { TaskDialog } from './components/TaskDialog'
 import { TasksView } from './views/tasks/TasksView'
+import { CalendarView } from './views/calendar/CalendarView'
+import { TodayView } from './views/TodayView'
+import { TrashView } from './views/TrashView'
 import { ActionDetailView } from './views/actions/ActionDetail'
 import { ActionForm } from './views/actions/ActionForm'
 import { ActionsList } from './views/actions/ActionsList'
@@ -22,7 +25,6 @@ import { InviteScreen } from './screens/InviteScreen'
 import { LoginScreen } from './screens/LoginScreen'
 import { SettingsScreen } from './screens/SettingsScreen'
 import { SetupWizard } from './screens/SetupWizard'
-import { TodayScreen } from './screens/TodayScreen'
 import { TotpSetupScreen } from './screens/TotpSetupScreen'
 
 const toBase64Url = (bytes: Uint8Array) => toBase64(bytes).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
@@ -47,7 +49,7 @@ const loadSession = async (): Promise<SessionInfo> => {
 export function App() {
   const [view, setView] = useState<View>({ name: 'loading' })
   const [history, setHistory] = useState<Route[]>([{ name: 'today' }])
-  const [creating, setCreating] = useState<CreateKind | null>(null)
+  const [creating, setCreating] = useState<{ kind: CreateKind; preset: CreatePreset } | null>(null)
 
   /** Ustala widok na podstawie sesji; po pełnym logowaniu odblokowuje klucze, jeśli w tej karcie podano hasło. */
   const enter = useCallback(async (wrapKey: CryptoKey | null = null, notice?: string) => {
@@ -110,7 +112,7 @@ export function App() {
       roleLabel: (r) => session.settings.roleLabels[r] || pl.roles[r],
       moduleOn: (m) => session.settings.enabledModules.includes(m),
       canWrite: session.me.role !== 'readonly',
-      create: setCreating,
+      create: (kind, preset = {}) => setCreating({ kind, preset }),
       logout
     }
   }, [session, history, refreshSession, logout])
@@ -161,24 +163,19 @@ export function App() {
                 onSignedOut={toLogin}
               />
             ) : (
-              <RouteView route={ctx!.route} name={view.session.account.name} notice={view.notice} />
+              <RouteView route={ctx!.route} notice={view.notice} />
             )}
           </Layout>
-          {(creating === 'person' || creating === 'institution') && <ContactForm kind={creating} onClose={() => setCreating(null)} onSaved={(id) => ctx!.go({ name: 'contact', id })} />}
-          {creating === 'task' && <TaskDialog taskId={null} onClose={() => setCreating(null)} onSaved={() => ctx!.go({ name: 'tasks' })} />}
-          {creating === 'action' && <ActionForm onClose={() => setCreating(null)} onSaved={(id) => ctx!.go({ name: 'action', id })} />}
-          {(creating === 'note' || creating === 'contactEntry') && (
-            <ActivityDialog type={creating === 'note' ? 'note' : 'contact'} onClose={() => setCreating(null)} onSaved={(id) => ctx!.go({ name: 'contact', id })} />
-          )}
+          {creating && <CreateHost kind={creating.kind} preset={creating.preset} go={ctx!.go} onClose={() => setCreating(null)} />}
         </AppContext.Provider>
       )
   }
 }
 
-function RouteView({ route, name, notice }: { route: Exclude<Route, { name: 'settings' }>; name: string; notice?: string }) {
+function RouteView({ route, notice }: { route: Exclude<Route, { name: 'settings' }>; notice?: string }) {
   switch (route.name) {
     case 'today':
-      return <TodayScreen name={name} notice={notice} />
+      return <TodayView notice={notice} />
     case 'contacts':
       return <ContactsList />
     case 'contact':
@@ -193,5 +190,26 @@ function RouteView({ route, name, notice }: { route: Exclude<Route, { name: 'set
       return <TopicDetailView key={route.id} id={route.id} />
     case 'tasks':
       return <TasksView />
+    case 'calendar':
+      return <CalendarView key={`${route.date ?? ''}:${route.mode ?? ''}`} date={route.date} mode={route.mode} />
+    case 'trash':
+      return <TrashView />
+  }
+}
+
+/** Okno „+ Utwórz” (i skrótów z „Dziś” i kalendarza). Z podstawioną datą lub osobą zostajemy w bieżącym widoku (odświeża się sam). */
+function CreateHost({ kind, preset, go, onClose }: { kind: CreateKind; preset: CreatePreset; go: (r: Route) => void; onClose: () => void }) {
+  const stay = !!preset.date || !!preset.contact
+  switch (kind) {
+    case 'person':
+    case 'institution':
+      return <ContactForm kind={kind} onClose={onClose} onSaved={(id) => go({ name: 'contact', id })} />
+    case 'task':
+      return <TaskDialog taskId={null} defaults={{ dueDate: preset.date }} onClose={onClose} onSaved={() => !stay && go({ name: 'tasks' })} />
+    case 'action':
+      return <ActionForm defaults={{ startDate: preset.date }} onClose={onClose} onSaved={(id) => !stay && go({ name: 'action', id })} />
+    case 'note':
+    case 'contactEntry':
+      return <ActivityDialog type={kind === 'note' ? 'note' : 'contact'} contact={preset.contact} onClose={onClose} onSaved={(id) => !stay && go({ name: 'contact', id })} />
   }
 }
