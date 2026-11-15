@@ -159,11 +159,12 @@ export async function readBackup(file: Blob, opened: OpenedBackup, onFrame: (kin
         opened.key,
         body.subarray(BACKUP_IV_BYTES)
       )
-      await writer.write(new Uint8Array(plain))
+      // Gdy czytnik ramek rzuci błąd, zapis do strumienia nie może czekać w nieskończoność.
+      await Promise.race([writer.write(new Uint8Array(plain)), consume])
       off += 4 + len
       index++
     }
-    await writer.close()
+    await Promise.race([writer.close(), consume])
     await consume
   } catch (e) {
     writer.abort().catch(() => undefined)

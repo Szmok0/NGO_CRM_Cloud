@@ -2,7 +2,6 @@
 // Tylko na pustej bazie (kreator pierwszego uruchomienia). Klucz kopii dostajemy od przeglądarki wyłącznie na czas
 // odtwarzania (serwer i tak trzyma wszystkie te dane w bazie); nigdzie go nie zapisujemy.
 import { createDecipheriv, createHash, randomBytes } from 'node:crypto'
-import { once } from 'node:events'
 import { createWriteStream } from 'node:fs'
 import { mkdir, open, readFile, rename, rm } from 'node:fs/promises'
 import { join } from 'node:path'
@@ -190,7 +189,7 @@ export interface RestoreResult {
 const erasedListSchema = z.array(z.object({ contactId: z.uuid(), erasedAt: z.iso.datetime(), clearedActivityIds: z.array(z.string()), clearedTaskIds: z.array(z.string()) }))
 
 /** Łączy listę usunięć z pliku poza bazą (jeśli jest) z listą z kopii (D5). */
-async function mergeErasedList(db: Db, storageDir: string): Promise<void> {
+async function mergeErasedList(db: Pick<Db, 'insert'>, storageDir: string): Promise<void> {
   let list: z.output<typeof erasedListSchema>
   try {
     list = erasedListSchema.parse(JSON.parse(await readFile(join(storageRoot(storageDir), 'erased_contacts.json'), 'utf8')))
@@ -203,6 +202,19 @@ async function mergeErasedList(db: Db, storageDir: string): Promise<void> {
       .values({ contactId: e.contactId, erasedAt: new Date(e.erasedAt), clearedActivityIds: e.clearedActivityIds, clearedTaskIds: e.clearedTaskIds })
       .onDuplicateKeyUpdate({ set: { contactId: e.contactId } })
   }
+}
+
+/** Wraca do pustej bazy po nieudanym odtworzeniu (kolejność alfabetyczna, więc bez kluczy obcych na czas czyszczenia). */
+async function clearAllTables(db: Db): Promise<void> {
+  await db.transaction(async (tx) => {
+    await tx.execute(sql`SET FOREIGN_KEY_CHECKS = 0`)
+    try {
+      for (const t of backupTables()) await tx.delete(t)
+      await tx.delete(authSessions)
+    } finally {
+      await tx.execute(sql`SET FOREIGN_KEY_CHECKS = 1`)
+    }
+  })
 }
 
 /** Po odtworzeniu: czy sekrety 2FA z kopii da się odczytać obecnym APP_SECRET; jeśli nie, czyści 2FA (konta ustawią je od nowa). */
@@ -236,19 +248,30 @@ export async function restoreBackup(db: Db, opts: { path: string; key: Buffer; s
     const tables = new Map(backupTables().map((t) => [getTableConfig(t).name, t]))
     const counted: Record<string, number> = {}
     let manifest: BackupManifest | null = null
-    let file: { bytes: number; got: number; stream: ReturnType<typeof createWriteStream> } | null = null
+    let file: { bytes: number; got: number; stream: ReturnType<typeof createWriteStream>; err: Error | null } | null = null
     let files = 0
+    let fileBytes = 0
     let filesMissingCount = 0
     const live = { persons: 0, institutions: 0, actions: 0, documents: 0 }
 
+    /** Czeka na zdarzenie strumienia; błąd zapisu (brak miejsca, uprawnienia) kończy się wyjątkiem zamiast zawieszenia. */
+    const waitFor = (f: NonNullable<typeof file>, ev: 'drain' | 'finish') =>
+      new Promise<void>((resolve, reject) => {
+        if (f.err) return reject(f.err)
+        const ok = () => (f.stream.off('error', bad), resolve())
+        const bad = (e: Error) => (f.stream.off(ev, ok), reject(e))
+        f.stream.once(ev, ok)
+        f.stream.once('error', bad)
+      })
     const closeFile = async () => {
       if (!file) return
       const f = file
       file = null
       f.stream.end()
-      await once(f.stream, 'finish')
+      await waitFor(f, 'finish')
       if (f.got !== f.bytes) throw new AppError('VALIDATION', CORRUPT)
       files++
+      fileBytes += f.got
     }
 
     await db.transaction(async (tx) => {
@@ -275,11 +298,14 @@ export async function restoreBackup(db: Db, opts: { path: string; key: Buffer; s
             const m = JSON.parse(data.toString('utf8')) as { name: string; bytes: number }
             if (!STORAGE_KEY.test(m.name)) throw new AppError('VALIDATION', CORRUPT)
             staged.push(m.name)
-            file = { bytes: m.bytes, got: 0, stream: createWriteStream(join(staging, m.name), { flags: 'wx', mode: 0o600 }) }
+            const f = { bytes: m.bytes, got: 0, stream: createWriteStream(join(staging, m.name), { flags: 'wx', mode: 0o600 }), err: null as Error | null }
+            f.stream.on('error', (e) => (f.err = e)) // stały nasłuch: błąd między oczekiwaniami nie może położyć procesu
+            file = f
           } else if (kind === FRAME_FILE_DATA) {
             if (!file) throw new AppError('VALIDATION', CORRUPT)
+            if (file.err) throw file.err
             file.got += data.length
-            if (!file.stream.write(data)) await once(file.stream, 'drain')
+            if (!file.stream.write(data)) await waitFor(file, 'drain')
           } else if (kind === FRAME_MANIFEST) {
             await closeFile()
             manifest = JSON.parse(data.toString('utf8')) as BackupManifest
@@ -288,28 +314,38 @@ export async function restoreBackup(db: Db, opts: { path: string; key: Buffer; s
         const m = manifest as BackupManifest | null
         if (!m) throw new AppError('VALIDATION', CORRUPT)
         for (const [t, n] of Object.entries(m.tables)) if ((counted[t] ?? 0) !== n) throw new AppError('VALIDATION', CORRUPT)
-        if (files !== m.files) throw new AppError('VALIDATION', CORRUPT)
+        if (Object.keys(counted).some((t) => !(t in m.tables))) throw new AppError('VALIDATION', CORRUPT)
+        if (files !== m.files || fileBytes !== m.fileBytes) throw new AppError('VALIDATION', CORRUPT)
         filesMissingCount = m.filesMissing
+        // D5 w tej samej transakcji: lista usunięć z pliku poza bazą dołączona do listy z kopii, albo nic.
+        await mergeErasedList(tx, opts.storageDir)
       } finally {
         await closeFile().catch(() => undefined)
         await tx.execute(sql`SET FOREIGN_KEY_CHECKS = 1`)
       }
     })
 
-    // Baza zatwierdzona: pliki na miejsce, sesje (w kopii ich nie ma, ale na wszelki wypadek) precz.
+    // Baza zatwierdzona. Każdy dalszy błąd cofa całość (baza znów pusta, pliki z kopii usunięte), żeby kreator
+    // dało się uruchomić ponownie, a anonimizowane osoby nie zostały z danymi po półudanym odtworzeniu.
     const attachmentsDir = join(storageRoot(opts.storageDir), 'attachments')
-    await mkdir(attachmentsDir, { recursive: true })
-    for (const name of staged) await rename(join(staging, name), join(attachmentsDir, name))
-    await db.delete(authSessions)
-
-    // D5: usunięcia z anonimizacji przeżywają odtworzenie.
-    await mergeErasedList(db, opts.storageDir)
-    const erasuresApplied = await applyErasures(db, opts.storageDir)
-    await writeErasedList(db, opts.storageDir).catch(() => undefined)
-
-    const twoFaReset = await resetTwoFaIfUnreadable(db, opts.appSecret)
-    await logAccess(db, null, 'backup_restore', opts.now, undefined, 'backup')
-    return { ...live, files, filesMissing: filesMissingCount, erasuresApplied, twoFaReset }
+    const moved: string[] = []
+    try {
+      await mkdir(attachmentsDir, { recursive: true })
+      for (const name of staged) {
+        await rename(join(staging, name), join(attachmentsDir, name))
+        moved.push(name)
+      }
+      await db.delete(authSessions)
+      const erasuresApplied = await applyErasures(db, opts.storageDir) // D5: usunięcia z anonimizacji przeżywają odtworzenie
+      await writeErasedList(db, opts.storageDir).catch(() => undefined)
+      const twoFaReset = await resetTwoFaIfUnreadable(db, opts.appSecret)
+      await logAccess(db, null, 'backup_restore', opts.now, undefined, 'backup')
+      return { ...live, files, filesMissing: filesMissingCount, erasuresApplied, twoFaReset }
+    } catch (e) {
+      await clearAllTables(db).catch(() => undefined)
+      for (const name of moved) await rm(join(attachmentsDir, name), { force: true }).catch(() => undefined)
+      throw e
+    }
   } finally {
     await rm(staging, { recursive: true, force: true })
   }

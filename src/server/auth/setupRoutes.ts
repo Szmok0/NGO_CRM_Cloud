@@ -94,18 +94,28 @@ function registerRestoreRoutes(app: FastifyInstance, db: Db, opts: AuthOptions, 
   }
   const partPath = (id: string) => join(restoreDir(storageDir()), `${id}.part`)
   let restoring = false
+  /** Jedyny wydany przez `begin` identyfikator wysyłki (pamięć procesu): obce i stare identyfikatory są odrzucane. */
+  let active: string | null = null
+  const requireActive = (id: string) => {
+    if (restoring) throw new AppError('VALIDATION', 'Odtwarzanie już trwa.')
+    if (id !== active) throw new AppError('VALIDATION', 'Ta wysyłka wygasła albo nie została rozpoczęta. Zacznij odtwarzanie od nowa.')
+  }
 
   postRoute(app, '/api/setup/restore/begin', 'setup.restore.begin', async (req): Promise<SetupRestoreBeginResult> => {
     const { token } = setupRestoreBeginInput.parse(req.body)
     await requireToken(req, token)
+    if (restoring) throw new AppError('VALIDATION', 'Odtwarzanie już trwa.')
     const dir = restoreDir(storageDir())
     await assertDatabaseEmpty(db)
     await mkdir(dir, { recursive: true })
+    // poprzednia, niedokończona wysyłka i stare pliki robocze znikają (jedna wysyłka naraz: dysk nie rośnie bez końca)
+    if (active) await rm(partPath(active), { force: true })
     for (const name of await readdir(dir)) {
       const info = await stat(join(dir, name)).catch(() => null)
       if (info && now().getTime() - info.mtimeMs > STALE_UPLOAD_MS) await rm(join(dir, name), { recursive: true, force: true })
     }
-    return { uploadId: randomBytes(16).toString('hex') }
+    active = randomBytes(16).toString('hex')
+    return { uploadId: active }
   })
 
   // Osobny zakres: surowe bajty tylko dla tej trasy (reszta kreatora przyjmuje JSON).
@@ -116,6 +126,7 @@ function registerRestoreRoutes(app: FastifyInstance, db: Db, opts: AuthOptions, 
         const h = uploadChunkHeaders.safeParse(req.headers)
         if (!h.success) throw new AppError('VALIDATION', 'Nieprawidłowy kawałek pliku kopii')
         await requireToken(req, h.data['x-setup-token'])
+        requireActive(h.data['x-upload-id'])
         const path = partPath(h.data['x-upload-id'])
         const size = (await stat(path).catch(() => null))?.size ?? 0
         if (h.data['x-offset'] !== size) throw new AppError('VALIDATION', 'Kawałki pliku przyszły w złej kolejności. Zacznij odtwarzanie od nowa.')
@@ -145,7 +156,7 @@ function registerRestoreRoutes(app: FastifyInstance, db: Db, opts: AuthOptions, 
     const input = setupRestoreFinishInput.parse(req.body)
     await requireToken(req, input.token)
     const dir = storageDir()
-    if (restoring) throw new AppError('VALIDATION', 'Odtwarzanie już trwa.')
+    requireActive(input.uploadId)
     restoring = true
     const path = partPath(input.uploadId)
     try {
@@ -162,6 +173,7 @@ function registerRestoreRoutes(app: FastifyInstance, db: Db, opts: AuthOptions, 
       }
     } finally {
       restoring = false
+      active = null
       await rm(path, { force: true })
     }
   })

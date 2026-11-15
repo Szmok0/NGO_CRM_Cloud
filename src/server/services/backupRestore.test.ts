@@ -259,11 +259,54 @@ describe('odmowy', () => {
     await app.close()
   })
 
+  it('kopia wielosegmentowa uszkodzona na końcu: transakcja się wycofuje, baza pusta, dysk czysty', async () => {
+    const s = await makeScenario()
+    // trzy duże, słabo kompresowalne załączniki: kilka segmentów po 4 MB
+    const at = new Date()
+    for (let i = 0; i < 3; i++) {
+      const storageKey = randomBytes(16).toString('hex')
+      await writeFile(join(dir, 'attachments', storageKey), randomBytes(3_000_000))
+      await db.insert(attachments).values({ id: randomUUID(), createdAt: at, updatedAt: at, updatedBy: s.adminId, version: 1, targetType: 'contact', targetId: s.personA, purpose: 'document', keyVersion: 1, metaEnc: 'bQ==', sizeBytes: 3_000_000, storageKey })
+    }
+    const { id, done } = await startBackup(db, { storageDir: dir, kind: 'manual', userId: null, now: new Date(Date.now() + 1000) })
+    await done
+    const big = await readFile(backupFilePath(dir, id))
+    const key = toBase64(await crypto.subtle.exportKey('raw', (await openBackup(new Blob([new Uint8Array(big)]), s.email, PASSWORD, true)).key))
+    await wipeEverything()
+    await rm(join(dir, 'attachments'), { recursive: true, force: true })
+    const app = makeApp()
+    const broken = big.subarray(0, big.length - 50) // obcięty koniec: błąd dopiero na ostatnim segmencie, po wgraniu tabel i części plików
+    expect(await restoreOverHttp(app, broken, key, 1_000_000)).toMatchObject({ ok: false, code: 'VALIDATION' })
+    expect(await count(users)).toBe(0)
+    expect(await count(contacts)).toBe(0)
+    expect(await count(attachments)).toBe(0)
+    expect(await readdir(restoreDir(dir))).toEqual([])
+    expect(await readdir(join(dir, 'attachments')).catch(() => [])).toEqual([])
+    // po nieudanej próbie można spróbować z dobrym plikiem
+    expect(await restoreOverHttp(app, big, key, 1_000_000)).toMatchObject({ ok: true, data: { documents: 4 } })
+    await app.close()
+  })
+
+  it('błąd po zatwierdzeniu bazy (nie da się przenieść plików): wszystko wycofane, kreator znów dostępny', async () => {
+    const s = await makeScenario()
+    await wipeEverything()
+    await rm(join(dir, 'attachments'), { recursive: true, force: true })
+    await writeFile(join(dir, 'attachments'), 'to jest plik, nie folder') // mkdir folderu załączników się nie uda
+    const app = makeApp()
+    expect(await restoreOverHttp(app, s.file, s.key)).toMatchObject({ ok: false })
+    expect(await count(users)).toBe(0)
+    expect(await count(contacts)).toBe(0)
+    expect(await post(app, '/api/setup/status', {})).toMatchObject({ ok: true, data: { state: 'available' } })
+    await app.close()
+  })
+
   it('kawałki w złej kolejności i zły token są odrzucane', async () => {
     const app = makeApp()
     const begin = await post(app, '/api/setup/restore/begin', { token: TOKEN })
     const send = (token: string, offset: number) =>
       app.inject({ method: 'POST', url: '/api/setup/restore/chunk', headers: { ...headers, 'content-type': 'application/octet-stream', 'x-setup-token': token, 'x-upload-id': begin.data.uploadId, 'x-offset': String(offset) }, payload: Buffer.from('abc') })
+    const stranger = await app.inject({ method: 'POST', url: '/api/setup/restore/chunk', headers: { ...headers, 'content-type': 'application/octet-stream', 'x-setup-token': TOKEN, 'x-upload-id': 'a'.repeat(32), 'x-offset': '0' }, payload: Buffer.from('abc') })
+    expect(stranger.json()).toMatchObject({ ok: false, code: 'VALIDATION' }) // identyfikator nie wydany przez begin
     expect((await send(TOKEN, 5)).json()).toMatchObject({ ok: false, code: 'VALIDATION' })
     expect((await send('zly-token', 0)).json()).toMatchObject({ ok: false, code: 'SETUP_TOKEN_INVALID' })
     expect((await send(TOKEN, 0)).json()).toMatchObject({ ok: true })
