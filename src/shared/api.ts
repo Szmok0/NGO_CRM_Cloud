@@ -8,6 +8,7 @@ import type { RoleLabels } from './domain'
 import type * as T from './types'
 import { PROFILES, type ModuleId, type Profile } from './modules'
 import type { CalendarData } from './calendar'
+import { ACTION_COLUMNS, CONTACT_COLUMNS, PARTICIPANT_COLUMNS } from './exportLabels'
 
 export const ROLES = ['admin', 'staff', 'readonly'] as const
 export type Role = (typeof ROLES)[number]
@@ -109,6 +110,24 @@ const taskFields = {
   targetId: uuid.nullish().or(z.literal('')).transform((v) => (v ? v : null)),
   description: opt
 }
+/** Filtry list (wspólne dla widoku i eksportu CSV). */
+const contactFilter = {
+  kind: z.enum(['person', 'institution', 'all']).default('all'),
+  role: z.enum(d.ROLES).nullish(),
+  tag: z.string().max(60).nullish(),
+  q: z.string().max(200).nullish()
+}
+const actionFilter = {
+  type: z.enum(d.ACTION_TYPES).nullish(),
+  status: z.enum(d.ACTION_STATUSES).nullish(),
+  framework: z.enum(d.FRAMEWORKS).nullish(),
+  from: day.nullish(),
+  to: day.nullish(),
+  q: z.string().max(200).nullish()
+}
+const columns = <T extends readonly [string, ...string[]]>(all: T) => z.array(z.enum(all)).min(1).max(all.length)
+/** Filtry dziennika dostępu (D7): użytkownik, rodzaj zdarzenia, zakres dat (dni w Europe/Warsaw, włącznie). */
+const accessLogFilter = { userId: uuid.nullish(), action: z.string().max(32).nullish(), from: day.nullish(), to: day.nullish() }
 const sessionFields = { date: day, startTime: optTime, endTime: optTime, leaderContactId: uuid.nullish().or(z.literal('')).transform((v) => (v ? v : null)), note: opt }
 
 export const apiMethods = {
@@ -206,17 +225,7 @@ export const apiMethods = {
   'settings.get': { input: none, roles: ALL },
 
   // --- osoby i instytucje (ZADANIE_02, krok 2) ---
-  'contacts.list': {
-    input: z
-      .object({
-        kind: z.enum(['person', 'institution', 'all']).default('all'),
-        role: z.enum(d.ROLES).nullish(),
-        tag: z.string().max(60).nullish(),
-        q: z.string().max(200).nullish()
-      })
-      .default({ kind: 'all' }),
-    roles: ALL
-  },
+  'contacts.list': { input: z.object(contactFilter).default({ kind: 'all' }), roles: ALL },
   'contacts.tags': { input: none, roles: ALL },
   'contacts.get': { input: z.object({ id: uuid }), roles: ALL },
   /** Szyfrogram danych wrażliwych osoby; tylko ze slotem do jego wersji klucza, wpis `reveal_sensitive` (D3, D6). */
@@ -263,6 +272,30 @@ export const apiMethods = {
     }),
     roles: ADMIN
   },
+  /**
+   * Eksport danych osoby (D13, art. 15 RODO): wszystko, co serwer wie o osobie (bez szyfrogramu danych wrażliwych; dokłada je przeglądarka
+   * po `sensitive.reveal`). Tylko osoba niezanonimizowana. Wpis `export` w dzienniku dostępu.
+   */
+  'contacts.exportData': { input: z.object({ id: uuid }), roles: WRITE },
+  /**
+   * Plik CSV listy (D14): rodzaj listy, filtry jak w widoku i wybrane kolumny. Bez danych wrażliwych. Wpis `export` w dzienniku dostępu
+   * (rodzaj listy, bez filtrów). `readonly` nie eksportuje.
+   */
+  'exports.csv': {
+    input: z.discriminatedUnion('list', [
+      z.object({ list: z.literal('contacts'), ...contactFilter, columns: columns(CONTACT_COLUMNS) }),
+      z.object({ list: z.literal('actions'), ...actionFilter, columns: columns(ACTION_COLUMNS) }),
+      z.object({ list: z.literal('participants'), actionId: uuid, columns: columns(PARTICIPANT_COLUMNS) })
+    ]),
+    roles: WRITE
+  },
+  /** Dziennik dostępu (D7), od najnowszych; `hasMore` = są starsze wpisy (kolejna strona: `offset`). Tylko administrator. */
+  'accessLog.list': {
+    input: z.object({ ...accessLogFilter, limit: z.number().int().min(1).max(500).default(100), offset: z.number().int().min(0).max(1_000_000).default(0) }).default({ limit: 100, offset: 0 }),
+    roles: ADMIN
+  },
+  /** Dziennik dostępu jako CSV na potrzeby incydentu (do 50 000 wpisów); sam eksport trafia do dziennika. Tylko administrator. */
+  'accessLog.exportCsv': { input: z.object(accessLogFilter).default({}), roles: ADMIN },
   'roles.add': { input: z.object({ contactId: uuid, role: z.enum(d.ROLES), since: optDay, note: opt }), roles: WRITE },
   'roles.end': { input: z.object({ id: uuid, version, until: day }), roles: WRITE },
   'roles.delete': { input: ref, roles: WRITE },
@@ -305,19 +338,7 @@ export const apiMethods = {
   'topics.create': { input: z.object(topicFields), roles: WRITE },
   'topics.update': { input: z.object({ id: uuid, version, ...topicFields }), roles: WRITE },
   'topics.delete': { input: ref, roles: WRITE },
-  'actions.list': {
-    input: z
-      .object({
-        type: z.enum(d.ACTION_TYPES).nullish(),
-        status: z.enum(d.ACTION_STATUSES).nullish(),
-        framework: z.enum(d.FRAMEWORKS).nullish(),
-        from: day.nullish(),
-        to: day.nullish(),
-        q: z.string().max(200).nullish()
-      })
-      .default({}),
-    roles: ALL
-  },
+  'actions.list': { input: z.object(actionFilter).default({}), roles: ALL },
   'actions.get': { input: z.object({ id: uuid }), roles: ALL },
   'actions.create': { input: z.object(actionFields), roles: WRITE },
   /** Zmiana statusu dopisuje wpis systemowy na osi działania. */
@@ -454,6 +475,29 @@ export interface AnonymizeTaskItem {
   description: string | null
   deleted: boolean
 }
+/** Eksport danych osoby (D13): to, co zna serwer; metadane załączników zaszyfrowane (nazwy odczyta przeglądarka kluczem). */
+export interface PersonExport {
+  exportedAt: string
+  detail: T.ContactDetail
+  attachments: T.Attachment[]
+}
+/** Plik CSV zbudowany przez serwer (bez BOM: dokleja go zapis pliku w przeglądarce). */
+export interface CsvExport {
+  filename: string
+  csv: string
+  rows: number
+}
+/** Wpis dziennika dostępu z dociągniętymi nazwami (w bazie są same identyfikatory). Pusta nazwa osoby = osoba zanonimizowana. */
+export interface AccessLogEntry {
+  id: string
+  at: string
+  userId: string | null
+  userName: string | null
+  action: string
+  targetType: string | null
+  targetId: string | null
+  targetLabel: string | null
+}
 /** Podgląd anonimizacji osoby (D12). */
 export interface AnonymizePreview {
   /** Wersja kontaktu do przekazania w `contacts.anonymize`. */
@@ -529,6 +573,10 @@ export interface ApiOutputs {
   'contacts.create': { id: string }
   'contacts.update': void
   'contacts.delete': void
+  'contacts.exportData': PersonExport
+  'exports.csv': CsvExport
+  'accessLog.list': { rows: AccessLogEntry[]; hasMore: boolean }
+  'accessLog.exportCsv': CsvExport
   'contacts.anonymizePreview': AnonymizePreview
   'contacts.anonymize': void
   'roles.add': void

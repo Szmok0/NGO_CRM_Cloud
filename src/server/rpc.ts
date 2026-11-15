@@ -21,6 +21,8 @@ import * as contacts from './services/contacts'
 import * as sensitive from './services/sensitive'
 import * as attachmentsSvc from './services/attachments'
 import * as anonymizeSvc from './services/anonymize'
+import * as exportsSvc from './services/exports'
+import * as accessLogView from './services/accessLogView'
 import * as tasks from './services/tasks'
 import type { Actor } from './services/common'
 import { SESSION_COOKIE, clearSessionCookie, createSession, revokeAllSessions, revokeSession, setSessionCookie } from './auth/sessions'
@@ -139,6 +141,10 @@ const handlers: Handlers = {
   'contacts.delete': (p, ctx) => contacts.deleteContact(ctx.db, p, actor(ctx)),
   'contacts.anonymizePreview': (p, { db }) => anonymizeSvc.anonymizePreview(db, p),
   'contacts.anonymize': (p, ctx) => anonymizeSvc.anonymizeContact(ctx.db, p, actor(ctx), ctx.auth?.storageDir),
+  'contacts.exportData': (p, ctx) => exportsSvc.exportPerson(ctx.db, p, actor(ctx)),
+  'exports.csv': (p, ctx) => exportsSvc.exportCsv(ctx.db, p, actor(ctx)),
+  'accessLog.list': (p, { db }) => accessLogView.listAccessLog(db, p),
+  'accessLog.exportCsv': (p, ctx) => accessLogView.exportAccessLog(ctx.db, p, actor(ctx)),
   'roles.add': (p, ctx) => contacts.addRole(ctx.db, p, actor(ctx)),
   'roles.end': (p, ctx) => contacts.endRole(ctx.db, p, actor(ctx)),
   'roles.delete': (p, ctx) => contacts.deleteRole(ctx.db, p, actor(ctx)),

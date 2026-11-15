@@ -21,6 +21,17 @@ const WARSAW_DAY = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Warsaw',
 /** Data w Polsce (Europe/Warsaw) jako RRRR-MM-DD. */
 export const today = (now: Date = new Date()): string => WARSAW_DAY.format(now)
 
+/** Początek dnia (RRRR-MM-DD) w Europe/Warsaw jako chwila UTC: polska północ to 22:00 albo 23:00 UTC dnia poprzedniego. */
+export function dayStart(day: string): Date {
+  const [y, m, d] = day.split('-').map(Number) as [number, number, number]
+  const utc = Date.UTC(y, m - 1, d)
+  for (const hours of [2, 1]) {
+    const t = new Date(utc - hours * 3_600_000)
+    if (WARSAW_DAY.format(t) === day && WARSAW_DAY.format(new Date(t.getTime() - 1)) !== day) return t
+  }
+  return new Date(utc - 3_600_000)
+}
+
 const iso = (d: Date | null): string | null => (d ? d.toISOString() : null)
 
 /** Pola techniczne wiersza bazy → postać dla klienta (ISO 8601). */

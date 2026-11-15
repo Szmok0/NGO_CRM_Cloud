@@ -24,10 +24,14 @@ export type AccessAction =
   | 'reveal_sensitive'
   | 'download_attachment'
   | 'anonymize'
+  | 'export'
+
+export type AccessTargetType = 'user' | 'contact' | 'attachment' | 'contacts_list' | 'actions_list' | 'participants_list' | 'access_log'
 
 /**
  * `userId` = null: nieudane logowanie na nieznany e-mail. `targetId`: konto, którego dotyczy działanie administratora
- * (`targetType` 'user'), albo osoba (`targetType` 'contact'), albo załącznik (`targetType` 'attachment'). `db` może być transakcją.
+ * (`targetType` 'user', domyślnie), albo osoba (`contact`), załącznik (`attachment`), działanie (`participants_list`).
+ * Eksport listy bez `targetId` zapisuje samo `targetType` (rodzaj listy, bez filtrów). `db` może być transakcją.
  */
 export async function logAccess(
   db: Pick<Db, 'insert'>,
@@ -35,7 +39,9 @@ export async function logAccess(
   action: AccessAction,
   at = new Date(),
   targetId?: string,
-  targetType: 'user' | 'contact' | 'attachment' = 'user'
+  targetType?: AccessTargetType
 ) {
-  await db.insert(accessLog).values({ id: randomUUID(), userId, action, at, targetType: targetId ? targetType : null, targetId: targetId ?? null })
+  await db
+    .insert(accessLog)
+    .values({ id: randomUUID(), userId, action, at, targetType: targetType ?? (targetId ? 'user' : null), targetId: targetId ?? null })
 }
