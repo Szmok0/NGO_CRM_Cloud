@@ -309,7 +309,7 @@ Nie aktualizuj Sejfu bez zgody MOC.
 9. Import `.ics` do Google/Outlooka — **do zrobienia przez MOC** (treść pliku sprawdzona).
 10. Kosz z przywracaniem — spełnione.
 11. `readonly` widzi, nie zapisuje; pracownik bez ustawień organizacji — spełnione (scenariusz, test uprawnień).
-12. Na Hostingerze po HTTPS, konsola bez błędów CSP, logi bez danych osobowych — po wdrożeniu kroku 7 (poniżej).
+12. Na Hostingerze: wdrożone 2026-11-15 (commit `c746909`), `/api/health` → `ok`, 10 migracji, HTTPS; nagłówki bezpieczeństwa obecne; serwowany ten sam pakiet klienta co lokalny build — spełnione po stronie serwera; **przeklikanie ekranów na produkcji i podgląd logów w panelu do zrobienia przez MOC** (nie mam konta na instancji próbnej).
 13. 1024 px: menu zwinięte, nic poza ekranem — spełnione; UI po polsku, obsługa z klawiatury — jak w desktopie (nieprzeklikane w całości).
 14. Commit i push — na bieżąco.
 
