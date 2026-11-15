@@ -18,7 +18,7 @@ Najważniejsze zasady:
 Co przygotować:
 1. Konto w Hostingerze z planem, który pozwala na aplikację Node.js i bazę MySQL (np. plan Business; sprawdź w ofercie Hostingera).
 2. Własną domenę (albo adres tymczasowy, który daje Hostinger).
-3. Konto na GitHubie (darmowe) i adres repozytorium programu (poda go autor programu albo znajdziesz go w pliku README).
+3. Konto na GitHubie (darmowe) i dostęp do kodu programu: autor programu przekaże Wam go (dostęp do repozytorium albo paczkę z kodem). Sposób przekazywania kodu i aktualizacji nie jest jeszcze ostatecznie ustalony (program jest w wersji beta); jeśli kod dostaniecie inaczej niż przez repozytorium GitHuba, części 1, 3 i 8 trzeba będzie dostosować.
 4. Drukarkę (albo kartkę i długopis) na klucz odzyskiwania.
 5. Telefon z aplikacją do kodów 2FA (np. Google Authenticator, Microsoft Authenticator, FreeOTP).
 6. Menedżer haseł albo bezpieczne miejsce na zapisanie kilku haseł (hasło do bazy, `APP_SECRET`).
